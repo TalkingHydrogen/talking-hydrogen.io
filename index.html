@@ -67,69 +67,68 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            pointer-events: none; /* Pass clicks through the empty areas */
+            pointer-events: none; /* Let clicks pass through the empty header space */
             z-index: 10;
         }
 
-        .header-inner {
+        .header-content {
             position: relative;
-            pointer-events: auto;
-            /* Container for positioning relative elements */
-        }
-
-        .text {
+            pointer-events: auto; /* Re-enable clicks for the button/text */
+            color: #8e8e93;
             font-size: 14px;
             letter-spacing: -0.011em;
-            color: #8e8e93;
-            text-align: center;
         }
 
         .ghost {
             visibility: hidden;
         }
 
-        .paper-btn {
+        /* The "Material" Button */
+        .home-btn {
             position: absolute;
-            right: 100%; /* Push to the left of the text container */
+            right: 100%; /* Position to the left of the content */
             top: 50%;
             transform: translateY(-50%);
-            margin-right: 40px; /* Space between button and text */
+            margin-right: 40px; /* Spacing from the text */
             
-            width: 12px;
-            height: 12px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            background-color: #ffffff;
+            background-color: #ffffff; /* Same as body, "no paint" */
             
-            /* The "Material" Effect: White on White, defined by shadow */
-            /* Light top-left, shadow bottom-right */
+            /* The Form: defined purely by shadow. 
+               Since bg is pure white, we rely on the drop shadow. */
             box-shadow: 
-                2px 2px 5px rgba(0,0,0,0.08),  /* Drop shadow */
-                -1px -1px 2px rgba(255,255,255,1); /* Highlight (subtle) */
+                6px 6px 12px rgba(0,0,0,0.08), 
+                -4px -4px 12px rgba(255,255,255,1); /* (Theoretical highlight) */
             
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             cursor: pointer;
             text-decoration: none;
-            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            opacity: 0.8; /* Slight optical blend */
         }
 
-        .paper-btn:hover {
+        /* Interaction: It lifts slightly on hover */
+        .home-btn:hover {
             box-shadow: 
-                3px 3px 8px rgba(0,0,0,0.12),
-                -1px -1px 2px rgba(255,255,255,1);
+                8px 8px 16px rgba(0,0,0,0.12), 
+                -4px -4px 12px rgba(255,255,255,1);
             transform: translateY(-50%) scale(1.05);
         }
 
-        .paper-btn:active {
+        /* Interaction: It presses in on click */
+        .home-btn:active {
             box-shadow: 
-                1px 1px 2px rgba(0,0,0,0.08);
+                2px 2px 5px rgba(0,0,0,0.1);
             transform: translateY(-50%) scale(0.95);
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="header-inner">
-            <a href="/" class="paper-btn" aria-label="Home"></a>
-            <span class="text">v<span class="ghost">iktor </span>d<span class="ghost">une</span></span>
+        <div class="header-content">
+            <a href="/" class="home-btn" aria-label="Home"></a>
+            v<span class="ghost">iktor </span>d<span class="ghost">une</span>
         </div>
     </div>
 
