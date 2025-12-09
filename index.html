@@ -8,34 +8,57 @@
         html, body {
             height: 100%;
             margin: 0;
+            overflow: hidden; /* Lock viewport to frame the artwork */
         }
 
         body {
             background-color: #ffffff;
-            /* Using a grey that approximates the Apple logo (approx #8e8e93 or #999999) */
+            /* Apple "Space Grey" / Neutral Grey */
             color: #8e8e93; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            /* SF Pro with fallbacks */
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 18px;
-            font-weight: 300;
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         .wall {
-            max-width: 600px;
-            padding: 40px;
-            /* Centering the block, but text alignment can be left or justify. 
-               "Just a wall of text" usually looks best left-aligned or justified in a column. 
-               I will default to left aligned for readability, as center aligned walls are hard to read. */
-            text-align: left; 
+            /* The Literal Square */
+            width: 500px;
+            height: 500px;
+            
+            /* InDesign-level Text Obsession */
+            text-align: justify; /* Force edges to align */
+            text-justify: inter-character; /* Better distribution if browser supports it */
+            hyphens: auto; /* Clean line breaks */
+            -webkit-hyphens: auto;
+            
+            /* Typography Micro-adjustments */
+            font-size: 14px; /* Adjusted to fill the square densely */
+            line-height: 1.5; /* Breathable but cohesive */
+            letter-spacing: -0.011em; /* Slight tightening for SF Pro look */
+            
+            /* Rendering Quality */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-variant-ligatures: common-ligatures;
+            font-kerning: normal;
+
+            /* Interaction */
+            overflow: hidden; /* Crop neatly if text overflows */
+            cursor: default;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 1em;
         }
         
-        /* Optional: hide scrollbar if we want a pure 'art' feel, but for a blog we need scrolling if text is long. 
-           I'll leave scrolling enabled. */
+        /* Optical balance: remove margin from last paragraph to fit square */
+        p:last-child {
+            margin-bottom: 0;
+        }
     </style>
 </head>
 <body>
@@ -51,6 +74,9 @@
         </p>
         <p>
             Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
+        </p>
+        <p>
+            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.
         </p>
     </div>
 </body>
