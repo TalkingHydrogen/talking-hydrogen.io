@@ -18,36 +18,8 @@
             /* SF Pro with fallbacks */
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
-            flex-direction: column; /* Stack header and wall vertically */
             justify-content: center;
             align-items: center;
-        }
-
-        .header {
-            width: 500px; /* Match the wall width for perfect alignment */
-            margin-bottom: 60px; /* Generous breathing room */
-            font-size: 14px;
-            font-weight: 600; /* Slightly bolder to anchor it */
-            letter-spacing: 0.05em; /* Tracking out slightly */
-            text-transform: lowercase; /* Bauhaus/Modernist convention */
-            color: #8e8e93;
-            text-align: center; /* Center relative to the 500px width */
-            
-            /* Ensure the V and D are clearly legible while space remains */
-            display: flex;
-            justify-content: center; 
-            gap: 2px; /* Micro-control over character spacing */
-        }
-        
-        .char {
-            display: inline-block;
-            width: 1ch; /* Fixed width per character for consistent rhythm */
-            text-align: center;
-        }
-
-        .invisible {
-            opacity: 0; /* Keeps the space, hides the ink */
-            user-select: none; /* Can't highlight the emptiness */
         }
 
         .wall {
@@ -87,21 +59,26 @@
         p:last-child {
             margin-bottom: 0;
         }
+
+        .header {
+            position: fixed;
+            top: 60px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            letter-spacing: -0.011em;
+            color: #8e8e93;
+            z-index: 10;
+        }
+
+        .ghost {
+            visibility: hidden;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <span class="char">v</span>
-        <span class="char invisible">i</span>
-        <span class="char invisible">k</span>
-        <span class="char invisible">t</span>
-        <span class="char invisible">o</span>
-        <span class="char invisible">r</span>
-        <span class="char invisible">&nbsp;</span>
-        <span class="char">d</span>
-        <span class="char invisible">u</span>
-        <span class="char invisible">n</span>
-        <span class="char invisible">e</span>
+        v<span class="ghost">iktor </span>d<span class="ghost">une</span>
     </div>
 
     <div class="wall">
