@@ -64,21 +64,82 @@
             position: fixed;
             top: 60px;
             width: 100%;
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .header-content {
+            position: relative;
+            /* Ensure the container doesn't take up width that shifts the center */
+            width: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .logo {
             font-size: 14px;
             letter-spacing: -0.011em;
             color: #8e8e93;
-            z-index: 10;
         }
 
         .ghost {
             visibility: hidden;
         }
+
+        .tactile-button {
+            position: absolute;
+            right: 100%; /* Push to the left of the zero-width center */
+            margin-right: 60px; /* Spacing from the text */
+            
+            /* The Material Form */
+            width: 32px;
+            height: 32px;
+            background-color: #ffffff;
+            /* Subtle drop shadow to lift the square (Light from Top-Left) */
+            box-shadow: 4px 4px 10px rgba(0,0,0,0.05); 
+            border-radius: 1px; /* Sharp but paper-like */
+            
+            /* Centering the inner circle */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            cursor: pointer;
+            text-decoration: none;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .tactile-button:hover {
+            box-shadow: 6px 6px 15px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+
+        .tactile-button:active {
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+            transform: translateY(0);
+        }
+
+        .tactile-button::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            /* Inner shadow to create the debossed (pressed in) circle */
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        v<span class="ghost">iktor </span>d<span class="ghost">une</span>
+        <div class="header-content">
+            <a href="/" class="tactile-button" aria-label="Home"></a>
+            <span class="logo">v<span class="ghost">iktor </span>d<span class="ghost">une</span></span>
+        </div>
     </div>
 
     <div class="wall">
