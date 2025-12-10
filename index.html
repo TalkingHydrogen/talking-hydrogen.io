@@ -83,46 +83,6 @@
             visibility: hidden;
         }
 
-        /* The "Material" Button */
-        .home-btn {
-            position: absolute;
-            right: 100%; /* Position to the left of the content */
-            top: 50%;
-            transform: translateY(-50%);
-            margin-right: 40px; /* Spacing from the text */
-            
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background-color: #ffffff; /* Same as body, "no paint" */
-            
-            /* The Form: defined purely by shadow. 
-               Since bg is pure white, we rely on the drop shadow. */
-            box-shadow: 
-                6px 6px 12px rgba(0,0,0,0.08), 
-                -4px -4px 12px rgba(255,255,255,1); /* (Theoretical highlight) */
-            
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            cursor: pointer;
-            text-decoration: none;
-            opacity: 0.8; /* Slight optical blend */
-        }
-
-        /* Interaction: It lifts slightly on hover */
-        .home-btn:hover {
-            box-shadow: 
-                8px 8px 16px rgba(0,0,0,0.12), 
-                -4px -4px 12px rgba(255,255,255,1);
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        /* Interaction: It presses in on click */
-        .home-btn:active {
-            box-shadow: 
-                2px 2px 5px rgba(0,0,0,0.1);
-            transform: translateY(-50%) scale(0.95);
-        }
-
         .featured-image {
             width: 100%;
             height: auto;
@@ -136,7 +96,6 @@
 <body>
     <div class="header">
         <div class="header-content">
-            <a href="/" class="home-btn" aria-label="Home"></a>
             v<span class="ghost">iktor </span>d<span class="ghost">une</span>
         </div>
     </div>
