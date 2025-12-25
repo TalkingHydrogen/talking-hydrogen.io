@@ -3,63 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>blog</title>
+    <title>viktor dune</title>
     <style>
         html, body {
             height: 100%;
             margin: 0;
-            /* overflow: hidden; Removed to allow scrolling */
         }
 
         body {
             background-color: #ffffff;
-            /* Apple "Space Grey" / Neutral Grey */
             color: #8e8e93; 
-            /* SF Pro with fallbacks */
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
-            /* align-items: center; Removed to allow scrolling from top */
-            padding-top: 100px; /* Push content down so it doesn't start under the fixed header */
-            padding-bottom: 100px; /* Bottom spacing */
-        }
-
-        .wall {
-            /* The Literal Square */
-            width: 500px;
-            /* height: 500px; Removed fixed height to allow expansion */
-            
-            /* InDesign-level Text Obsession */
-            text-align: justify; /* Force edges to align */
-            text-justify: inter-character; /* Better distribution if browser supports it */
-            hyphens: auto; /* Clean line breaks */
-            -webkit-hyphens: auto;
-            
-            /* Typography Micro-adjustments */
-            font-size: 14px; /* Adjusted to fill the square densely */
-            line-height: 1.5; /* Breathable but cohesive */
-            letter-spacing: -0.011em; /* Slight tightening for SF Pro look */
-            
-            /* Rendering Quality */
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
-            font-variant-ligatures: common-ligatures;
-            font-kerning: normal;
-
-            /* Interaction */
-            /* overflow: hidden; Removed to allow full text display */
-            cursor: default;
-        }
-
-        p {
-            margin-top: 0;
-            margin-bottom: 1em;
-        }
-        
-        /* Optical balance: remove margin from last paragraph to fit square */
-        p:last-child {
-            margin-bottom: 0;
+            align-items: center; /* Center vertically for the list */
         }
 
         .header {
@@ -69,13 +26,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            pointer-events: none; /* Let clicks pass through the empty header space */
+            pointer-events: none;
             z-index: 10;
         }
 
         .header-content {
             position: relative;
-            pointer-events: auto; /* Re-enable clicks for the button/text */
+            pointer-events: auto;
             color: #8e8e93;
             font-size: 14px;
             letter-spacing: -0.011em;
@@ -85,13 +42,23 @@
             visibility: hidden;
         }
 
-        .featured-image {
-            width: 100%;
-            height: auto;
+        .blog-list {
+            width: 500px;
+            text-align: center; /* Or left? "List" usually left, but "Zen" maybe center? Let's go with Center for the list items to match the v d */
+        }
+
+        .blog-link {
             display: block;
-            margin-bottom: 1.5em; /* Space between image and text */
-            /* Optional: if you want the image to be "part of the material" */
-            /* mix-blend-mode: multiply; */ 
+            margin-bottom: 20px;
+            color: #8e8e93;
+            text-decoration: none;
+            font-size: 14px;
+            letter-spacing: -0.011em;
+            transition: color 0.2s ease;
+        }
+
+        .blog-link:hover {
+            color: #333; /* Darker on hover */
         }
     </style>
 </head>
@@ -102,24 +69,8 @@
         </div>
     </div>
 
-    <div class="wall">
-        <img src="image.png" alt="Featured Landscape" class="featured-image">
-        <p>
-            
-There is a striking pattern of humans trying to build simulations of this world. Whether it’s an artist painting a mountain replicating it’s beauty, or an engineer in front of the whiteboard figuring out how to build an artificial neuron. Both take nature as ground truth for whatever they try to build. 
-        </p>
-        <p>
-            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-        </p>
-        <p>
-            Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?
-        </p>
-        <p>
-            Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
-        </p>
-        <p>
-            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et. Simulation is possible.
-        </p>
+    <div class="blog-list">
+        <a href="simulation.html" class="blog-link">simulation</a>
     </div>
 </body>
 </html>
