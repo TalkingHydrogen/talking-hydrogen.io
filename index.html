@@ -8,17 +8,16 @@
         html, body {
             height: 100%;
             margin: 0;
+            overflow: hidden; /* Prevent body scroll, we handle it in views */
         }
 
         body {
             background-color: #ffffff;
             color: #8e8e93; 
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center; /* Center vertically for the list */
         }
 
+        /* HEADER */
         .header {
             position: fixed;
             top: 60px;
@@ -27,7 +26,7 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            z-index: 10;
+            z-index: 20;
         }
 
         .header-content {
@@ -36,41 +35,284 @@
             color: #8e8e93;
             font-size: 14px;
             letter-spacing: -0.011em;
+            transition: opacity 0.3s ease;
         }
 
         .ghost {
             visibility: hidden;
         }
 
+        /* HOME / LIST VIEW */
+        #home-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.4s ease;
+            z-index: 5;
+        }
+
         .blog-list {
             width: 500px;
-            text-align: center; /* Or left? "List" usually left, but "Zen" maybe center? Let's go with Center for the list items to match the v d */
+            text-align: center;
         }
 
         .blog-link {
-            display: block;
+            display: inline-block; /* Inline-block allows measuring accurate width/position */
             margin-bottom: 20px;
             color: #8e8e93;
             text-decoration: none;
             font-size: 14px;
             letter-spacing: -0.011em;
+            cursor: pointer;
             transition: color 0.2s ease;
         }
 
         .blog-link:hover {
-            color: #333; /* Darker on hover */
+            color: #333;
+        }
+
+        /* ARTICLE VIEW */
+        #article-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto; /* Scroll within the view */
+            overflow-x: hidden;
+            opacity: 0;
+            pointer-events: none; /* Ignore clicks when hidden */
+            z-index: 1; /* Below home initially */
+            display: flex;
+            justify-content: center;
+            padding-top: 100px; /* Space for header */
+            padding-bottom: 100px;
+            box-sizing: border-box;
+            
+            /* Hide scrollbar for cleaner look (optional) */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        #article-view::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        .wall {
+            width: 500px;
+            text-align: justify;
+            text-justify: inter-character;
+            hyphens: auto;
+            -webkit-hyphens: auto;
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: -0.011em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            
+            /* Initial state for animation */
+            opacity: 0; 
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .wall.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .featured-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 1.5em;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 1em;
+        }
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* EXPANDING ANIMATION LAYER */
+        #transition-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .morph-box {
+            position: absolute;
+            background: #fff; /* or transparent if just text moving */
+            transform-origin: top left;
+            /* We will animate text color or background here if needed */
+        }
+        
+        /* THE BACK BUTTON (In header now, hidden by default) */
+        .home-btn {
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%) scale(0); /* Start hidden */
+            margin-right: 40px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -4px -4px 12px rgba(255,255,255,1);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+            opacity: 0;
+        }
+        
+        .home-btn.visible {
+            transform: translateY(-50%) scale(1);
+            opacity: 0.8;
+        }
+
+        .home-btn:hover {
+            box-shadow: 8px 8px 16px rgba(0,0,0,0.12), -4px -4px 12px rgba(255,255,255,1);
+            transform: translateY(-50%) scale(1.05);
         }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="header-content">
+            <div class="home-btn" id="back-btn"></div>
             v<span class="ghost">iktor </span>d<span class="ghost">une</span>
         </div>
     </div>
 
-    <div class="blog-list">
-        <a href="simulation.html" class="blog-link">simulation</a>
+    <!-- HOME VIEW -->
+    <div id="home-view">
+        <div class="blog-list">
+            <a class="blog-link" data-target="simulation">simulation</a>
+        </div>
     </div>
+
+    <!-- ARTICLE VIEW -->
+    <div id="article-view">
+        <!-- Content will be injected here or toggled -->
+        <div id="simulation-content" class="wall">
+            <img src="image.png" alt="Featured Landscape" class="featured-image">
+            <p>
+                There is a striking pattern of humans trying to build simulations of this world. Whether it’s an artist painting a mountain replicating it’s beauty, or an engineer in front of the whiteboard figuring out how to build an artificial neuron. Both take nature as ground truth for whatever they try to build. 
+            </p>
+            <p>
+                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+            </p>
+            <p>
+                Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?
+            </p>
+            <p>
+                Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
+            </p>
+            <p>
+                Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et. Simulation is possible.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const homeView = document.getElementById('home-view');
+        const articleView = document.getElementById('article-view');
+        const backBtn = document.getElementById('back-btn');
+        const wall = document.querySelector('.wall');
+
+        // Simple State Management
+        let isArticleOpen = false;
+
+        function openArticle(articleId, triggerElement) {
+            isArticleOpen = true;
+
+            // 1. Get positions for animation (FLIP concept)
+            const rect = triggerElement.getBoundingClientRect();
+            
+            // 2. Animate Home Out
+            homeView.style.opacity = '0';
+            homeView.style.pointerEvents = 'none';
+
+            // 3. Prepare Article View
+            articleView.style.zIndex = '10';
+            articleView.style.pointerEvents = 'auto';
+            articleView.style.opacity = '1';
+            
+            // 4. Animate Content In
+            // Delay slightly to allow the "fade out" of home to register mentally
+            setTimeout(() => {
+                wall.classList.add('active');
+                backBtn.classList.add('visible');
+            }, 200);
+
+            // 5. Update URL (optional)
+            history.pushState({view: 'article'}, 'simulation', '#simulation');
+        }
+
+        function closeArticle() {
+            isArticleOpen = false;
+
+            // 1. Animate Content Out
+            wall.classList.remove('active');
+            backBtn.classList.remove('visible');
+
+            // 2. Fade Home In
+            setTimeout(() => {
+                articleView.style.opacity = '0';
+                articleView.style.pointerEvents = 'none';
+                articleView.style.zIndex = '1';
+
+                homeView.style.opacity = '1';
+                homeView.style.pointerEvents = 'auto';
+            }, 300);
+            
+            history.pushState({view: 'home'}, 'home', '/');
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.blog-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                openArticle(e.target.dataset.target, e.target);
+            });
+        });
+
+        backBtn.addEventListener('click', () => {
+            closeArticle();
+        });
+
+        // Handle Browser Back Button
+        window.addEventListener('popstate', (event) => {
+            if (isArticleOpen) {
+                closeArticle();
+            }
+        });
+
+        // Initial Load Check
+        if(window.location.hash === '#simulation') {
+            // Quick set to open state without animation if loaded directly
+            homeView.style.opacity = '0';
+            homeView.style.pointerEvents = 'none';
+            articleView.style.zIndex = '10';
+            articleView.style.pointerEvents = 'auto';
+            articleView.style.opacity = '1';
+            wall.classList.add('active');
+            backBtn.classList.add('visible');
+            isArticleOpen = true;
+        }
+    </script>
 </body>
 </html>
