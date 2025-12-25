@@ -8,7 +8,7 @@
         html, body {
             height: 100%;
             margin: 0;
-            overflow: hidden; /* Lock viewport to frame the artwork */
+            /* overflow: hidden; Removed to allow scrolling */
         }
 
         body {
@@ -19,13 +19,15 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
-            align-items: center;
+            /* align-items: center; Removed to allow scrolling from top */
+            padding-top: 100px; /* Push content down so it doesn't start under the fixed header */
+            padding-bottom: 100px; /* Bottom spacing */
         }
 
         .wall {
             /* The Literal Square */
             width: 500px;
-            height: 500px;
+            /* height: 500px; Removed fixed height to allow expansion */
             
             /* InDesign-level Text Obsession */
             text-align: justify; /* Force edges to align */
@@ -46,7 +48,7 @@
             font-kerning: normal;
 
             /* Interaction */
-            overflow: hidden; /* Crop neatly if text overflows */
+            /* overflow: hidden; Removed to allow full text display */
             cursor: default;
         }
 
