@@ -33,7 +33,7 @@
             position: relative;
             pointer-events: auto;
             color: #8e8e93;
-            font-size: 14px;
+            font-size: 16px;
             letter-spacing: -0.011em;
             transition: opacity 0.3s ease;
         }
@@ -67,14 +67,48 @@
             margin-bottom: 20px;
             color: #8e8e93;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 20px;
             letter-spacing: -0.011em;
             cursor: pointer;
-            transition: color 0.2s ease;
+            
+            /* Enhanced transition for the return journey (implosion) */
+            transition: 
+                color 0.2s ease,
+                transform 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+                filter 0.6s ease,
+                opacity 0.6s ease;
         }
 
         .blog-link:hover {
             color: #333;
+        }
+        
+        /* The state we force the link into just before closing starts */
+        .blog-link.imploding {
+            transform: scale(10);
+            filter: blur(1px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* EXPANDING ANIMATION LAYER */
+        .clone-text {
+            position: absolute;
+            font-size: 14px;
+            letter-spacing: -0.011em;
+            color: #8e8e93;
+            background: #fff;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 20;
+            transform-origin: center center;
+            transition: all 0.1s cubic-bezier(0.19, 1, 0.22, 1); /* "Apple" ease */
+        }
+        
+        .clone-text.expanded {
+             opacity: 0;
+             transform: scale(3); /* Explode outwards */
+             filter: blur(2px);
         }
 
         /* ARTICLE VIEW */
@@ -105,26 +139,70 @@
 
         .wall {
             width: 500px;
+            /* Positioning & Typography remain on the container */
             text-align: justify;
             text-justify: inter-character;
             hyphens: auto;
             -webkit-hyphens: auto;
-            font-size: 14px;
+            font-size: 16px;
             line-height: 1.5;
             letter-spacing: -0.011em;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
             
-            /* Initial state for animation */
-            opacity: 0; 
-            transform: translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
+            /* =========================================
+               1. CLOSED STATE (The "Resting" Styles)
+               This defines how the element behaves when CLOSING (removing .active)
+               ========================================= */
+            
+            /* Closed Positions */
+            opacity: 0;
+            transform: scaleY(0.01); /* Squashed height */
+            transform-origin: center;
+            
+            /* CLOSING TIMING (Y-Axis) */
+            transition: 
+                opacity 0.6s ease 0.08s, /* Delay fade out slightly */
+                transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
+
+        .wall-inner {
+            /* Closed Position */
+            transform: scaleX(0.05); /* Thin width */
+            transform-origin: center;
+            
+            /* CLOSING TIMING (X-Axis) */
+            transition: transform 0.5s ease-in; /* Slightly slower to match overlap */
+        }
+
+        /* =========================================
+           2. OPEN STATE (The Active Styles)
+           This defines how the element behaves when OPENING (adding .active)
+           ========================================= */
 
         .wall.active {
             opacity: 1;
-            transform: translateY(0);
+            transform: scaleY(1); /* Full height */
+            
+            /* OPENING TIMING (Y-Axis) */
+            transition: 
+                opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1); /* Elegant unfold */
+        }
+
+        .wall.active .wall-inner {
+            transform: scaleX(1); /* Full width */
+            
+            /* OPENING TIMING (X-Axis) */
+            transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1); /* Very slow horizontal spread */
+        }
+
+        .post-date {
+            text-align: center;
+            margin-bottom: 2em;
+            display: block;
+            width: 100%;
         }
 
         .featured-image {
@@ -141,50 +219,49 @@
         p:last-child {
             margin-bottom: 0;
         }
-
-        /* EXPANDING ANIMATION LAYER */
-        #transition-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 15;
-        }
-
-        .morph-box {
-            position: absolute;
-            background: #fff; /* or transparent if just text moving */
-            transform-origin: top left;
-            /* We will animate text color or background here if needed */
-        }
         
-        /* THE BACK BUTTON (In header now, hidden by default) */
-        .home-btn {
-            position: absolute;
-            right: 100%;
-            top: 50%;
-            transform: translateY(-50%) scale(0); /* Start hidden */
-            margin-right: 40px;
+        /* THE CLOSE ARROW (Bottom Center) */
+        .close-arrow {
+            display: block;
             width: 24px;
             height: 24px;
-            border-radius: 50%;
-            background-color: #ffffff;
-            box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -4px -4px 12px rgba(255,255,255,1);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            margin: 60px auto 0 auto; /* Spacing from text */
+            position: relative;
             cursor: pointer;
             opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease 0.2s; /* Delayed appearance */
+            pointer-events: none; /* Ignore when hidden */
         }
         
-        .home-btn.visible {
-            transform: translateY(-50%) scale(1);
-            opacity: 0.8;
+        .wall.active .close-arrow {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
         }
 
-        .home-btn:hover {
-            box-shadow: 8px 8px 16px rgba(0,0,0,0.12), -4px -4px 12px rgba(255,255,255,1);
-            transform: translateY(-50%) scale(1.05);
+        .close-arrow::before, .close-arrow::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 2px;
+            background-color: #8e8e93; /* Match font color */
+            transition: background-color 0.2s;
+            border-radius: 2px; /* Smooth, rounded ends */
+        }
+
+        /* Chevron pointing UP (to "close/go back up" conceptually) */
+        .close-arrow::before {
+            transform: translate(-15%, -50%) rotate(-45deg); /* Adjusted translation to fix overlap */
+        }
+        .close-arrow::after {
+            transform: translate(-15%, -40%) rotate(45deg); /* Adjusted translation to fix overlap */
+        }
+
+        .close-arrow:hover::before, .close-arrow:hover::after {
+            background-color: #333;
         }
     </style>
 </head>
@@ -192,7 +269,6 @@
 
     <div class="header">
         <div class="header-content">
-            <div class="home-btn" id="back-btn"></div>
             v<span class="ghost">iktor </span>d<span class="ghost">une</span>
         </div>
     </div>
@@ -208,40 +284,65 @@
     <div id="article-view">
         <!-- Content will be injected here or toggled -->
         <div id="simulation-content" class="wall">
-            <img src="image.png" alt="Featured Landscape" class="featured-image">
-            <p>
-                There is a striking pattern of humans trying to build simulations of this world. Whether it’s an artist painting a mountain replicating it’s beauty, or an engineer in front of the whiteboard figuring out how to build an artificial neuron. Both take nature as ground truth for whatever they try to build. 
-            </p>
-            <p>
-                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-            </p>
-            <p>
-                Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?
-            </p>
-            <p>
-                Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
-            </p>
-            <p>
-                Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et. Simulation is possible.
-            </p>
+            <div class="wall-inner">
+                <span class="post-date">12 25 25</span>
+                <img src="boticelli.png" alt="Featured Landscape" class="featured-image">
+                <p>
+                    There is a striking pattern of humans trying to build simulations of this world. Whether it’s an artist painting a mountain replicating it’s beauty, or an engineer in front of the whiteboard figuring out how to build an artificial neuron. Both take nature as ground truth for whatever they try to build. 
+                </p>
+                <p>
+                    Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+                </p>
+                <p>
+                    Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?
+                </p>
+                <p>
+                    Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
+                </p>
+                <p>
+                    <br>
+
+                    Intelligence is not separate from it’s environment - 
+                    <br>
+                    the same way the chess piece is not separate from the board. <br>
+                    <br>
+                    Time to build.
+                </p>
+                <div class="close-arrow" id="bottom-close-btn"></div>
+            </div>
         </div>
     </div>
 
     <script>
         const homeView = document.getElementById('home-view');
         const articleView = document.getElementById('article-view');
-        const backBtn = document.getElementById('back-btn');
+        const bottomCloseBtn = document.getElementById('bottom-close-btn');
         const wall = document.querySelector('.wall');
 
         // Simple State Management
         let isArticleOpen = false;
+        let activeLinkElement = null;
 
         function openArticle(articleId, triggerElement) {
             isArticleOpen = true;
+            activeLinkElement = triggerElement;
 
-            // 1. Get positions for animation (FLIP concept)
+            // 1. Create a clone of the text for the "explosion" effect
             const rect = triggerElement.getBoundingClientRect();
+            const clone = document.createElement('div');
+            clone.innerText = triggerElement.innerText;
+            clone.className = 'clone-text';
+            clone.style.top = rect.top + 'px';
+            clone.style.left = rect.left + 'px';
+            clone.style.width = rect.width + 'px';
+            clone.style.height = rect.height + 'px';
             
+            // Hide the original immediately so we don't see double
+            // We use opacity so it keeps its layout space
+            triggerElement.style.opacity = '0';
+            
+            document.body.appendChild(clone);
+
             // 2. Animate Home Out
             homeView.style.opacity = '0';
             homeView.style.pointerEvents = 'none';
@@ -251,14 +352,21 @@
             articleView.style.pointerEvents = 'auto';
             articleView.style.opacity = '1';
             
-            // 4. Animate Content In
-            // Delay slightly to allow the "fade out" of home to register mentally
-            setTimeout(() => {
+            // 4. Trigger Animations
+            requestAnimationFrame(() => {
+                // Expand/fade the clone
+                clone.classList.add('expanded');
+                
+                // Bring in the wall
                 wall.classList.add('active');
-                backBtn.classList.add('visible');
-            }, 200);
+            });
 
-            // 5. Update URL (optional)
+            // Cleanup clone after animation
+            setTimeout(() => {
+                clone.remove();
+            }, 600);
+
+            // 5. Update URL
             history.pushState({view: 'article'}, 'simulation', '#simulation');
         }
 
@@ -267,17 +375,37 @@
 
             // 1. Animate Content Out
             wall.classList.remove('active');
-            backBtn.classList.remove('visible');
+            
+            // 2. Animate the Text Back (Implosion using the real element)
+            if (activeLinkElement) {
+                // a. Instantly set it to the "exploded" state (no transition)
+                activeLinkElement.style.transition = 'none'; 
+                activeLinkElement.classList.add('imploding');
+                // Ensure opacity is 0 via the class, but we need to override the inline style we set earlier
+                activeLinkElement.style.opacity = ''; 
+                
+                // b. Force Reflow (flush CSS changes)
+                void activeLinkElement.offsetWidth;
 
-            // 2. Fade Home In
+                // c. Re-enable transitions and animate back
+                activeLinkElement.style.transition = ''; 
+                
+                requestAnimationFrame(() => {
+                    activeLinkElement.classList.remove('imploding');
+                });
+            }
+
+            // 3. OVERLAP STRATEGY:
+            // a. Bring Home View back immediately (opacity 1)
+            homeView.style.opacity = '1';
+            homeView.style.pointerEvents = 'auto';
+
+            // b. Let the Article View fade out slower
             setTimeout(() => {
-                articleView.style.opacity = '0';
+                articleView.style.opacity = '0'; // Hide container
                 articleView.style.pointerEvents = 'none';
                 articleView.style.zIndex = '1';
-
-                homeView.style.opacity = '1';
-                homeView.style.pointerEvents = 'auto';
-            }, 300);
+            }, 600); // Wait for the wall/text animations to finish
             
             history.pushState({view: 'home'}, 'home', '/');
         }
@@ -290,7 +418,7 @@
             });
         });
 
-        backBtn.addEventListener('click', () => {
+        bottomCloseBtn.addEventListener('click', () => {
             closeArticle();
         });
 
@@ -310,7 +438,6 @@
             articleView.style.pointerEvents = 'auto';
             articleView.style.opacity = '1';
             wall.classList.add('active');
-            backBtn.classList.add('visible');
             isArticleOpen = true;
         }
     </script>
