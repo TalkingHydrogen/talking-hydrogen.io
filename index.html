@@ -142,7 +142,7 @@
             position: absolute;
             top: 0;
             left: 50%;
-            transform: translateX(-50%) scaleY(0.01) scaleX(0.05);
+            transform: translateX(-50%);
             width: 500px;
             /* Positioning & Typography remain on the container */
             text-align: justify;
@@ -163,16 +163,22 @@
             
             /* Closed Positions */
             opacity: 0;
+            transform: translateX(-50%) scaleY(0.01); /* Squashed height */
             pointer-events: none;
             
-            /* CLOSING TIMING */
+            /* CLOSING TIMING (Y-Axis) */
             transition: 
-                opacity 0.6s ease 0.08s,
+                opacity 0.6s ease 0.08s, /* Delay fade out slightly */
                 transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .wall-inner {
-            /* No transform needed - parent handles it */
+            /* Closed Position */
+            transform: scaleX(0.05); /* Thin width */
+            transform-origin: center;
+            
+            /* CLOSING TIMING (X-Axis) */
+            transition: transform 0.5s ease-in; /* Slightly slower to match overlap */
         }
 
         /* =========================================
@@ -182,17 +188,20 @@
 
         .wall.active {
             opacity: 1;
-            transform: translateX(-50%) scaleY(1) scaleX(1); /* Full size */
+            transform: translateX(-50%) scaleY(1); /* Full height */
             pointer-events: auto;
             
-            /* OPENING TIMING */
+            /* OPENING TIMING (Y-Axis) */
             transition: 
                 opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1),
-                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1);
+                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1); /* Elegant unfold */
         }
 
         .wall.active .wall-inner {
-            /* No transform needed */
+            transform: scaleX(1); /* Full width */
+            
+            /* OPENING TIMING (X-Axis) */
+            transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1); /* Very slow horizontal spread */
         }
 
         .post-date {
