@@ -60,14 +60,12 @@
         .blog-list {
             width: 500px;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         .blog-link {
-            display: inline-block; /* Keep inline-block for proper bounding box */
-            margin-bottom: 20px;
+            display: block; /* Stack links vertically */
+            width: fit-content; /* Size to content for proper animation */
+            margin: 0 auto 20px auto; /* Center horizontally */
             color: #8e8e93;
             text-decoration: none;
             font-size: 20px;
