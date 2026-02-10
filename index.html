@@ -139,7 +139,10 @@
         }
 
         .wall {
-            display: none; /* Hidden by default */
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%) scaleY(0.01) scaleX(0.05);
             width: 500px;
             /* Positioning & Typography remain on the container */
             text-align: justify;
@@ -160,23 +163,16 @@
             
             /* Closed Positions */
             opacity: 0;
-            transform: scaleY(0.01); /* Squashed height */
-            transform-origin: top center;
             pointer-events: none;
             
-            /* CLOSING TIMING (Y-Axis) */
+            /* CLOSING TIMING */
             transition: 
-                opacity 0.6s ease 0.08s, /* Delay fade out slightly */
+                opacity 0.6s ease 0.08s,
                 transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .wall-inner {
-            /* Closed Position */
-            transform: scaleX(0.05); /* Thin width */
-            transform-origin: top center;
-            
-            /* CLOSING TIMING (X-Axis) */
-            transition: transform 0.5s ease-in; /* Slightly slower to match overlap */
+            /* No transform needed - parent handles it */
         }
 
         /* =========================================
@@ -185,22 +181,18 @@
            ========================================= */
 
         .wall.active {
-            display: block; /* Show when active */
             opacity: 1;
-            transform: scaleY(1); /* Full height */
+            transform: translateX(-50%) scaleY(1) scaleX(1); /* Full size */
             pointer-events: auto;
             
-            /* OPENING TIMING (Y-Axis) */
+            /* OPENING TIMING */
             transition: 
                 opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1),
-                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1); /* Elegant unfold */
+                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .wall.active .wall-inner {
-            transform: scaleX(1); /* Full width */
-            
-            /* OPENING TIMING (X-Axis) */
-            transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1); /* Very slow horizontal spread */
+            /* No transform needed */
         }
 
         .post-date {
@@ -300,6 +292,7 @@
                 max-width: 500px;
                 padding: 0 20px;
                 box-sizing: border-box;
+                left: 50%;
             }
 
             .post-date {
@@ -445,6 +438,11 @@
 
             // 1. Create a clone of the text for the "explosion" effect
             const rect = triggerElement.getBoundingClientRect();
+            
+            // Set transform-origin to link position (relative to viewport, then adjusted for wall position)
+            // The wall will expand FROM and collapse TO this point
+            const originY = rect.top + rect.height / 2;
+            wall.style.transformOrigin = `center ${originY}px`;
             const clone = document.createElement('div');
             clone.innerText = triggerElement.innerText;
             clone.className = 'clone-text';
