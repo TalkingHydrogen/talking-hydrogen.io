@@ -446,6 +446,13 @@
 
             // 1. Create a clone of the text for the "explosion" effect
             const rect = triggerElement.getBoundingClientRect();
+            
+            // Calculate transform-origin based on link position
+            // This makes the wall expand FROM and collapse TO the link position
+            const linkCenterX = rect.left + rect.width / 2;
+            const linkCenterY = rect.top + rect.height / 2;
+            wall.style.transformOrigin = `${linkCenterX}px ${linkCenterY}px`;
+            wall.querySelector('.wall-inner').style.transformOrigin = `${linkCenterX}px ${linkCenterY}px`;
             const clone = document.createElement('div');
             clone.innerText = triggerElement.innerText;
             clone.className = 'clone-text';
