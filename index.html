@@ -138,6 +138,8 @@
         }
 
         .wall {
+            position: absolute;
+            top: 100px;
             width: 500px;
             /* Positioning & Typography remain on the container */
             text-align: justify;
@@ -160,6 +162,7 @@
             opacity: 0;
             transform: scaleY(0.01); /* Squashed height */
             transform-origin: center;
+            pointer-events: none;
             
             /* CLOSING TIMING (Y-Axis) */
             transition: 
@@ -184,6 +187,7 @@
         .wall.active {
             opacity: 1;
             transform: scaleY(1); /* Full height */
+            pointer-events: auto;
             
             /* OPENING TIMING (Y-Axis) */
             transition: 
