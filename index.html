@@ -267,6 +267,83 @@
         .close-arrow:hover::before, .close-arrow:hover::after {
             background-color: #333;
         }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            .header {
+                top: 30px;
+            }
+
+            .header-content {
+                font-size: 14px;
+            }
+
+            .blog-list {
+                width: 90%;
+                max-width: 500px;
+                padding: 0 20px;
+            }
+
+            .blog-link {
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+
+            #article-view {
+                padding-top: 80px;
+                padding-bottom: 60px;
+            }
+
+            .wall {
+                width: 90%;
+                max-width: 500px;
+                padding: 0 20px;
+                box-sizing: border-box;
+                top: 80px;
+            }
+
+            .post-date {
+                font-size: 14px;
+                margin-bottom: 1.5em;
+            }
+
+            .featured-image {
+                margin-bottom: 1.2em;
+            }
+
+            p {
+                font-size: 15px;
+                line-height: 1.6;
+            }
+
+            .close-arrow {
+                margin-top: 40px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                top: 20px;
+            }
+
+            .header-content {
+                font-size: 13px;
+            }
+
+            .blog-link {
+                font-size: 16px;
+            }
+
+            .wall {
+                width: 100%;
+                padding: 0 15px;
+            }
+
+            p {
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        }
     </style>
 </head>
 <body>
