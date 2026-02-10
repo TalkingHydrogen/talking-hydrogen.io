@@ -139,8 +139,7 @@
         }
 
         .wall {
-            position: absolute;
-            top: 100px;
+            display: none; /* Hidden by default */
             width: 500px;
             /* Positioning & Typography remain on the container */
             text-align: justify;
@@ -162,7 +161,7 @@
             /* Closed Positions */
             opacity: 0;
             transform: scaleY(0.01); /* Squashed height */
-            transform-origin: center;
+            transform-origin: top center;
             pointer-events: none;
             
             /* CLOSING TIMING (Y-Axis) */
@@ -174,7 +173,7 @@
         .wall-inner {
             /* Closed Position */
             transform: scaleX(0.05); /* Thin width */
-            transform-origin: center;
+            transform-origin: top center;
             
             /* CLOSING TIMING (X-Axis) */
             transition: transform 0.5s ease-in; /* Slightly slower to match overlap */
@@ -186,6 +185,7 @@
            ========================================= */
 
         .wall.active {
+            display: block; /* Show when active */
             opacity: 1;
             transform: scaleY(1); /* Full height */
             pointer-events: auto;
@@ -300,7 +300,6 @@
                 max-width: 500px;
                 padding: 0 20px;
                 box-sizing: border-box;
-                top: 80px;
             }
 
             .post-date {
@@ -446,13 +445,6 @@
 
             // 1. Create a clone of the text for the "explosion" effect
             const rect = triggerElement.getBoundingClientRect();
-            
-            // Calculate transform-origin based on link position
-            // This makes the wall expand FROM and collapse TO the link position
-            const linkCenterX = rect.left + rect.width / 2;
-            const linkCenterY = rect.top + rect.height / 2;
-            wall.style.transformOrigin = `${linkCenterX}px ${linkCenterY}px`;
-            wall.querySelector('.wall-inner').style.transformOrigin = `${linkCenterX}px ${linkCenterY}px`;
             const clone = document.createElement('div');
             clone.innerText = triggerElement.innerText;
             clone.className = 'clone-text';
