@@ -450,9 +450,10 @@
             // 1. Create a clone of the text for the "explosion" effect
             const rect = triggerElement.getBoundingClientRect();
             
-            // Set transform-origin to link position (relative to viewport, then adjusted for wall position)
-            // The wall will expand FROM and collapse TO this point
-            const originY = rect.top + rect.height / 2;
+            // Set transform-origin to link position (relative to the wall's position)
+            // Get the wall's computed top position
+            const wallTop = parseInt(window.getComputedStyle(wall).top) || 100;
+            const originY = rect.top + rect.height / 2 - wallTop;
             wall.style.transformOrigin = `center ${originY}px`;
             const clone = document.createElement('div');
             clone.innerText = triggerElement.innerText;
