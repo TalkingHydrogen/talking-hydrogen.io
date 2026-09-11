@@ -237,27 +237,35 @@
             text-justify: auto;
             hyphens: manual;
             -webkit-hyphens: manual;
+            /* 16px: iOS lays the balloon body on the 16pt layout margin and lets the tail hang into it
+               (ChatKit balloonTranscriptInsets = -balloonMaskTailWidth; measured 16.3pt on Apple's iOS 18
+               press shot) - so the tails below sit inside the column instead of outside it. */
+            padding: 0 16px;
         }
         /* .msg positions the bubble and carries the tail; .bb is the painted
            body, clipped to the Apple squircle computed in the script below. */
         .msg {
             position: relative;
-            max-width: 78%;
-            margin-bottom: 2px;
+            max-width: 85%;     /* ChatKit balloonMaxWidthPercent = 0.85 of the transcript width (iOS 18.2; macOS 0.65) */
+            margin-bottom: 1px; /* ChatKit balloonContiguousSpace: 1pt between bubbles of one sender (macOS 3pt) */
             font-size: 16px;
-            line-height: 1.35;
+            line-height: 1.29;  /* HIG Body 17/22pt; Messages itself sets SF's natural 20.3pt on 17pt (1.19, measured) */
             letter-spacing: -0.011em;
         }
         .bb {
-            padding: 8px 14px;
-            border-radius: 18px; /* fallback until the clip lands */
+            /* iOS text inset: 7pt above/below the line box, 12pt beside it (7pt container + 5pt
+               balloonLineFragmentPadding; measured 7.0/7.25pt and 12.4-13.5pt to the glyphs at 17pt).
+               macOS: 4pt/11pt at 13pt. At 16px that is 6.6/11.3px (iOS) .. 4.9/13.5px (Mac):
+               vertical follows iOS, horizontal keeps the Mac ratio (the top of the range). */
+            padding: 7px 14px;
+            border-radius: 18px; /* fallback until the clip lands; a 1-line bubble (34.6px) clamps to a capsule, as on iOS */
             overflow-wrap: break-word;
         }
         .msg.received { align-self: flex-start; }
         .msg.received .bb { background: #e9e9eb; color: #1d1d1f; }
         .msg.sent { align-self: flex-end; }
         .msg.sent .bb { background: #007aff; color: #fff; }
-        .msg.end { margin-bottom: 14px; }
+        .msg.end { margin-bottom: 10px; } /* ChatKit balloonNonContiguousSpace: 9pt iOS / 10pt macOS, not font-scaled */
         .bb b { font-weight: 600; }
         .bb p {
             margin: 0 0 0.8em;
@@ -379,7 +387,10 @@
 
             .msg {
                 font-size: 15px;
-                max-width: 85%;
+            }
+
+            .chat {
+                padding: 0; /* .wall already pads 20px/15px here: that is the 16pt edge margin */
             }
 
             .close-arrow {
