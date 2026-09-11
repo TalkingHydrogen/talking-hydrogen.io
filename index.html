@@ -217,9 +217,6 @@
             display: block;
             margin-bottom: 1.5em;
         }
-        .featured-image.squircle {
-            border-radius: 56px; /* fallback until the clip lands (data-r) */
-        }
 
         p {
             margin-top: 0;
@@ -266,6 +263,11 @@
         .msg.sent { align-self: flex-end; }
         .msg.sent .bb { background: #007aff; color: #fff; }
         .msg.end { margin-bottom: 10px; } /* ChatKit balloonNonContiguousSpace: 9pt iOS / 10pt macOS, not font-scaled */
+        /* a photo attachment: right-aligned like a sent bubble, no tail, a touch narrower than the
+           text bubble (~90% of it in the Messages reference), corner ~15% over the bubble's (18 -> 21),
+           and the larger gap Messages leaves under a photo (~1.4em on the reference). */
+        .msg.photo { max-width: 76%; margin-bottom: 22px; }
+        .msg.photo img { display: block; width: 100%; height: auto; border-radius: 21px; }
         .bb b { font-weight: 600; }
         .bb p {
             margin: 0 0 0.8em;
@@ -508,8 +510,8 @@
         <div id="just-chop-wood-content" class="wall">
             <div class="wall-inner">
                 <span class="post-date">09 11 26</span>
-                <img src="chopwood.jpg" alt="A narrow lane in Bali at dusk, a red car parked under banana trees" class="featured-image squircle" data-r="56">
                 <div class="chat">
+                    <div class="msg sent photo"><img src="chopwood.jpg" alt="A narrow lane in Bali at dusk, a red car parked under banana trees" class="squircle" data-r="21"></div>
                     <div class="msg sent end"><div class="bb">Based on math, what is the life wisdom you can tell a 24 yo with fomo of not realising himself creatively in tech, having always to work on something revolutionary even though just finished working at 1x company</div></div>
                     <div class="msg received end"><div class="bb">
                             <p><b>Exponentials look flat at the start.</b> If your skills compound at even 5% a year, most of the visible growth happens after 40, not at 24. What feels like "nothing happening" is the boring left side of every hockey-stick curve. The 1x company was compounding capital, not wasted time.</p>
@@ -821,10 +823,10 @@
             function clip(el){
                 const W=el.offsetWidth, H=el.offsetHeight;
                 if(W<2||H<2) return;
-                const r=parseFloat(el.dataset.r); // .featured-image.squircle carries data-r; bubbles fall back to BUBBLE_R
+                const r=parseFloat(el.dataset.r); // .squircle elements carry data-r; bubbles fall back to BUBBLE_R
                 el.style.clipPath='path("'+bubblePath(W,H,isFinite(r)?r:BUBBLE_R)+'")';
             }
-            const bodies=document.querySelectorAll('.bb, .featured-image.squircle');
+            const bodies=document.querySelectorAll('.bb, .squircle');
             if(window.ResizeObserver){
                 const ro=new ResizeObserver(entries=>{ for(const e of entries) clip(e.target); });
                 bodies.forEach(el=>ro.observe(el));
