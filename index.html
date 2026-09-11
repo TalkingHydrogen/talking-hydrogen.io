@@ -217,6 +217,9 @@
             display: block;
             margin-bottom: 1.5em;
         }
+        .featured-image.squircle {
+            border-radius: 56px; /* fallback until the clip lands (data-r) */
+        }
 
         p {
             margin-top: 0;
@@ -494,6 +497,7 @@
         <div id="just-chop-wood-content" class="wall">
             <div class="wall-inner">
                 <span class="post-date">09 11 26</span>
+                <img src="chopwood.jpg" alt="A narrow lane in Bali at dusk, a red car parked under banana trees" class="featured-image squircle" data-r="56">
                 <div class="chat">
                     <div class="msg sent end"><div class="bb">Based on math, what is the life wisdom you can tell a 24 yo with fomo of not realising himself creatively in tech, having always to work on something revolutionary even though just finished working at 1x company</div></div>
                     <div class="msg received end"><div class="bb">
@@ -799,16 +803,17 @@
                 return out;
             }
             const BUBBLE_R=18;
-            function bubblePath(W,H){
-                const pts=simplify(unifiedOutline2(W/2,H/2,W,H,BUBBLE_R),0.02);
+            function bubblePath(W,H,r){
+                const pts=simplify(unifiedOutline2(W/2,H/2,W,H,r==null?BUBBLE_R:r),0.02);
                 return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
             }
             function clip(el){
                 const W=el.offsetWidth, H=el.offsetHeight;
                 if(W<2||H<2) return;
-                el.style.clipPath='path("'+bubblePath(W,H)+'")';
+                const r=parseFloat(el.dataset.r); // .featured-image.squircle carries data-r; bubbles fall back to BUBBLE_R
+                el.style.clipPath='path("'+bubblePath(W,H,isFinite(r)?r:BUBBLE_R)+'")';
             }
-            const bodies=document.querySelectorAll('.bb');
+            const bodies=document.querySelectorAll('.bb, .featured-image.squircle');
             if(window.ResizeObserver){
                 const ro=new ResizeObserver(entries=>{ for(const e of entries) clip(e.target); });
                 bodies.forEach(el=>ro.observe(el));
