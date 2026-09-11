@@ -235,30 +235,34 @@
             hyphens: manual;
             -webkit-hyphens: manual;
         }
+        /* .msg positions the bubble and carries the tail; .bb is the painted
+           body, clipped to the Apple squircle computed in the script below. */
         .msg {
             position: relative;
             max-width: 78%;
-            padding: 8px 14px;
             margin-bottom: 2px;
-            border-radius: 18px;
             font-size: 16px;
             line-height: 1.35;
             letter-spacing: -0.011em;
+        }
+        .bb {
+            padding: 8px 14px;
+            border-radius: 18px; /* fallback until the clip lands */
             overflow-wrap: break-word;
         }
-        .msg.received {
-            align-self: flex-start;
-            background: #e9e9eb;
-            color: #1d1d1f;
-        }
-        .msg.sent {
-            align-self: flex-end;
-            background: #007aff;
-            color: #fff;
-        }
+        .msg.received { align-self: flex-start; }
+        .msg.received .bb { background: #e9e9eb; color: #1d1d1f; }
+        .msg.sent { align-self: flex-end; }
+        .msg.sent .bb { background: #007aff; color: #fff; }
         .msg.end { margin-bottom: 14px; }
-        .msg b { font-weight: 600; }
-        .msg .quote {
+        .bb b { font-weight: 600; }
+        .bb p {
+            margin: 0 0 0.8em;
+            font-size: inherit;
+            line-height: inherit;
+        }
+        .bb p:last-child { margin-bottom: 0; }
+        .bb .quote {
             display: block;
             border-left: 2px solid rgba(255,255,255,0.55);
             padding-left: 8px;
@@ -491,32 +495,40 @@
             <div class="wall-inner">
                 <span class="post-date">09 11 26</span>
                 <div class="chat">
-                    <div class="msg sent end">Based on math, what is the life wisdom you can tell a 24 yo with fomo of not realising himself creatively in tech, having always to work on something revolutionary even though just finished working at 1x company</div>
-                    <div class="msg received"><b>Exponentials look flat at the start.</b> If your skills compound at even 5% a year, most of the visible growth happens after 40, not at 24. What feels like "nothing happening" is the boring left side of every hockey-stick curve. The 1x company was compounding capital, not wasted time.</div>
-                    <div class="msg received"><b>Revolutionary work is a high-variance draw, and variance needs many samples.</b> Big outcomes come from a fat-tailed distribution: most attempts return ~0, a few return everything. You can't pick the winning draw, you can only afford more draws. At 24 you have roughly 15–20 more "bets" of 2–3 years each. One 1x job is one sample. Statistically meaningless.</div>
-                    <div class="msg received"><b>Optimal stopping says explore first.</b> In the secretary problem, the best strategy is to look at ~37% of your options before committing to anything. If your creative career runs, say, 24 to 65, that's exploring until your late 30s. You're not behind; you're not even done with the phase where you're supposed to be sampling.</div>
-                    <div class="msg received"><b>Survivorship bias corrupts your reference set.</b> You compare yourself to the people who won the tail, not to the tens of thousands who took the same swing and vanished. Your FOMO is calibrated against a filtered dataset.</div>
-                    <div class="msg received"><b>Gradient descent needs momentum, not a perfect start.</b> Nobody lands at the global optimum on step one. You take a step, measure, adjust. A "boring" position can be the only path out of a local minimum, because it gives you the slope information to find where the real gradient is.</div>
-                    <div class="msg received"><b>Ergodicity: avoid ruin.</b> Ensemble average (what happens across all 24-year-olds) is not your time average (what happens to you over decades). Bets that can zero you out — burnout, no savings, no skills — have negative long-run growth even when the average looks good. Stay in the game long enough for compounding to matter.</div>
-                    <div class="msg received end">Short version: at 24 you're in the sampling phase of a fat-tailed, compounding process, and the math says patience plus many small bets beats one heroic one.</div>
-                    <div class="msg sent end">If you take a look at Steve Jobs</div>
-                    <div class="msg received">Jobs actually confirms the math rather than breaking it.</div>
-                    <div class="msg received"><b>He's the tail, and the tail is n=1.</b> Thousands of people started hardware companies in garages in 1976. You know his name because the distribution has a fat tail and he landed on it. Using him as your baseline is the survivorship bias problem in its purest form.</div>
-                    <div class="msg received"><b>Even his curve looked flat for a decade.</b> Yes, Apple at 21. But then: the Lisa flopped, the first Mac undersold, he was fired at 30, NeXT lost money for ten years, Pixar bled cash for nine before Toy Story. From 30 to 41 he was, by revolutionary standards, failing. The iPod came at 46, the iPhone at 52. Almost all the value he created came after the age you're now treating as a deadline. Exponential, left side flat.</div>
-                    <div class="msg received"><b>He took many draws.</b> Apple, Lisa, Mac, NeXT hardware, NeXT software, Pixar, Apple again. Most were zeros or near-zeros. He didn't pick one revolutionary bet; he kept sampling and one draw (returning to Apple with NeXT's OS) paid for everything.</div>
-                    <div class="msg received"><b>His explore phase was aggressively unproductive-looking.</b> Dropped out, sat in on a calligraphy class, went to India, worked at Atari. His own point in the 2005 Stanford speech was that these dots only connect looking backward. That's the 37% rule lived out: you can't know which exploration matters until later.</div>
-                    <div class="msg received"><b>He avoided ruin.</b> Being fired was his local minimum, and he later called it the best thing that happened to him. But he could survive eleven lean years because he'd sold Apple stock and wasn't wiped out. Ergodicity: he stayed in the game long enough for a second exponential.</div>
-                    <div class="msg received end">So if Jobs is your model: at 24 he was at his first company, hadn't shipped the thing he's remembered for, and had 28 years of variance ahead. The lesson from his life isn't "be revolutionary now." It's "keep drawing samples, don't go to zero, and let the exponential do its thing."</div>
-                    <div class="msg sent end"><span class="quote">He's the tail, and the tail is n=1.</span>What does that mean for me?</div>
-                    <div class="msg received">Three things, concretely:</div>
-                    <div class="msg received"><b>You can't aim at the tail.</b> Nobody chooses to be an outlier; it's a residual of many people taking reasonable bets and one of them landing. So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</div>
-                    <div class="msg received"><b>Stop grading yourself against one data point.</b> A sample of size one carries almost no information. If you compare yourself to the median 24-year-old with your inputs (technical skill, creative interest, one real job done), you're on track. If you compare yourself to Jobs, everyone alive is behind, including Jobs at 24. The FOMO isn't a signal about you; it's a measurement error from a bad reference class.</div>
-                    <div class="msg received"><b>Don't copy his behaviors and expect his outcome.</b> n=1 also means you can't tell which of his traits caused the result. Dropping out, being difficult, obsessing over one product: thousands of people did the same and vanished. What you can take from him is the structural stuff that shows up across many outliers, not just one: stay in a fat-tailed domain (tech and creative work both qualify), take many shots, and don't blow yourself up.</div>
-                    <div class="msg received end">So the practical version: plan for the median, stay positioned for the tail, and let your self-worth ride on the inputs rather than the draw. If you need to be revolutionary to feel okay, you've bet your wellbeing on a lottery ticket. If you need to be making things and getting better, that's a bet you control.</div>
-                    <div class="msg sent end"><span class="quote">So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</span>Isn't it fascinating that it's literally Bhagavad Gita, math and experiential wisdom coming together</div>
-                    <div class="msg received">It is, and it's not a coincidence. Gita 2.47 says roughly: you have a claim on your actions, never on their fruits, and don't let the fruits become your motive. The Stoics said the same thing as the dichotomy of control. Zen says it as "just chop wood." Three traditions, no shared math, same conclusion.</div>
-                    <div class="msg received">The reason they converge is that they're all solving the same problem: how to act well under uncertainty with a noisy feedback signal. Outcomes are inputs plus a huge random term. If you optimize on outcomes, you're training yourself on noise, which makes you anxious, erratic, and prone to quitting after a bad draw or getting reckless after a good one. If you optimize on inputs, the gradient is clean. The old traditions found that experimentally over centuries; probability theory just gives you the proof.</div>
-                    <div class="msg received end">One thing the Gita adds that the math doesn't state outright: Krishna also says don't be attached to inaction. Detachment from outcomes isn't an excuse to stop shipping. Arjuna's whole problem was that fear of results was freezing him. The instruction is act fully, release the result. Which is exactly the "many draws, avoid ruin" strategy with the emotional part solved.</div>
+                    <div class="msg sent end"><div class="bb">Based on math, what is the life wisdom you can tell a 24 yo with fomo of not realising himself creatively in tech, having always to work on something revolutionary even though just finished working at 1x company</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p><b>Exponentials look flat at the start.</b> If your skills compound at even 5% a year, most of the visible growth happens after 40, not at 24. What feels like "nothing happening" is the boring left side of every hockey-stick curve. The 1x company was compounding capital, not wasted time.</p>
+                            <p><b>Revolutionary work is a high-variance draw, and variance needs many samples.</b> Big outcomes come from a fat-tailed distribution: most attempts return ~0, a few return everything. You can't pick the winning draw, you can only afford more draws. At 24 you have roughly 15–20 more "bets" of 2–3 years each. One 1x job is one sample. Statistically meaningless.</p>
+                            <p><b>Optimal stopping says explore first.</b> In the secretary problem, the best strategy is to look at ~37% of your options before committing to anything. If your creative career runs, say, 24 to 65, that's exploring until your late 30s. You're not behind; you're not even done with the phase where you're supposed to be sampling.</p>
+                            <p><b>Survivorship bias corrupts your reference set.</b> You compare yourself to the people who won the tail, not to the tens of thousands who took the same swing and vanished. Your FOMO is calibrated against a filtered dataset.</p>
+                            <p><b>Gradient descent needs momentum, not a perfect start.</b> Nobody lands at the global optimum on step one. You take a step, measure, adjust. A "boring" position can be the only path out of a local minimum, because it gives you the slope information to find where the real gradient is.</p>
+                            <p><b>Ergodicity: avoid ruin.</b> Ensemble average (what happens across all 24-year-olds) is not your time average (what happens to you over decades). Bets that can zero you out — burnout, no savings, no skills — have negative long-run growth even when the average looks good. Stay in the game long enough for compounding to matter.</p>
+                            <p>Short version: at 24 you're in the sampling phase of a fat-tailed, compounding process, and the math says patience plus many small bets beats one heroic one.</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb">If you take a look at Steve Jobs</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>Jobs actually confirms the math rather than breaking it.</p>
+                            <p><b>He's the tail, and the tail is n=1.</b> Thousands of people started hardware companies in garages in 1976. You know his name because the distribution has a fat tail and he landed on it. Using him as your baseline is the survivorship bias problem in its purest form.</p>
+                            <p><b>Even his curve looked flat for a decade.</b> Yes, Apple at 21. But then: the Lisa flopped, the first Mac undersold, he was fired at 30, NeXT lost money for ten years, Pixar bled cash for nine before Toy Story. From 30 to 41 he was, by revolutionary standards, failing. The iPod came at 46, the iPhone at 52. Almost all the value he created came after the age you're now treating as a deadline. Exponential, left side flat.</p>
+                            <p><b>He took many draws.</b> Apple, Lisa, Mac, NeXT hardware, NeXT software, Pixar, Apple again. Most were zeros or near-zeros. He didn't pick one revolutionary bet; he kept sampling and one draw (returning to Apple with NeXT's OS) paid for everything.</p>
+                            <p><b>His explore phase was aggressively unproductive-looking.</b> Dropped out, sat in on a calligraphy class, went to India, worked at Atari. His own point in the 2005 Stanford speech was that these dots only connect looking backward. That's the 37% rule lived out: you can't know which exploration matters until later.</p>
+                            <p><b>He avoided ruin.</b> Being fired was his local minimum, and he later called it the best thing that happened to him. But he could survive eleven lean years because he'd sold Apple stock and wasn't wiped out. Ergodicity: he stayed in the game long enough for a second exponential.</p>
+                            <p>So if Jobs is your model: at 24 he was at his first company, hadn't shipped the thing he's remembered for, and had 28 years of variance ahead. The lesson from his life isn't "be revolutionary now." It's "keep drawing samples, don't go to zero, and let the exponential do its thing."</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb"><span class="quote">He's the tail, and the tail is n=1.</span>What does that mean for me?</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>Three things, concretely:</p>
+                            <p><b>You can't aim at the tail.</b> Nobody chooses to be an outlier; it's a residual of many people taking reasonable bets and one of them landing. So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</p>
+                            <p><b>Stop grading yourself against one data point.</b> A sample of size one carries almost no information. If you compare yourself to the median 24-year-old with your inputs (technical skill, creative interest, one real job done), you're on track. If you compare yourself to Jobs, everyone alive is behind, including Jobs at 24. The FOMO isn't a signal about you; it's a measurement error from a bad reference class.</p>
+                            <p><b>Don't copy his behaviors and expect his outcome.</b> n=1 also means you can't tell which of his traits caused the result. Dropping out, being difficult, obsessing over one product: thousands of people did the same and vanished. What you can take from him is the structural stuff that shows up across many outliers, not just one: stay in a fat-tailed domain (tech and creative work both qualify), take many shots, and don't blow yourself up.</p>
+                            <p>So the practical version: plan for the median, stay positioned for the tail, and let your self-worth ride on the inputs rather than the draw. If you need to be revolutionary to feel okay, you've bet your wellbeing on a lottery ticket. If you need to be making things and getting better, that's a bet you control.</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb"><span class="quote">So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</span>Isn't it fascinating that it's literally Bhagavad Gita, math and experiential wisdom coming together</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>It is, and it's not a coincidence. Gita 2.47 says roughly: you have a claim on your actions, never on their fruits, and don't let the fruits become your motive. The Stoics said the same thing as the dichotomy of control. Zen says it as "just chop wood." Three traditions, no shared math, same conclusion.</p>
+                            <p>The reason they converge is that they're all solving the same problem: how to act well under uncertainty with a noisy feedback signal. Outcomes are inputs plus a huge random term. If you optimize on outcomes, you're training yourself on noise, which makes you anxious, erratic, and prone to quitting after a bad draw or getting reckless after a good one. If you optimize on inputs, the gradient is clean. The old traditions found that experimentally over centuries; probability theory just gives you the proof.</p>
+                            <p>One thing the Gita adds that the math doesn't state outright: Krishna also says don't be attached to inaction. Detachment from outcomes isn't an excuse to stop shipping. Arjuna's whole problem was that fear of results was freezing him. The instruction is act fully, release the result. Which is exactly the "many draws, avoid ruin" strategy with the emotional part solved.</p>
+                        </div></div>
                 </div>
                 <div class="close-arrow"></div>
             </div>
@@ -664,6 +676,147 @@
             currentWall = wall;
             isArticleOpen = true;
         }
+        /* ============================================================
+           Apple squircle bubbles. unifiedOutline2 and its helpers are a
+           verbatim port of brew/squircle-fit/grow-vs-carve.html — the
+           corner is a curvature ramp kappa(s) marched into an outline,
+           blending the two eye-matched 1:1 presets (RESEARCH.md §7) from
+           geometry alone: pill = smoothing 60%, G4; panel = tail 100%,
+           concentration 4%, G4. Each .bb is clipped to that outline.
+           ============================================================ */
+        (function(){
+            const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+            const lerp =(a,b,t)=>a+(b-a)*t;
+            function smoothstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+            function smootherstep(t){ t=clamp(t,0,1); return t*t*t*(t*(t*6-15)+10); }
+            function easeRamp(t,name){
+                if(name==="G2") return clamp(t,0,1);
+                if(name==="G4") return smootherstep(t);
+                return smoothstep(t);
+            }
+            function rampFullness(p,ease){
+                if(ease==="G2") return 1/(p+1);
+                if(ease==="G4") return 6/(5*p+1)-15/(4*p+1)+10/(3*p+1);
+                return 3/(2*p+1)-2/(3*p+1);
+            }
+            function marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter){
+                kOuter=kOuter||0;
+                const HP=Math.PI/2, I=rampFullness(p,ease);
+                const Tin=Math.max(0,HP-Tout-m*K*Lm);
+                const Li=Tin /(K*(m+(1-m)*I));
+                const outAvg=kOuter+(K-kOuter)*I;
+                const Lo=outAvg>1e-9 ? Tout/outAvg : 0;
+                const segs=[];
+                if(Lm>1e-9) segs.push(["mid",Lm]);
+                if(Li>1e-9) segs.push(["in", Li]);
+                if(Lo>1e-9) segs.push(["out",Lo]);
+                const L=Lm+Li+Lo||1;
+                let th=HP,x=0,y=0;
+                const pts=[[0,0]];
+                for(let s=0;s<segs.length;s++){
+                    const kind=segs[s][0],len=segs[s][1];
+                    const cnt=Math.max(16,Math.round(len/L*N)),ds=len/cnt;
+                    for(let i=0;i<cnt;i++){
+                        const t=(i+0.5)/cnt;
+                        const k = kind==="mid" ? m*K
+                                : kind==="in"  ? m*K+(1-m)*K*easeRamp(Math.pow(t,p),ease)
+                                :                kOuter+(K-kOuter)*easeRamp(Math.pow(1-t,p),ease);
+                        const dth=k*ds;
+                        th+=dth/2; x+=Math.cos(th)*ds; y+=Math.sin(th)*ds; th+=dth/2;
+                        pts.push([x,y]);
+                    }
+                }
+                return {pts:pts,ex:x,ey:y};
+            }
+            function geomM(W,H,r){
+                const r0=Math.min(r,W/2,H/2);
+                return 1-smoothstep((1-2*r0/Math.min(W,H))/0.30);
+            }
+            function unifiedOutline2(cx,cy,W,H,r,carve,ease,mOverride){
+                ease=ease||"G4";
+                const HP=Math.PI/2, half=H/2;
+                const r0=Math.min(r,W/2,H/2);
+                const m=(mOverride==null)?geomM(W,H,r):clamp(mOverride,0,1);
+                const rampShare=clamp(lerp(1.00,0.60,m)*(carve==null?1:carve),0,1);
+                const conc=lerp(0.04,0.00,m);
+                const p=conc<=1e-9?1:1+conc*8;
+                function fitH(Tout,kOuter,N){
+                    let K=1/r0;
+                    K*=Math.max(1, marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey/half);
+                    const LmMax=m>1e-4 ? 0.94*(HP-Tout)/(m*K) : H*8;
+                    let Lm=0;
+                    if(marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey < half-1e-6){
+                        let lo=0,hi=Math.min(H*3,LmMax);
+                        for(let it=0;it<24;it++){
+                            const md=(lo+hi)/2;
+                            if(marchQuadrant(K,m,md,Tout,p,ease,260,kOuter).ey<half) lo=md; else hi=md;
+                        }
+                        Lm=(lo+hi)/2;
+                    }
+                    const Q=marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter);
+                    const sc=Q.ey>1e-6 ? half/Q.ey : 1;
+                    return {pts:Q.pts,sc:sc,exr:-Q.ex*sc,K:K};
+                }
+                const Tout=Math.min(rampShare*HP*(1+m)/2, HP*0.96);
+                let kOuter=0;
+                let F=fitH(Tout,0,260);
+                if(F.exr>W/2){
+                    let lo=0,hi=(1/r0)*0.999;
+                    for(let it=0;it<24;it++){
+                        const md=(lo+hi)/2;
+                        if(fitH(Tout,md,160).exr>W/2) lo=md; else hi=md;
+                    }
+                    kOuter=(lo+hi)/2;
+                }
+                F=fitH(Tout,kOuter,2000);
+                const sc=F.sc;
+                const q=F.pts.map(pt=>[pt[0]*sc, pt[1]*sc]);
+                const TR=q.map(pt=>[ W/2+pt[0], pt[1]]);
+                const TL=TR.map(pt=>[-pt[0], pt[1]]).reverse();
+                const BL=TR.map(pt=>[-pt[0],-pt[1]]);
+                const BR=TR.map(pt=>[ pt[0],-pt[1]]).reverse();
+                return TR.concat(TL,BL,BR).map(pt=>[cx+pt[0], cy-pt[1]]);
+            }
+            // Ramer-Douglas-Peucker: keep the fewest vertices that stay within eps px
+            function simplify(pts,eps){
+                const keep=new Uint8Array(pts.length); keep[0]=1; keep[pts.length-1]=1;
+                const stack=[[0,pts.length-1]];
+                while(stack.length){
+                    const [i0,i1]=stack.pop();
+                    const a=pts[i0], c=pts[i1];
+                    const dx=c[0]-a[0], dy=c[1]-a[1], len=Math.hypot(dx,dy);
+                    let best=-1, bd=eps;
+                    for(let i=i0+1;i<i1;i++){
+                        const b=pts[i];
+                        // a closed loop starts and ends on the same point: fall back to point distance
+                        const d=len>1e-9 ? Math.abs((b[0]-a[0])*dy-(b[1]-a[1])*dx)/len : Math.hypot(b[0]-a[0],b[1]-a[1]);
+                        if(d>bd){ bd=d; best=i; }
+                    }
+                    if(best>0){ keep[best]=1; stack.push([i0,best],[best,i1]); }
+                }
+                const out=[];
+                for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+                return out;
+            }
+            const BUBBLE_R=18;
+            function bubblePath(W,H){
+                const pts=simplify(unifiedOutline2(W/2,H/2,W,H,BUBBLE_R),0.02);
+                return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
+            }
+            function clip(el){
+                const W=el.offsetWidth, H=el.offsetHeight;
+                if(W<2||H<2) return;
+                el.style.clipPath='path("'+bubblePath(W,H)+'")';
+            }
+            const bodies=document.querySelectorAll('.bb');
+            if(window.ResizeObserver){
+                const ro=new ResizeObserver(entries=>{ for(const e of entries) clip(e.target); });
+                bodies.forEach(el=>ro.observe(el));
+            } else {
+                bodies.forEach(clip);
+                window.addEventListener('resize',()=>bodies.forEach(clip));
+            }
+        })();
     </script>
 </body>
 </html>
