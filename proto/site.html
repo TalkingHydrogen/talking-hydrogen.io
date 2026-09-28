@@ -182,7 +182,7 @@
      the camera there"): over the sliver of the row element left / right of the open pile at the viewport's edge, above the
      shield; hover = its top two cards slide out (setNHover()), click = the camera moves to it (moveTo()). Placed by placeNZones()
      (display none when there is no neighbour on that side); hit-testable in OPEN only. */
-  .nzone { position: absolute; z-index: 100; pointer-events: none; cursor: pointer; display: none; }
+  .nzone { position: absolute; z-index: 100; pointer-events: none; cursor: pointer; left: 0; top: 0; width: 0; height: 0; will-change: transform; }   /* PERF 2026-09-28: ALWAYS in layout, its own (empty) layer, only ever resized — it used to be display: none until OPEN, and showing two positioned z-index 100 nodes over the composited row at the open frame cost Safari 100–125 ms (frame recorder, ?xp=nozones isolated it); the WKWebView never showed it */
   .viewer.open .nzone { pointer-events: auto; }
   html.custom-cursor .nzone { cursor: none; }
   html.zones .viewer.open .nzone { outline: 1px solid rgba(52, 199, 89, .85); outline-offset: -1px; }
@@ -2183,9 +2183,10 @@ function openNow() {
   scrollTo(0, 0); unlockPage();                                                            // OPEN: at the top, not locked (as enterOpen())
   hover.jump(0); p.jump(1);
   loadTucked(); vhover = 0; jumpAll(); setLayout('viewer'); untuck(true);
+  rowPart(); row.classList.add('parting');                                                 // the CAMERA at p = 1, as expand() does (2026-09-28: it used to ride on the font-ready layoutAll, which is gone)
   viewer.classList.add('open');
   cursorSync();
-  render();
+  render(); placeNZones();
 }
 applyConfigs();
 syncHomeSlots();
@@ -2807,12 +2808,12 @@ function placeNZones() {                    // over each neighbour's sliver (+ i
   const a = activeStack, d = RP.dPart, on = CAMERA && !!a && a.state === 'open' && !!d && d.s === a;
   for (const z of [nzL, nzR]) {
     const side = +z.dataset.side, n = on ? RP.els[d.i + side] : null;
-    if (!n?.st) { if (z.style.display !== 'none') z.style.cssText = 'display:none'; continue; }
+    if (!n?.st) { if (z.style.cssText) z.style.cssText = ''; continue; }                    // no neighbour on this side: back to its zero size (never display: none — PERF, the .nzone CSS)
     const g = nbEdge(frameOf(a, 1), n, side), sh = side < 0 ? d.L : d.R, pad = NB.pad * PG.KV;   // its tilted inner edge (the corner that shows most)
     const inner = side < 0 ? Math.max(g.top[0], g.bot[0]) + sh : RP.W - (Math.min(g.top[0], g.bot[0]) + sh);
     const w = Math.max(0, inner) + pad + (nHov === side ? NB.hover * n.st.peekPx : 0);
     const top = Math.max(0, Math.min(g.top[1], g.bot[1]) - pad), bot = Math.min(RP.H, Math.max(g.top[1], g.bot[1]) + pad);
-    z.style.cssText = `display:block;left:${side > 0 ? RP.W - w : 0}px;top:${top}px;width:${w}px;height:${Math.max(0, bot - top)}px`;
+    z.style.cssText = `left:${side > 0 ? RP.W - w : 0}px;top:${top}px;width:${w}px;height:${Math.max(0, bot - top)}px`;
   }
 }
 function setNHover(side) {                  // its top two cards slide out (protrude(): its flip peek × NB.hover, in its item px at the camera's scale), or back
