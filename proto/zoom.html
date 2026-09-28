@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>viktor dune</title>
+<style>
+  :root { --em: 20px; }
+  html { height: 100%; overflow: hidden; }
+  body {
+    margin: 0; height: 100%; position: relative;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;   /* body = native horizontal scroller of the home row */
+    background: #fff; color: #8e8e93;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -.011em; -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+  .hdr-root, .row, .ghost, .back { font-size: var(--em); }   /* grid em = 20 * C(scale) */
+
+  /* header: fixed wrapper the size of the content box; the name sits at its top-left.
+     Fade + scale(.9925) are applied to .hdr about the centre of the content box. */
+  .hdr-root { position: fixed; pointer-events: none; }
+  .hdr { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: opacity, transform; }
+  .hdr .name { font-size: 1em; font-weight: 500; line-height: 1.2; color: #8e8e93; }
+
+  /* home row: flex, bottom-aligned, starts at content left; fixed + translate(-scrollLeft) while open */
+  .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; }
+  .row.locked { position: fixed; }
+  .wrap { position: relative; z-index: 20; flex: none; }
+  .box { position: relative; }                          /* d x cw, the rect that is measured */
+  /* the animated node: laid out at the EXPANDED image size, centred at the bottom of .box,
+     shown at rest as scale(1/S) about bottom-centre */
+  .item { position: absolute; bottom: 0; left: 50%; transform-origin: bottom center; will-change: transform; }
+  .img { position: absolute; inset: 0; border-radius: 12px; overflow: hidden; transform: translateZ(0); }
+  .img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  .text { white-space: nowrap; line-height: 1.45; color: #8e8e93; }   /* stays at the grid em so the 7.5em gap is grid-relative */
+  .text > div { font-size: .75em; }
+  .text .title { font-weight: 600; }
+  .text .date { margin-top: .5em; }
+  /* inside the item the text column hangs off the image's left edge (7.5em gap), vertically centred;
+     it scales with the image and is invisible at rest */
+  .item > .text { position: absolute; right: 100%; top: 0; bottom: 0; margin-right: 7.5em;
+                  display: flex; flex-direction: column; justify-content: center;
+                  opacity: 0; will-change: opacity; transform: translateZ(0); }
+
+  /* hidden copy of the expanded layout: used ONLY to measure the target image rect */
+  .ghost { position: fixed; visibility: hidden; pointer-events: none; }
+  .slot { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: flex-end; }   /* 150vw */
+  .centerer { display: flex; justify-content: center; align-items: center; height: 100%; }               /* min-width = gallery content width */
+  .inner { display: flex; align-items: center; }
+  .inner > .text { margin-right: 7.5em; }
+  .gimg { flex: none; }
+
+  /* back button: 6em x 6em top-left, own spring, inner opacity .3 -> 1 on hover */
+  .back { position: fixed; left: 0; top: 0; z-index: 200; width: 6em; height: 6em; margin: 0; padding: 0;
+          border: 0; background: none; display: flex; align-items: center; justify-content: center;
+          opacity: 0; pointer-events: none; will-change: opacity; -webkit-appearance: none; }
+  .back-inner { display: block; width: .55em; height: 1.2em; opacity: .3; }
+  .back-inner svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  /* custom cursor: root follows the pointer directly; scale / press / visibility layers are springs */
+  .cursor { position: fixed; left: 0; top: 0; width: 50px; height: 50px; z-index: 1000; pointer-events: none;
+            will-change: transform; display: none; }
+  html.custom-cursor .cursor { display: block; }
+  .cursor-scale, .cursor-down { width: 100%; height: 100%; transform-origin: center; }
+  .cursor-disc { width: 50px; height: 50px; border-radius: 50%; transform-origin: center;
+                 -webkit-backdrop-filter: invert(30%) blur(10px); backdrop-filter: invert(30%) blur(10px);
+                 opacity: 0; transform: scale(.1); will-change: opacity, transform; }
+</style>
+</head>
+<body>
+
+<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">viktor dune</div></div></div>
+
+<main class="row" id="row">
+  <div class="wrap"><div class="box" id="box">
+    <div class="item" id="item">
+      <div class="text" id="text">
+        <div class="title">2018 drawings</div>
+        <div class="subtitle">Pencil, ink, paint</div>
+        <div class="date">2018</div>
+      </div>
+      <div class="img" id="img"><img id="photo" src="../assets/drawings/painting-17.jpg" alt="" draggable="false"></div>
+    </div>
+  </div></div>
+</main>
+
+<section class="ghost" id="ghost" aria-hidden="true">
+  <div class="slot" id="slot"><div class="centerer" id="centerer"><div class="inner">
+    <div class="text">
+      <div class="title">2018 drawings</div>
+      <div class="subtitle">Pencil, ink, paint</div>
+      <div class="date">2018</div>
+    </div>
+    <div class="gimg" id="gimg"></div>
+  </div></div></div>
+</section>
+
+<button class="back" id="back" data-clickable aria-label="Back">
+  <span class="back-inner" id="backInner"><svg viewBox="0 0 10 22" fill="none" stroke="#1d1d1f" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,1 1,11 9,21"/></svg></span>
+</button>
+
+<div class="cursor" id="cursor" aria-hidden="true"><div class="cursor-scale" id="cursorScale"><div class="cursor-down" id="cursorDown"><div class="cursor-disc" id="cursorDisc"></div></div></div></div>
+
+<script>
+/* Prototype of the mikematas.com click-to-zoom motion (spec/01-zoom-in.md), one item, vanilla JS.
+ *
+ * Debug hooks
+ *   ?p=0.5     pin the master spring at p (no animation, interaction disabled) — for screenshots.
+ *              The back-button and text-gate springs are pinned at the same value (they start with p).
+ *   ?auto=1    expand 500 ms after load; console.log the ms from trigger to settle
+ *              (first frame < 1 px from the target rect) and to spring `done` (precision 1e-4).
+ *   window.__zoom = { expand, collapse, spring (master p), springs, layout, geom }
+ *
+ * Desktop only: the spec's mobile branch (column-reverse stack, header scale .945) is not implemented.
+ */
+(() => {
+'use strict';
+
+const SHOW_CURSOR = true;                                   // custom 50 px cursor (spec section 5); false = native cursor
+
+const IMAGE = { w: 2000, h: 1432 };                         // painting-17.jpg; refined from naturalWidth/Height on load
+
+const ZOOM = {
+  desktop: { fontSize: 20, minScale: .3, windowBreakWidth: 1300, windowBreakHeight: 1000, windowMinWidth: 380, windowMinHeight: 300,
+             minHMargin: 35, maxHMargin: 150, minVMargin: 35, maxVMargin: 130,
+             contentMinWidth: 400, contentMaxWidth: 1000, contentMinHeight: 200, contentMaxHeight: 740,
+             timelineHeight: 530, headerScale: .9925 },
+  galleryWidthMultiplier: 1.5,
+  spring:  { tension: 300, friction: 35, mass: 1, precision: .0001 },       // master p, text gate, back button
+  timing:  { header: { start: 0, end: .333 }, galleryContent: { start: .333, end: 1 }, backButton: { start: .5, end: 1 } },
+  backButtonOpacity: .3,
+  cursor:  { size: 50, scaleSmall: .5, scaleDown: .9, edge: 10,
+             scaleSpring: { tension: 150.93265, friction: 19.56007, clamp: true },
+             downSpring:  { tension: 129.69176, friction: 8.24223,  clamp: true },
+             visSpring:   { tension: 170, friction: 26 } },
+  maxFrameDt: 64, clickMaxMove: 2, dismissMaxMove: 5,
+};
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp  = (t, a, b) => clamp(a + t * (b - a), a, b);
+const easeOutQuad = t => 1 - (1 - t) * (1 - t);
+const easeInExpo  = t => t === 0 ? 0 : Math.pow(2, 10 * (t - 1));
+const Z = (p, r, out0, out1, ease) => out0 + (out1 - out0) * ease(clamp((p - r.start) / (r.end - r.start), 0, 1));
+
+/* 1:1 port of react-spring's integrator (spec 9.1). Units: tension/friction/mass; velocity in units/ms; dt in ms. */
+class Spring {
+  constructor({ tension = 170, friction = 26, mass = 1, precision, restVelocity, clamp = false, value = 0, onChange } = {}) {
+    Object.assign(this, { tension, friction, mass, precision, restVelocity, clamp, onChange });
+    this.value = this.from = this.target = value; this.velocity = 0; this.done = true;
+  }
+  set(target, { velocity } = {}) {                 // mid-flight retargets keep the current velocity
+    this.target = target; this.from = this.value;
+    if (this.done && velocity !== undefined) this.velocity = velocity;
+    this.done = false; return this;
+  }
+  jump(value) { this.value = this.from = this.target = value; this.velocity = 0; this.done = true; this.onChange?.(value); return this; }
+  setVelocity(v) { this.velocity = v; this.done = false; return this; }
+  get isDone() { return this.done; }
+  tick(dt) {
+    if (this.done) return false;
+    const to = this.target, from = this.from;
+    const precision = this.precision || (from === to ? 0.005 : Math.min(1, Math.abs(to - from) * 0.001));
+    const restVelocity = this.restVelocity || precision / 10;
+    const bounce = this.clamp ? 0 : undefined;
+    const dirUp = from === to ? this.velocity > 0 : from < to;
+    let pos = this.value, vel = this.velocity, finished = false;
+    for (let i = 0, n = Math.ceil(dt); i < n; i++) {
+      if (Math.abs(vel) <= restVelocity) { finished = Math.abs(to - pos) <= precision; if (finished) break; }
+      if (bounce !== undefined && (pos === to || (pos > to) === dirUp)) { vel = -vel * bounce; pos = to; }
+      vel += (-this.tension * 1e-6 * (pos - to) + -this.friction * 1e-3 * vel) / this.mass;
+      pos += vel;
+    }
+    const changed = pos !== this.value;
+    this.value = pos; this.velocity = vel;
+    if (finished) { this.value = to; this.velocity = 0; this.done = true; }
+    if (changed || finished) this.onChange?.(this.value);
+    return changed;
+  }
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const hdrRoot = $('hdrRoot'), hdr = $('hdr'), row = $('row'), box = $('box'), item = $('item'), text = $('text'), photo = $('photo');
+const ghost = $('ghost'), slot = $('slot'), centerer = $('centerer'), gimg = $('gimg');
+const backEl = $('back'), backInner = $('backInner');
+const cursorEl = $('cursor'), cursorScaleEl = $('cursorScale'), cursorDownEl = $('cursorDown'), cursorDisc = $('cursorDisc');
+
+/* ---------- springs ---------- */
+const p    = new Spring(ZOOM.spring);                       // master progress 0..1
+const back = new Spring(ZOOM.spring);                       // back button, mapped [.5,1] -> [0,1]
+const gate = new Spring(ZOOM.spring);                       // per-project text gate (1 once the item has been opened)
+const backHover   = new Spring(ZOOM.cursor.scaleSpring);                  // 0..1, back inner opacity .3 -> 1
+const cursorScale = new Spring({ ...ZOOM.cursor.scaleSpring, value: 1 }); // 1 / .5 over [data-clickable]
+const cursorDown  = new Spring({ ...ZOOM.cursor.downSpring,  value: 1 }); // 1 / .9 while pressed
+const cursorVis   = new Spring(ZOOM.cursor.visSpring);                    // 0..1 -> opacity, scale .1 -> 1
+const springs = [p, back, gate, backHover, cursorScale, cursorDown, cursorVis];
+
+/* ---------- state ---------- */
+const G = {};                       // geometry (spec 2), computed by layout(); read-only inside the loop
+let open = false, scroll0 = 0, delta = 0, pinned = null, measure = null;
+
+const query = new URLSearchParams(location.search);
+if (query.has('p')) pinned = clamp(parseFloat(query.get('p')) || 0, 0, 1);
+
+/* ---------- layout: all sizing + measurement, never in the frame loop ---------- */
+function layout() {
+  const W = innerWidth, H = innerHeight, K = ZOOM.desktop;
+  let wMin = K.windowMinWidth, hMin = K.windowMinHeight, cwMin = K.contentMinWidth, chMin = K.contentMinHeight,
+      hmMin = K.minHMargin, vmMin = K.minVMargin;
+  if (H < K.windowMinHeight) { hMin = 0; chMin = 0; vmMin = 0; }
+  if (W < K.windowMinWidth)  { wMin = 0; cwMin = 0; hmMin = 0; }
+  const bx = clamp((W - wMin) / (K.windowBreakWidth  - wMin), 0, 1);
+  const by = clamp((H - hMin) / (K.windowBreakHeight - hMin), 0, 1);
+  const scale = Math.min(bx, by);
+  const C = H < K.windowMinHeight ? scale : K.minScale + (1 - K.minScale) * scale;
+  const em = K.fontSize * C;
+  const hMargin = lerp(bx, hmMin, K.maxHMargin), vMargin = lerp(by, vmMin, K.maxVMargin);
+  const contentH = Math.min(lerp(bx, chMin, K.contentMaxHeight), H - 2 * vMargin);   // cross-wired, as in the bundle
+  const contentW = Math.min(lerp(by, cwMin, K.contentMaxWidth),  W - 2 * hMargin);
+  const contentLeft = (W - contentW) / 2, contentTop = (H - contentH) / 2, contentBottom = contentTop + contentH;
+  const galleryLeft = hMargin, galleryW = W - 2 * hMargin;
+  const TH = K.timelineHeight * C;
+  const d = TH, cw = d * IMAGE.w / IMAGE.h;                                 // home-row container (no per-image offsets)
+  const gImgH = contentH, gImgW = gImgH * IMAGE.w / IMAGE.h;                 // expanded image
+  const padRight = (W - contentW) / 2;
+  Object.assign(G, { W, H, bx, by, scale, C, em, hMargin, vMargin, contentW, contentH, contentLeft, contentTop, contentBottom,
+                     galleryLeft, galleryW, TH, d, cw, gImgW, gImgH, padRight });
+
+  // writes
+  document.documentElement.style.setProperty('--em', em + 'px');
+  hdrRoot.style.cssText = `left:${contentLeft}px;top:${contentTop}px;width:${contentW}px;height:${contentH}px`;
+  row.style.top = (contentBottom - TH) + 'px'; row.style.height = TH + 'px';
+  row.style.paddingLeft = contentLeft + 'px'; row.style.paddingRight = padRight + 'px';
+  box.style.width = cw + 'px'; box.style.height = d + 'px';
+  item.style.width = gImgW + 'px'; item.style.height = gImgH + 'px'; item.style.marginLeft = (-gImgW / 2) + 'px';
+  ghost.style.cssText = `left:${galleryLeft}px;top:${contentTop}px;width:${galleryW}px;height:${contentH}px`;
+  slot.style.width = (ZOOM.galleryWidthMultiplier * W) + 'px';
+  centerer.style.minWidth = galleryW + 'px';
+  gimg.style.width = gImgW + 'px'; gimg.style.height = gImgH + 'px';
+
+  // measure (the only getBoundingClientRect calls in the file)
+  const br = box.getBoundingClientRect(), gr = gimg.getBoundingClientRect();
+  const sl = open ? scroll0 : document.body.scrollLeft;   // row is translated by -scroll0 while locked
+  G.boxCx = br.left + br.width / 2 + sl;                   // unscrolled centre of the home-row container
+  G.gcx = gr.left + gr.width / 2;                          // ghost slot 0 → strip offset 0
+  G.S  = gr.height / br.height;                            // = gImgH / d
+  G.iy = gr.bottom - br.bottom;                            // 0 on desktop
+  G.maxScrollX = Math.max(0, br.right + sl + padRight - W);
+  targets();
+  render();
+}
+function targets() { G.ix = G.gcx - (G.boxCx - scroll0); }   // image.x in the screen frame at expand time
+
+/* ---------- expand / collapse (spec 6) ---------- */
+function expand() {
+  if (pinned !== null || open) return;
+  open = true; delta = 0;
+  scroll0 = document.body.scrollLeft;
+  targets();
+  row.classList.add('locked'); row.style.transform = `translate3d(${-scroll0}px,0,0)`;   // freeze the native scroll
+  backEl.style.pointerEvents = 'auto';
+  gate.set(1); p.set(1); back.set(1); kick();
+}
+function collapse() {
+  if (pinned !== null || !open) return;
+  open = false;
+  const o = clamp(G.boxCx - G.W / 2, 0, G.maxScrollX);                                    // re-centre the row on the item
+  delta = o - scroll0;
+  row.classList.remove('locked'); row.style.transform = '';
+  document.body.scrollTo(o, 0);
+  backEl.style.pointerEvents = 'none';
+  backHover.set(0); cursorScale.set(1);
+  p.set(0); back.set(0); kick();                                                           // same spring, velocity kept
+}
+
+/* ---------- frame loop: one loop, all springs, transforms + opacity only ---------- */
+let last = 0, rafId = 0;
+function frame(now) {
+  const dt = last ? Math.min(ZOOM.maxFrameDt, now - last) : 16.667;
+  last = now;
+  let active = false;
+  for (const s of springs) { s.tick(dt); if (!s.isDone) active = true; }
+  render();
+  if (measure) {
+    if (measure.settle == null && (1 - p.value) * measure.px < 1) measure.settle = now - measure.t0;
+    if (p.isDone) {
+      console.log(`[zoom] auto: settle ${Math.round(measure.settle ?? now - measure.t0)} ms (< 1 px from target rect); ` +
+                  `spring done ${Math.round(now - measure.t0)} ms (precision 1e-4)`);
+      measure = null;
+    }
+  }
+  if (active) rafId = requestAnimationFrame(frame); else { rafId = 0; last = 0; }
+}
+function kick() { if (!rafId && pinned === null) rafId = requestAnimationFrame(frame); }
+
+function render() {
+  const v = p.value;
+  const x = (G.ix + (open ? 0 : delta)) * v;
+  const y = Math.min(0, G.iy * v);
+  const s = 1 / G.S + (1 - 1 / G.S) * v;
+  item.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`;
+  text.style.opacity = Z(v, ZOOM.timing.galleryContent, 0, 1, easeInExpo) * gate.value;
+  const h = easeOutQuad(clamp(v / ZOOM.timing.header.end, 0, 1));
+  hdr.style.opacity = 1 - h;
+  hdr.style.transform = `scale(${1 - (1 - ZOOM.desktop.headerScale) * h})`;
+  backEl.style.opacity = Z(back.value, ZOOM.timing.backButton, 0, 1, t => t);
+  backInner.style.opacity = ZOOM.backButtonOpacity + (1 - ZOOM.backButtonOpacity) * backHover.value;
+  cursorScaleEl.style.transform = `scale(${cursorScale.value})`;
+  cursorDownEl.style.transform = `scale(${cursorDown.value})`;
+  cursorDisc.style.opacity = cursorVis.value;
+  cursorDisc.style.transform = `scale(${.1 + .9 * cursorVis.value})`;
+}
+
+/* ---------- events ---------- */
+let pd = null;
+document.addEventListener('pointerdown', e => { pd = { x: e.clientX, y: e.clientY, target: e.target }; });
+document.addEventListener('pointerup', e => {
+  if (!pd) return;
+  const moved = Math.hypot(e.clientX - pd.x, e.clientY - pd.y), t = pd.target; pd = null;
+  if (t.closest('[data-clickable]')) return;                                  // the back button handles itself
+  if (open) { if (moved < ZOOM.dismissMaxMove) collapse(); }                  // click anywhere while open = dismiss
+  else if (moved < ZOOM.clickMaxMove && t.closest('.img')) expand();
+});
+backEl.addEventListener('click', e => { e.stopPropagation(); collapse(); });
+backEl.addEventListener('mouseenter', () => { backHover.set(1); cursorScale.set(ZOOM.cursor.scaleSmall); kick(); });
+backEl.addEventListener('mouseleave', () => { backHover.set(0); cursorScale.set(1); kick(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'ArrowDown') collapse(); });
+
+let resizeT = 0;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(layout, 50); });   // geometry only; p untouched
+
+/* ---------- cursor (spec section 5, simplified: pop in/out instead of edge fly) ---------- */
+const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+if (SHOW_CURSOR && !touch) {
+  document.documentElement.classList.add('custom-cursor');
+  const half = ZOOM.cursor.size / 2;
+  let visible = false;
+  const show = on => { if (visible !== on) { visible = on; cursorVis.set(on ? 1 : 0); kick(); } };
+  document.addEventListener('mousemove', e => {
+    cursorEl.style.transform = `translate3d(${e.clientX - half}px, ${e.clientY - half}px, 0)`;   // direct, no smoothing
+    const m = ZOOM.cursor.edge;
+    show(!(e.clientX < m || e.clientY < m || e.clientX > innerWidth - m || e.clientY > innerHeight - m));
+  });
+  document.documentElement.addEventListener('mouseleave', () => show(false));
+  addEventListener('blur', () => show(false));
+  document.addEventListener('mousedown', () => { cursorDown.set(ZOOM.cursor.scaleDown); kick(); });
+  document.addEventListener('mouseup',   () => { cursorDown.set(1); kick(); });
+}
+
+/* ---------- boot ---------- */
+function useNatural() {
+  if (photo.naturalWidth && photo.naturalHeight && (photo.naturalWidth !== IMAGE.w || photo.naturalHeight !== IMAGE.h)) {
+    IMAGE.w = photo.naturalWidth; IMAGE.h = photo.naturalHeight; layout();
+  }
+}
+layout();
+if (photo.complete) useNatural(); else photo.addEventListener('load', useNatural, { once: true });
+if (document.fonts?.ready) document.fonts.ready.then(layout);
+
+if (pinned !== null) {
+  open = pinned > 0;
+  backEl.style.pointerEvents = open ? 'auto' : 'none';
+  p.jump(pinned); back.jump(pinned); gate.jump(pinned);
+  render();
+}
+if (query.get('auto') === '1' && pinned === null) {
+  addEventListener('load', () => setTimeout(() => {
+    const dw = G.gImgW - G.cw, dh = G.gImgH - G.d;
+    measure = { t0: performance.now(), px: Math.max(Math.abs(G.ix - dw / 2), Math.abs(G.ix + dw / 2), dh) };
+    expand();
+  }, 500));
+}
+
+window.__zoom = { expand, collapse, spring: p, springs: { p, back, gate, backHover, cursorScale, cursorDown, cursorVis }, layout, geom: G };
+})();
+</script>
+</body>
+</html>

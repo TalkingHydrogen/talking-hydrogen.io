@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>viktor dune — flip</title>
+<style>
+  :root { --page-bg: #F2F2F2; --viewer-bg: #FCFCFC; }   /* spec 03: the closed page is #F2F2F2, opening lightens it to #FCFCFC */
+  html, body { margin: 0; }                              /* the page scrolls: the viewer (100 vh), then the tuning panel */
+  body {
+    background: var(--viewer-bg); color: #8e8e93;        /* this page is always "open" */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -.011em; -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  /* the viewer: the first 100 vh of the page, in normal flow (the tuning panel below it is reached by scrolling); cards
+     centred on its centre point and clipped to it (the outgoing card's apex is partly beyond its edge). Each .card is its
+     own compositor layer (will-change); the squircle clip sits on the img and the shadow is an inline SVG behind it (see
+     stack.html for why) — both are rasterised once per layout; the frame loop writes transforms and z-indices only.
+     Print border (`border` knob > 0, stack.html's rules): the card gets .print, its ::before is the white paper — the outer
+     squircle (--paper, written by arrange()) between the shades and the img — and the img is inset by the border with its
+     own smaller clip. It is all card content: it rides the lift / tilt / travel and the spring back untouched. */
+  .stage { position: relative; height: 100vh; overflow: hidden; }
+  .card { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; will-change: transform; transform: translateZ(0); }
+  .card img { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; background: #fff; }   /* clip-path (+ print inset) set inline */
+  .card::before { content: ''; display: none; position: absolute; inset: 0; z-index: 1; background: #fff; clip-path: var(--paper, none); }
+  .card.print::before { display: block; }
+  .card .shade { position: absolute; display: block; pointer-events: none; }                                       /* sized by arrange(); two per card: rest + lifted.
+     NOT promoted to their own layers: promoted shadows under a scaling parent cost ~3 ms/frame + 40 ms spikes (headless
+     measurement); painted into the card's layer, the cross-fade is a cheap repaint of one card ~50 times per flip. */
+
+  /* click / hover zones: full-height invisible strips above the cards, inside the viewer (they scroll with it, so the
+     panel below is never a zone; left 30 % = prev, right 30 % = next). They own the cursor rule (a thin chevron, grey on
+     a white outline, hotspot centred) and their pointerenter/leave drive the peek; clicks bubble to the viewer's click
+     handler, which decides by x. */
+  .zone { position: absolute; top: 0; bottom: 0; width: 30%; z-index: 100; }
+  .zone-l { left: 0;  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M19.5 6 9.5 16l10 10' fill='none' stroke='%23fff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M19.5 6 9.5 16l10 10' fill='none' stroke='%238e8e93' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, w-resize; }
+  .zone-r { right: 0; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M12.5 6 22.5 16l-10 10' fill='none' stroke='%23fff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12.5 6 22.5 16l-10 10' fill='none' stroke='%238e8e93' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, e-resize; }
+
+  /* ===== TEMPORARY tuning panel (#knobs): below the viewer, in normal flow — scroll down to reach it. Delete this CSS
+     block, the #knobs element and the "TEMP knob panel" script block once the values are final (the defaults live in
+     MOTION.speed / .tilt / .dir and STACK.radius / .border / .shadow.alpha). Plain: system font 12 px, #8e8e93 on white. ===== */
+  .knobs { box-sizing: border-box; min-height: 88px; padding: 22px 16px 26px; display: flex; flex-wrap: wrap; gap: 10px 26px;
+           align-items: center; font: 12px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           letter-spacing: 0; color: #8e8e93; background: #fff; cursor: auto; }
+  .knobs label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .knobs input[type=range] { width: 140px; margin: 0; }
+  .knobs .val { min-width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; }
+  .knobs button, .knobs select { font: inherit; color: inherit; margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">                       <!-- the viewer (100 vh); .card elements are built by the script -->
+  <div class="zone zone-l" id="zoneL" aria-hidden="true"></div>
+  <div class="zone zone-r" id="zoneR" aria-hidden="true"></div>
+</div>
+<div class="knobs" id="knobs"></div>                 <!-- TEMP tuning panel (scroll down): delete with its CSS + script block -->
+
+<script>
+/* Prototype part 3: the open "flip through the stack" viewer — spec/03-page-flip.md (measured from ref/3-flip.mov) plus
+ * the owner decisions at its end, with the flip MOTION replaced by a physical one (owner, after seeing the footage-accurate
+ * version: "the page is teleporting to the front"). Standalone; no tuning knobs: the layout numbers are the footage's, the
+ * motion constants sit in the MOTION block below for iteration.
+ *
+ * Layout (spec §2, unchanged). Box = min(64 vw, 84 vh) (680 px in the footage); every card is contain-fitted into it (longer
+ * side = box) and centred on the viewport centre. Slot i of the deck (front first) has the relative index rel = i, except
+ * the last slot, which is rel −1 (prev). A slot is a rotation about a pivot far below the stack: rot = rel · 0.33°,
+ * x = PIVOT · sin(rot), PIVOT = 21.5 px / sin(0.33°) ≈ 3733 px (→ ±21.5 px per step), y = 0. Every px scales with
+ * KB = box / 680.
+ *
+ * Depth: a physical pile — current > next > next+1 > … > prev, i.e. z = N − slot; the prev card is the BACK-most card.
+ * (The footage's order, current > prev > next > …, is not a pile: on every flip the prev card would have to pass under
+ * the next cards while overlapping them — a depth pop the owner rules out. In a pile the only card that ever changes
+ * depth is the outgoing one, and it does so when it overlaps nothing.)
+ *
+ * Peek (spec §2). Pointer in the right zone → the next card (slot 1) springs to rot = +(0.33° + 1.0°·h/w) — 1.05° for a
+ * landscape drawing, 1.82° for a portrait one — with x from the same pivot (≈ 68 / 119 px at the 680 box); left zone →
+ * the prev card (last slot) to the mirror. Leaving the zone returns it. The peek is suppressed while a flip is in its
+ * out phase (targets are re-read, with the hover, at the apex).
+ *
+ * Flip (owner design: "two things — the stack, and the moving card. The stack stays still while the card moves"). A card's
+ * x is xOf(rot) + ex: the slot arc plus an excursion. On click the deck rotates at once and the flip runs in two phases:
+ *   1. OUT, MOTION.outMs (cubic-in — slow start, accelerating): next → the current card (z top) travels LEFT to its apex;
+ *      prev → the prev card (z bottom) pulls out to the RIGHT from under the pile. Nothing else moves: every other card
+ *      stays exactly where it is (its slot, or its peek — the incoming card is visibly underneath the whole time). The
+ *      outgoing card lifts (scale → MOTION.lift, its shadow cross-fades to a larger, softer one). The apex is planned so
+ *      that the outgoing card's near edge is MOTION.gap clear of the pile's far edge on that side — the pile card that
+ *      sticks out furthest (bounding boxes, mixed ratios: behind a portrait front card that is a landscape card a slot or
+ *      two back). The whole separation is the outgoing card's (≈ 730–850 px at the 756 box), so about half of it is
+ *      beyond the viewport edge at 1440×900 — accepted by the owner (`flight.overflow` reports the fraction).
+ *   2. APEX, at click + outMs: nothing overlaps the outgoing card, so the z-order switches to the new deck invisibly
+ *      (next: the outgoing goes to the bottom, the incoming — already second — is top-most; prev: the mirror).
+ *   3. BACK, the spec spring (tension 200 / friction 25, ω 14.2 rad/s, ζ 0.89 — a natural ease-out): every ex springs
+ *      to 0, the lift to 1 and every rot to its NEW slot (incoming +1 → 0, outgoing 0 → −1, …). Both start at the apex,
+ *      so the incoming card comes forward exactly as the outgoing one tucks in behind it. From ≈ 730–850 px out the
+ *      outgoing card overshoots its slot by ≈ 1.6 px and is within 1 px ≈ 570 ms after the apex (the stack ≈ 360 ms).
+ *
+ * Rapid clicks: every click rotates the deck immediately; nothing is locked or dropped. A click during BACK starts a new
+ * OUT from the current values (velocity carried: the out tween is a cubic Hermite that is exactly t³ from rest). A click
+ * during OUT adds the new outgoing card to the "hand" (its own tween to its own apex, planned against the pile as it then
+ * is — the pile itself never moves) and re-issues the single apex timer (click + outMs); at the apex the z-order is
+ * recomputed from the deck as it then is.
+ * Cards in the hand keep their relative depth, so bursts up to N−1 clicks deep are still pop-free; deeper ones (the deck
+ * cycles fully inside one out phase) permute overlapping cards at the apex — unavoidable, and position-continuous.
+ * After the apex every card targets the static layout of the final deck (+ the hovered side's peek), so the settled DOM
+ * always equals it.
+ *
+ * Interaction (owner decisions): click in the left 30 % = prev, right 30 % = next (wraps), fires on `click`; the middle
+ * band: a card = nothing, the background = "close" (dispatches `viewer:close` on document + console.log('close')).
+ * No keyboard, no buttons. Backdrop: the page is #FCFCFC while open (--viewer-bg; the closed page is #F2F2F2).
+ *
+ * Tuning (TEMP panel #knobs below the viewer — scroll down; every knob is also a URL param; "copy values" console.logs the
+ * knob JSON + query string and copies the JSON; the defaults are MOTION.speed / .tilt / .dir and STACK.radius / .border /
+ * .shadow.alpha, so cutting the panel changes nothing):
+ *   speed  time scale of the whole flip: OUT = outMs / speed, the apex timer likewise; every spring keeps its damping
+ *          ratio (tension · speed², friction · speed → ω ∝ speed, ζ 0.89), the peek included.
+ *   tilt   the moving card's top leans toward the side it travels to (moving left → negative / counter-clockwise), for
+ *          asymmetry: its own rotation about the card centre ON TOP of the slot rotation — not added to `rot`, which is
+ *          the arc about the far pivot and would move the card ≈ 72 px per degree. Envelope: ramps up with the OUT ease-in
+ *          (the same cubic-in tween) to ±tilt at the apex, then the spring takes it back to 0 with the BACK phase. Both
+ *          next and prev; the apex clearance uses the tilted bounding box.
+ *   dir    which way the moving card travels: 'opposite' the pressed side (next → the front card goes LEFT out, prev →
+ *          the bottom card comes out RIGHT — the footage) or the 'same' side (next → the front card goes RIGHT, clearing
+ *          the pile on the right, then tucking under; prev → the bottom card comes out LEFT and over the top). The
+ *          clearance, tilt sign, lift, apex z-swap and prev mirroring follow the side; the peek stays on the zone's side.
+ *   radius, border, shadow   the card treatment: stack.html's knobs, same labels / ranges / steps; viewer defaults 2, 0, 0 (owner-approved
+ *          2026-09-24; the stack keeps 1, 0, .33). radius and border are CSS px at stack.html's REST box, × S = box / that rest box
+ *          (as the zoom scales them), so a card here looks exactly like the stack's expanded card at the same displayed
+ *          size. radius: the squircle clip of the card's outer edge (square below .5 px). border: the print border — white
+ *          paper under the img (the outer squircle), the img inset by border·S on every side with its own squircle of
+ *          radius max(0, radius − border) (square below .5 px); 0 renders nothing extra. shadow: the drop-shadow alpha, of
+ *          both the rest and the lifted shadow (both on the outer edge; the OUT cross-fade is unchanged). Applied by
+ *          arrange() once per change / layout, never per frame.
+ *
+ * Debug hooks
+ *   ?speed=1&tilt=6&dir=opposite      the knobs (see KNOB_DEFS)
+ *   ?radius=2&border=0&shadow=0         the card-treatment knobs (?radius=11&shadow=.1 = the previous look)
+ *   ?flip=next|prev&t=<ms>            one click from the settled, peeked pre-state (pointer in that zone, as in the
+ *                                     footage), frozen t ms after the click (1 ms deterministic ticks, no rAF, no input)
+ *   ?seq=next,next,prev&dt=80&t=<ms>  that click sequence dt ms apart (pointer in each click's zone), frozen t ms after
+ *                                     the first click
+ *   ?cards=2…8                        deck size (the first N drawings, painting-17 in front)
+ *   ?front=<N|id>                     rotate the deck at load so that drawing (index into the N, or id, e.g. drawing-04)
+ *                                     is in front — the portrait-front cases
+ *   window.__flip: next, prev, flip, hover, deck, ids, cards, geom, FLIP, MOTION, KNOB_DEFS, knobs, setKnob, phase,
+ *                  flight, frames, timing, settled(), staticRects(), state(), trace(names, dt, tEnd), layout
+ */
+(() => {
+'use strict';
+
+const ASSETS = '../assets/drawings/';
+/* The deck, front → back at load; natural sizes of the 2000 px files, refined on load. */
+const DECK = [
+  { id: 'painting-17', w: 2000, h: 1432 },
+  { id: 'drawing-04',  w: 1346, h: 2000 },
+  { id: 'painting-16', w: 2000, h: 1430 },
+  { id: 'drawing-05',  w: 1336, h: 2000 },
+  { id: 'drawing-01',  w: 2000, h: 1335 },
+  { id: 'drawing-06',  w: 1339, h: 2000 },
+  { id: 'drawing-09',  w: 2000, h: 1332 },
+  { id: 'painting-18', w: 2000, h: 1411 },
+];
+
+/* spec 03 constants, all measured at the footage's 680 px box (px scale by KB = box / 680; degrees do not scale) */
+const FLIP = {
+  refBox: 680,                              // the longer side of every card in the footage (= 64 vw = 84 vh there)
+  boxVw: .64, boxVh: .84,                   // box = min(64 vw, 84 vh)
+  slotDeg: .33,                             // rotation per relative index (rel −1 prev, 0 current, +1 next, +2 …)
+  slotPx: 21.5,                             // x per relative index → the pivot below
+  peekDeg: (h, w) => .33 + 1.0 * h / w,     // the hovered-side neighbour's total rotation (portrait cards peek further)
+  spring: { tension: 200, friction: 25, mass: 1, precision: 1e-3 },   // ω 14.2 rad/s, ζ 0.89; precision in degrees.
+                                            // Drives every value: rot (all the time), ex and scale in the BACK phase.
+  zoneL: .30, zoneR: .70,                   // click / hover zones as fractions of the viewport width
+};
+const PIVOT = FLIP.slotPx / Math.sin(FLIP.slotDeg * Math.PI / 180);   // ≈ 3733 px at the 680 box: x = PIVOT·KB·sin(rot)
+
+/* ============================================================
+   THE PHYSICAL FLIP — the motion constants, for iteration.
+   px are at the footage's 680 px box (scaled by KB = box / 680);
+   ms and ratios do not scale. The BACK phase is FLIP.spring.
+   ============================================================ */
+const MOTION = {
+  outMs: 260,          // OUT phase: the outgoing card eases out (cubic-in) to its apex; the rest of the pile stays still
+  gap: 12,             // clearance at the apex between the outgoing card and the nearest pile card (bounding boxes)
+  lift: 1.025,         // scale of the outgoing card at the apex (1 at rest)
+  liftShade: 1.6,      // the lifted shadow: blur sigma and offset × this (pre-rasterised, cross-faded by opacity)
+  /* the three tuning knobs (panel #knobs / URL params); these are their defaults */
+  speed: 1,            // time scale of the whole flip: OUT = outMs / speed; springs: tension · speed², friction · speed (ζ unchanged)
+  tilt: 6,             // degrees: the moving card's top leans toward its travel side at the apex (cubic-in up, spring back to 0)
+  dir: 'opposite',     // 'opposite' | 'same': the moving card travels away from / toward the pressed side
+};
+/* the card treatment, stack.html's (owner-approved viewer defaults 2026-09-24: radius 2 / border 0 / shadow 0; speed 1, tilt 6, dir opposite):
+   squircle radius and print border in CSS px at stack.html's REST box, scaled by S = box / rest box as the zoom scales
+   them there; the SVG drop shadow's geometry (spec 02: 0 1px 4px = y 1, sigma 2) in px at the 340 px reference box,
+   scaled by box / 340, and its alpha. radius / border / shadow.alpha are the defaults of the knobs of the same names. */
+const STACK = { refBox: 340, radius: 2, border: 0, shadow: { y: 1, sigma: 2, alpha: 0 } };
+/* TEMP knob panel: one row per knob (range + live readout, or a select); every knob is also a URL param of the same name */
+const KNOB_DEFS = [
+  { key: 'speed',  label: 'speed ×',   min: .25, max: 3,  step: .05, def: MOTION.speed },
+  { key: 'tilt',   label: 'tilt °',    min: -20, max: 20, step: .5,  def: MOTION.tilt },
+  { key: 'dir',    label: 'travel',    type: 'select', options: ['opposite', 'same'], def: MOTION.dir },
+  { key: 'radius', label: 'radius px', min: 0,   max: 60, step: 1,   def: STACK.radius },         // squircle radius, CSS px at stack.html's REST box (× S)
+  { key: 'border', label: 'border px', min: 0,   max: 40, step: 1,   def: STACK.border },         // print border: white paper, img inset on every side, rest px (× S); 0 = edge to edge
+  { key: 'shadow', label: 'shadow',    min: 0,   max: 1,  step: .01, def: STACK.shadow.alpha },   // drop-shadow alpha (the rest and the lifted shadow)
+];
+const CARD_KNOBS = ['radius', 'border', 'shadow'];   // → arrange(): clip, paper and shadows are per layout, never per frame
+const MAX_FRAME_DT = 64;
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* ============================================================
+   Apple squircle. unifiedOutline2 and its helpers are a verbatim
+   port of brew/squircle-fit/grow-vs-carve.html (via the chat-bubble
+   block at the bottom of website/index.html) — the corner is a
+   curvature ramp kappa(s) marched into an outline, blending the two
+   eye-matched 1:1 presets (brew/squircle-fit/RESEARCH.md §7) from
+   geometry alone: pill = smoothing 60%, G4; panel = tail 100%,
+   concentration 4%, G4. Squircle.path(W, H, r) returns an SVG path
+   string for clip-path: path(...) in the element's own px.
+   ============================================================ */
+const Squircle = (() => {
+    const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+    const lerp =(a,b,t)=>a+(b-a)*t;
+    function smoothstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+    function smootherstep(t){ t=clamp(t,0,1); return t*t*t*(t*(t*6-15)+10); }
+    function easeRamp(t,name){
+        if(name==="G2") return clamp(t,0,1);
+        if(name==="G4") return smootherstep(t);
+        return smoothstep(t);
+    }
+    function rampFullness(p,ease){
+        if(ease==="G2") return 1/(p+1);
+        if(ease==="G4") return 6/(5*p+1)-15/(4*p+1)+10/(3*p+1);
+        return 3/(2*p+1)-2/(3*p+1);
+    }
+    function marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter){
+        kOuter=kOuter||0;
+        const HP=Math.PI/2, I=rampFullness(p,ease);
+        const Tin=Math.max(0,HP-Tout-m*K*Lm);
+        const Li=Tin /(K*(m+(1-m)*I));
+        const outAvg=kOuter+(K-kOuter)*I;
+        const Lo=outAvg>1e-9 ? Tout/outAvg : 0;
+        const segs=[];
+        if(Lm>1e-9) segs.push(["mid",Lm]);
+        if(Li>1e-9) segs.push(["in", Li]);
+        if(Lo>1e-9) segs.push(["out",Lo]);
+        const L=Lm+Li+Lo||1;
+        let th=HP,x=0,y=0;
+        const pts=[[0,0]];
+        for(let s=0;s<segs.length;s++){
+            const kind=segs[s][0],len=segs[s][1];
+            const cnt=Math.max(16,Math.round(len/L*N)),ds=len/cnt;
+            for(let i=0;i<cnt;i++){
+                const t=(i+0.5)/cnt;
+                const k = kind==="mid" ? m*K
+                        : kind==="in"  ? m*K+(1-m)*K*easeRamp(Math.pow(t,p),ease)
+                        :                kOuter+(K-kOuter)*easeRamp(Math.pow(1-t,p),ease);
+                const dth=k*ds;
+                th+=dth/2; x+=Math.cos(th)*ds; y+=Math.sin(th)*ds; th+=dth/2;
+                pts.push([x,y]);
+            }
+        }
+        return {pts:pts,ex:x,ey:y};
+    }
+    function geomM(W,H,r){
+        const r0=Math.min(r,W/2,H/2);
+        return 1-smoothstep((1-2*r0/Math.min(W,H))/0.30);
+    }
+    function unifiedOutline2(cx,cy,W,H,r,carve,ease,mOverride){
+        ease=ease||"G4";
+        const HP=Math.PI/2, half=H/2;
+        const r0=Math.min(r,W/2,H/2);
+        const m=(mOverride==null)?geomM(W,H,r):clamp(mOverride,0,1);
+        const rampShare=clamp(lerp(1.00,0.60,m)*(carve==null?1:carve),0,1);
+        const conc=lerp(0.04,0.00,m);
+        const p=conc<=1e-9?1:1+conc*8;
+        function fitH(Tout,kOuter,N){
+            let K=1/r0;
+            K*=Math.max(1, marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey/half);
+            const LmMax=m>1e-4 ? 0.94*(HP-Tout)/(m*K) : H*8;
+            let Lm=0;
+            if(marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey < half-1e-6){
+                let lo=0,hi=Math.min(H*3,LmMax);
+                for(let it=0;it<24;it++){
+                    const md=(lo+hi)/2;
+                    if(marchQuadrant(K,m,md,Tout,p,ease,260,kOuter).ey<half) lo=md; else hi=md;
+                }
+                Lm=(lo+hi)/2;
+            }
+            const Q=marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter);
+            const sc=Q.ey>1e-6 ? half/Q.ey : 1;
+            return {pts:Q.pts,sc:sc,exr:-Q.ex*sc,K:K};
+        }
+        const Tout=Math.min(rampShare*HP*(1+m)/2, HP*0.96);
+        let kOuter=0;
+        let F=fitH(Tout,0,260);
+        if(F.exr>W/2){
+            let lo=0,hi=(1/r0)*0.999;
+            for(let it=0;it<24;it++){
+                const md=(lo+hi)/2;
+                if(fitH(Tout,md,160).exr>W/2) lo=md; else hi=md;
+            }
+            kOuter=(lo+hi)/2;
+        }
+        F=fitH(Tout,kOuter,2000);
+        const sc=F.sc;
+        const q=F.pts.map(pt=>[pt[0]*sc, pt[1]*sc]);
+        const TR=q.map(pt=>[ W/2+pt[0], pt[1]]);
+        const TL=TR.map(pt=>[-pt[0], pt[1]]).reverse();
+        const BL=TR.map(pt=>[-pt[0],-pt[1]]);
+        const BR=TR.map(pt=>[ pt[0],-pt[1]]).reverse();
+        return TR.concat(TL,BL,BR).map(pt=>[cx+pt[0], cy-pt[1]]);
+    }
+    // Ramer-Douglas-Peucker: keep the fewest vertices that stay within eps px
+    function simplify(pts,eps){
+        const keep=new Uint8Array(pts.length); keep[0]=1; keep[pts.length-1]=1;
+        const stack=[[0,pts.length-1]];
+        while(stack.length){
+            const [i0,i1]=stack.pop();
+            const a=pts[i0], c=pts[i1];
+            const dx=c[0]-a[0], dy=c[1]-a[1], len=Math.hypot(dx,dy);
+            let best=-1, bd=eps;
+            for(let i=i0+1;i<i1;i++){
+                const b=pts[i];
+                // a closed loop starts and ends on the same point: fall back to point distance
+                const d=len>1e-9 ? Math.abs((b[0]-a[0])*dy-(b[1]-a[1])*dx)/len : Math.hypot(b[0]-a[0],b[1]-a[1]);
+                if(d>bd){ bd=d; best=i; }
+            }
+            if(best>0){ keep[best]=1; stack.push([i0,best],[best,i1]); }
+        }
+        const out=[];
+        for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+        return out;
+    }
+    function path(W,H,r){
+        const pts=simplify(unifiedOutline2(W/2,H/2,W,H,r),0.02);
+        return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
+    }
+    return { path };
+})();
+
+/* 1:1 port of react-spring's integrator (spec 9.1). Units: tension/friction/mass; velocity in units/ms; dt in ms. */
+class Spring {
+  constructor({ tension = 170, friction = 26, mass = 1, precision, restVelocity, clamp = false, value = 0, onChange } = {}) {
+    Object.assign(this, { tension, friction, mass, precision, restVelocity, clamp, onChange });
+    this.value = this.from = this.target = value; this.velocity = 0; this.done = true;
+  }
+  set(target, { velocity } = {}) {                 // mid-flight retargets keep the current velocity
+    this.target = target; this.from = this.value;
+    if (this.done && velocity !== undefined) this.velocity = velocity;
+    this.done = false; return this;
+  }
+  jump(value) { this.value = this.from = this.target = value; this.velocity = 0; this.done = true; this.onChange?.(value); return this; }
+  setVelocity(v) { this.velocity = v; this.done = false; return this; }
+  get isDone() { return this.done; }
+  tick(dt) {
+    if (this.done) return false;
+    const to = this.target, from = this.from;
+    const precision = this.precision || (from === to ? 0.005 : Math.min(1, Math.abs(to - from) * 0.001));
+    const restVelocity = this.restVelocity || precision / 10;
+    const bounce = this.clamp ? 0 : undefined;
+    const dirUp = from === to ? this.velocity > 0 : from < to;
+    let pos = this.value, vel = this.velocity, finished = false;
+    for (let i = 0, n = Math.ceil(dt); i < n; i++) {
+      if (Math.abs(vel) <= restVelocity) { finished = Math.abs(to - pos) <= precision; if (finished) break; }
+      if (bounce !== undefined && (pos === to || (pos > to) === dirUp)) { vel = -vel * bounce; pos = to; }
+      vel += (-this.tension * 1e-6 * (pos - to) + -this.friction * 1e-3 * vel) / this.mass;
+      pos += vel;
+    }
+    const changed = pos !== this.value;
+    this.value = pos; this.velocity = vel;
+    if (finished) { this.value = to; this.velocity = 0; this.done = true; }
+    if (changed || finished) this.onChange?.(this.value);
+    return changed;
+  }
+}
+
+/* A spring that can also run a timed tween (the OUT phase). tween(): cubic Hermite from the current value AND velocity to
+   the target in `ms`, ending with the slope of a cubic-in (3·Δ) — from rest that is exactly t³ (slow start, accelerating);
+   a mid-flight retarget carries its velocity (clamped to 4·|Δ|/ms so the curve stays monotonic). At the end the value
+   rests at the target with velocity 0 — the apex. set() (spring) or jump() cancels the tween from the current value. */
+class Motion extends Spring {
+  constructor(o) { super(o); this.tw = null; }
+  tween(target, ms) {
+    const d = target - this.value, lim = 4 * Math.abs(d);
+    this.tw = { v0: this.value, d, T: ms, t: 0, m0: clamp(this.velocity * ms, -lim, lim) };
+    this.target = target; this.from = this.value; this.done = false; return this;
+  }
+  set(target, o) { this.tw = null; return super.set(target, o); }
+  jump(v) { this.tw = null; return super.jump(v); }
+  tick(dt) {
+    const tw = this.tw; if (!tw) return super.tick(dt);
+    tw.t = Math.min(tw.T, tw.t + dt);
+    const s = tw.t / tw.T, u = 1 - s, prev = this.value;
+    this.value = tw.v0 + tw.d * s * s * s + tw.m0 * s * u * u;
+    this.velocity = (3 * tw.d * s * s + tw.m0 * (3 * s - 1) * (s - 1)) / tw.T;
+    if (tw.t >= tw.T) { this.value = tw.v0 + tw.d; this.velocity = 0; this.done = true; this.tw = null; }
+    const changed = this.value !== prev;
+    if (changed || this.done) this.onChange?.(this.value);
+    return changed;
+  }
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const SVG = 'http://www.w3.org/2000/svg';
+const stage = $('stage'), zoneL = $('zoneL'), zoneR = $('zoneR');
+const knobsEl = $('knobs');                                  // TEMP panel root (may be deleted; every use is null-safe)
+
+const query = new URLSearchParams(location.search);
+/* knobs: the MOTION defaults, overridden by URL params of the same name (?speed=2&tilt=0&dir=same) */
+const knobs = {};
+for (const d of KNOB_DEFS) {
+  let v = d.def;
+  if (query.has(d.key)) {
+    if (d.type === 'select') { const q = query.get(d.key); if (d.options.includes(q)) v = q; }
+    else { const q = parseFloat(query.get(d.key)); if (Number.isFinite(q)) v = clamp(q, d.min, d.max); }
+  }
+  knobs[d.key] = v;
+}
+const outMs = () => MOTION.outMs / knobs.speed;              // the OUT phase (and apex timer) at this speed
+const D = DECK.length;
+const N = clamp(parseInt(query.get('cards')) || 4, 2, D);   // deck size
+const frontQ = query.get('front');                           // ?front=<N|id>: which of the N drawings is in front at load
+const FRONT = (() => { if (frontQ == null) return 0; const k = DECK.findIndex(d => d.id === frontQ), n = k >= 0 ? k : parseInt(frontQ);
+                       return Number.isFinite(n) ? ((n % N) + N) % N : 0; })();
+
+/* cards[j]: one object per DECK entry, built once; only the first N are shown (the rest display:none). Per card: `rot`
+   (degrees, the slot arc — x = PIVOT·KB·sin(rot)), `ex` (px, the flip excursion added to x), `sc` (the lift scale). */
+const cards = [];
+function makeShade(id) {                      // <svg class=shade><defs><filter><feGaussianBlur/></filter></defs><path/></svg>
+  const svg = document.createElementNS(SVG, 'svg'), defs = document.createElementNS(SVG, 'defs'),
+        filter = document.createElementNS(SVG, 'filter'), blur = document.createElementNS(SVG, 'feGaussianBlur'),
+        path = document.createElementNS(SVG, 'path');
+  svg.setAttribute('class', 'shade'); svg.setAttribute('aria-hidden', 'true');
+  filter.id = id; filter.appendChild(blur); defs.appendChild(filter); svg.appendChild(defs);
+  path.setAttribute('fill', '#000'); path.setAttribute('filter', `url(#${id})`); svg.appendChild(path);
+  return { svg, blur, path };
+}
+for (let j = 0; j < D; j++) {
+  const d = DECK[j];
+  const el = document.createElement('div'), img = document.createElement('img');
+  el.className = 'card'; el.style.display = 'none';
+  img.src = ASSETS + d.id + '.jpg';                          // full size everywhere: the viewer is full-screen
+  img.alt = ''; img.draggable = false;
+  const shade = makeShade('shade' + j), shade2 = makeShade('shadeL' + j);   // rest shadow + lifted shadow, behind the img
+  shade2.svg.style.opacity = 0;
+  el.appendChild(shade.svg); el.appendChild(shade2.svg); el.appendChild(img);
+  stage.appendChild(el);
+  cards.push({ j, el, img, deck: d, w: 0, h: 0, clipKey: '', pathD: '', shade, shade2,
+               hand: false,       // in the "hand": the outgoing card of a flip, from its click to the apex
+               z: null, lift: 0,  // last rendered z-index / lift fraction (DOM writes only on change)
+               rot: new Spring({ ...FLIP.spring, value: 0 }),
+               ex:  new Motion({ ...FLIP.spring, precision: .05, value: 0 }),    // px
+               sc:  new Motion({ ...FLIP.spring, precision: 1e-4, value: 1 }),
+               tl:  new Motion({ ...FLIP.spring, precision: 1e-3, value: 0 }) });  // degrees: the tilt, about the card centre
+}
+/* the springs at knobs.speed: ω ∝ speed, ζ unchanged (tension · speed², friction · speed); at speed 1 exactly FLIP.spring */
+function applySpeed() {
+  const s = knobs.speed, tension = FLIP.spring.tension * s * s, friction = FLIP.spring.friction * s;
+  for (const c of cards) for (const m of [c.rot, c.ex, c.sc, c.tl]) { m.tension = tension; m.friction = friction; }
+}
+function setKnob(key, value) {              // live; speed re-tunes every spring at once, tilt and dir are read at the next click,
+  const d = KNOB_DEFS.find(k => k.key === key); if (!d) return;   // radius / border / shadow re-run arrange() (once, not per frame)
+  if (d.type === 'select') { if (d.options.includes(value)) knobs[key] = value; }
+  else if (Number.isFinite(+value)) knobs[key] = clamp(+value, d.min, d.max);
+  if (key === 'speed') applySpeed();
+  else if (CARD_KNOBS.includes(key) && G.B) arrange();
+}
+
+/* ---------- state ---------- */
+const G = {};                       // geometry: W, H (the viewer's box), B (box side), KB (= B / 680), cx, cy
+let deck = [];                      // shown card indices, front first (slot 0 = current, slot N−1 = prev)
+let zDeck = [];                     // the deck whose z-order is applied (lags `deck` until the apex of the current flight)
+let hover = 0;                      // −1 pointer in the left zone, +1 right, 0 neither
+let phase = 'rest';                 // 'rest' | 'out' (from a click to its apex) | 'back' (from the apex until settled)
+let apexDue = null;                 // absolute ms (tnow()) of the pending apex; null = none
+let flight = null;                  // the latest plan (debug): { id, dir, side, tilt, S, exApex, edge, overflow, pile, hand }
+let frozen = false, vnow = null;    // debug freeze: deterministic virtual clock
+const frames = [];                  // rAF deltas (ms) while the loop runs — for the stress test
+const timing = { t0: 0, done: null };   // ms from the LAST click to all springs done
+const tnow = () => vnow ?? performance.now();
+
+/* stack.html's rest box (home-row height TH = 530·C) for this viewport: the squircle radius and the print border
+   (knobs.radius / .border) are px at that box, scaled by S = box / rest box, as the zoom scales them in stack.html. */
+function restBoxSide(W, H) {
+  const K = { minScale: .3, windowBreakWidth: 1300, windowBreakHeight: 1000, windowMinWidth: 380, windowMinHeight: 300, timelineHeight: 530 };
+  const wMin = W < K.windowMinWidth ? 0 : K.windowMinWidth, hMin = H < K.windowMinHeight ? 0 : K.windowMinHeight;
+  const bx = clamp((W - wMin) / (K.windowBreakWidth - wMin), 0, 1), by = clamp((H - hMin) / (K.windowBreakHeight - hMin), 0, 1);
+  const scale = Math.min(bx, by);
+  return K.timelineHeight * (H < K.windowMinHeight ? scale : K.minScale + (1 - K.minScale) * scale);
+}
+
+/* ---------- layout: sizing, never in the frame loop. Box side = min(64 vw, 84 vh), centred. Rotations are in degrees
+   and x is derived at render time, so a resize needs no spring change: springs keep running through it. ---------- */
+function layout() {
+  const W = stage.clientWidth, H = stage.clientHeight;    // the viewer's box (= the viewport in the first 100 vh)
+  const B = Math.min(FLIP.boxVh * H, FLIP.boxVw * W);
+  Object.assign(G, { W, H, B, KB: B / FLIP.refBox, S: B / restBoxSide(W, H), cx: W / 2, cy: H / 2 });
+  arrange();
+  render();
+}
+
+/* per-card size (contain-fit into the box), squircle clip, print border and the two shadows — once per layout / card-knob
+   change, never per frame */
+function arrange() {
+  const B = G.B, KB340 = B / STACK.refBox, S = G.S, sh = STACK.shadow, alpha = knobs.shadow;
+  const shown = new Set(deck);
+  const setShade = (c, s, k) => {             // k: the lift factor of this shadow (1 = rest, MOTION.liftShade = lifted)
+    const sigma = sh.sigma * KB340 * k, sy = sh.y * KB340 * k, pad = Math.ceil(3 * sigma + sy);
+    s.svg.style.cssText = `left:${-pad}px;top:${-pad}px;width:${c.w + 2 * pad}px;height:${c.h + 2 * pad}px;display:${alpha > 0 ? 'block' : 'none'}`;
+    s.svg.setAttribute('viewBox', `0 0 ${c.w + 2 * pad} ${c.h + 2 * pad}`);
+    s.blur.setAttribute('stdDeviation', sigma);
+    s.path.setAttribute('d', c.pathD);
+    s.path.setAttribute('transform', `translate(${pad} ${pad + sy})`);
+    s.path.setAttribute('fill-opacity', alpha);
+  };
+  for (const c of cards) {
+    c.el.style.display = shown.has(c.j) ? '' : 'none';
+    if (!shown.has(c.j)) continue;
+    const r = c.deck.w / c.deck.h, w = r >= 1 ? B : B * r, h = r >= 1 ? B / r : B;
+    c.w = w; c.h = h;
+    c.el.style.width = w + 'px'; c.el.style.height = h + 'px';
+    c.el.style.margin = `${-h / 2}px 0 0 ${-w / 2}px`;
+    // stack.html's clip: `radius` / `border` are rest px → ·S. Print border b > 0: the card's ::before (white, the outer
+    // outline via --paper) shows and the img is inset by b on every side with its own squircle, radius − b (square when
+    // < .5 px); at b = 0 nothing extra is written. The outer outline (pathD) stays the card's edge: both shadows follow it.
+    const rad = knobs.radius * S, b = Math.min(knobs.border * S, Math.min(w, h) / 2 - 1),
+          key = `${w.toFixed(2)}|${h.toFixed(2)}|${rad.toFixed(3)}|${b.toFixed(3)}`;
+    if (c.clipKey !== key) {
+      c.clipKey = key;
+      c.pathD = rad >= .5 ? Squircle.path(w, h, rad) : `M0 0H${w}V${h}H0Z`;
+      const iw = w - 2 * b, ih = h - 2 * b, irad = Math.max(0, rad - b);
+      const imgD = b > 0 ? (irad >= .5 ? Squircle.path(iw, ih, irad) : '') : (rad >= .5 ? c.pathD : '');
+      c.img.style.cssText = (b > 0 ? `margin:${b}px;width:${iw}px;height:${ih}px;` : '') + (imgD ? `clip-path:path("${imgD}")` : '');
+      c.el.classList.toggle('print', b > 0);
+      if (b > 0) c.el.style.setProperty('--paper', rad >= .5 ? `path("${c.pathD}")` : 'none'); else c.el.style.removeProperty('--paper');
+    }
+    setShade(c, c.shade, 1); setShade(c, c.shade2, MOTION.liftShade);
+    c.shade.svg.style.opacity = 1 - c.lift; c.shade2.svg.style.opacity = c.lift;   // cssText above reset them
+  }
+}
+
+/* ---------- slots ---------- */
+const relOf = i => i === N - 1 ? -1 : i;                                  // slot → relative index (the last slot is prev)
+const zOf = i => N - i;                                                    // a pile: current > next > next+1 > … > prev
+const xOf = rot => PIVOT * G.KB * Math.sin(rot * Math.PI / 180);           // px from the stack centre for a rotation
+const bboxW = (c, rot) => { const a = rot * Math.PI / 180; return c.w * Math.abs(Math.cos(a)) + c.h * Math.abs(Math.sin(a)); };
+/* the rotation card j should be at for the current deck + hover: its slot, or the peek if it is the neighbour on the
+   hovered side (next = slot 1 for the right zone, prev = the last slot for the left zone) */
+function targetRot(j) {
+  const i = deck.indexOf(j), c = cards[j];
+  if (hover > 0 && i === 1) return  FLIP.peekDeg(c.deck.h, c.deck.w);
+  if (hover < 0 && i === N - 1) return -FLIP.peekDeg(c.deck.h, c.deck.w);
+  return relOf(i) * FLIP.slotDeg;
+}
+const retarget = (s, v) => { if (s.target !== v || (s.done && s.value !== v)) s.set(v); };
+function setTargets() { for (const j of deck) retarget(cards[j].rot, targetRot(j)); }
+function jumpAll() {                                                      // rest, no animation
+  for (const j of deck) { const c = cards[j]; c.hand = false; c.rot.jump(targetRot(j)); c.ex.jump(0); c.sc.jump(1); c.tl.jump(0); }
+  phase = 'rest'; apexDue = null; zDeck = deck.slice();
+}
+function resetDeck() { deck = []; for (let i = 0; i < N; i++) deck.push((FRONT + i) % N); jumpAll(); }
+
+/* ---------- the flip ---------- */
+function flip(dir) {                        // +1 = next (front → back), −1 = prev (back → front); always immediate
+  const o = dir > 0 ? deck[0] : deck[N - 1];              // the outgoing card: the top card for next, the bottom one for prev
+  if (dir > 0) deck.push(deck.shift()); else deck.unshift(deck.pop());
+  const t = tnow();
+  if (phase !== 'out') { phase = 'out'; for (const j of deck) cards[j].hand = false; }   // a fresh flight; else it joins
+  cards[o].hand = true;
+  apexDue = t + outMs();                                 // one apex per flight: a newer click re-issues it
+  plan(o, dir);
+  timing.t0 = t; timing.done = null;
+  kick();
+}
+/* the apex geometry of the outgoing card o against the pile (every shown card not in the hand). The pile does not move:
+   its cards are taken at their slot targets — and, for a card still springing home from an earlier flight (a click during
+   BACK), at its current position (with its decaying tilt) if that sticks out further. o travels to `side` (−1 left, +1
+   right: away from the pressed side with knobs.dir 'opposite' — next → left, prev → right —, toward it with 'same'): its
+   near edge ends `gap` beyond the pile's far edge on that side, travelling the whole separation, its top leaning
+   knobs.tilt degrees toward that side (the clearance uses the tilted, lifted bounding box). Sets the OUT tweens on o's
+   ex, scale and tilt only. */
+function plan(o, dir) {
+  const c = cards[o], gap = MOTION.gap * G.KB, lift = MOTION.lift, T = outMs();
+  const side = knobs.dir === 'same' ? dir : -dir, tilt = side * knobs.tilt;
+  const half = (cc, rot, s = 1) => bboxW(cc, rot) * s / 2;
+  const xo = xOf(c.rot.target), ho = half(c, c.rot.target + tilt, lift), pile = deck.filter(j => !cards[j].hand);
+  let S = 0, exApex = c.ex.target, edge = null, overflow = 0;
+  if (pile.length) {
+    const far = (a, b) => (side < 0 ? b.e < a.e : b.e > a.e) ? b : a;                   // the extreme edge on the travel side
+    const edgeAt = (cc, rot, tl, ex) => xOf(rot) + ex + side * half(cc, rot + tl);      // that side's edge of a pile card
+    const f = pile.map(j => { const cc = cards[j];
+      return far({ j, e: edgeAt(cc, cc.rot.target, 0, 0) }, { j, e: edgeAt(cc, cc.rot.value, cc.tl.value, cc.ex.value) }); }).reduce(far);
+    edge = DECK[f.j].id;
+    S = Math.max(0, side < 0 ? xo + ho + gap - f.e : f.e + gap - (xo - ho));
+    exApex = side * S;
+    const ox = G.cx + xo + exApex;                                           // o's centre at the apex, viewport px
+    overflow = Math.max(0, side < 0 ? ho - ox : ox + ho - G.W) / (2 * ho);   // fraction of o's width beyond the viewer's edge
+  }
+  c.ex.tween(exApex, T); c.sc.tween(lift, T); c.tl.tween(tilt, T);
+  flight = { id: c.deck.id, dir, side, tilt, S: +S.toFixed(2), exApex: +exApex.toFixed(2), edge, overflow: +overflow.toFixed(4),
+             pile: pile.map(j => DECK[j].id), hand: deck.filter(j => cards[j].hand).map(j => DECK[j].id) };
+}
+function fireApex() {                       // nothing overlaps the outgoing card now: new depth, and everything springs home
+  apexDue = null; phase = 'back'; zDeck = deck.slice();
+  for (const j of deck) { const c = cards[j]; c.hand = false; retarget(c.ex, 0); retarget(c.sc, 1); retarget(c.tl, 0); }
+  setTargets();
+}
+function hoverTo(side) { hover = side; if (phase !== 'out') setTargets(); }   // the peek is suppressed during OUT
+function setHover(side) {
+  if (frozen) return;
+  side = clamp(side | 0, -1, 1);
+  if (hover !== side) { hoverTo(side); kick(); }
+}
+
+/* ---------- frame loop: motions (with the apex at ms precision inside the frame), then transforms + z ---------- */
+function tickAll(ms) { for (const j of deck) { const c = cards[j]; c.rot.tick(ms); c.ex.tick(ms); c.sc.tick(ms); c.tl.tick(ms); } }
+function step(dt) {                         // advance the interval (tnow() − dt, tnow()]
+  const end = tnow(); let t = end - dt;
+  if (apexDue != null && apexDue <= end) { if (apexDue > t) { tickAll(apexDue - t); t = apexDue; } fireApex(); }
+  if (end > t) tickAll(end - t);
+}
+const allDone = () => deck.every(j => cards[j].rot.isDone && cards[j].ex.isDone && cards[j].sc.isDone && cards[j].tl.isDone);
+function settle() { if (phase === 'back' && allDone()) phase = 'rest'; }
+const active = () => phase !== 'rest' || !allDone();
+let last = 0, rafId = 0;
+function frame() {
+  const now = performance.now(), dt = Math.min(MAX_FRAME_DT, now - last);
+  frames.push(now - last); if (frames.length > 6000) frames.splice(0, 1000);
+  last = now;
+  step(dt); settle();
+  render();
+  if (active()) rafId = requestAnimationFrame(frame);
+  else { rafId = 0; last = 0; timing.done = now - timing.t0; }
+}
+function kick() { if (!rafId && !frozen) { last = performance.now(); rafId = requestAnimationFrame(frame); } }
+
+function render() {
+  for (const j of deck) {
+    const c = cards[j], rot = c.rot.value, sc = c.sc.value;   // x from the slot arc + excursion; the tilt only rotates
+    c.el.style.transform = `translate(${xOf(rot) + c.ex.value}px, 0) rotate(${rot + c.tl.value}deg)` + (sc !== 1 ? ` scale(${sc})` : '');
+    const lift = Math.round(clamp((sc - 1) / (MOTION.lift - 1), 0, 1) * 50) / 50;   // 1/50 steps: fewer repaints; a step is .02·alpha (< 2/255 at .33)
+    if (lift !== c.lift) { c.lift = lift; c.shade.svg.style.opacity = 1 - lift; c.shade2.svg.style.opacity = lift; }
+    const z = zOf(zDeck.indexOf(j));
+    if (z !== c.z) { c.z = z; c.el.style.zIndex = z; }
+  }
+}
+
+/* ---------- events (owner decisions: click only, zones by x, middle band: card = nothing, background = close). On the
+   viewer element only: a click on the panel below it (or anywhere else in the page) never flips or closes. ---------- */
+stage.addEventListener('click', e => {
+  if (frozen) return;
+  const f = (e.clientX - stage.getBoundingClientRect().left) / G.W;
+  if (f < FLIP.zoneL) flip(-1);
+  else if (f > FLIP.zoneR) flip(1);
+  else if (!e.target.closest('.card')) { document.dispatchEvent(new CustomEvent('viewer:close')); console.log('close'); }
+});
+zoneL.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') setHover(-1); });
+zoneL.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && hover === -1) setHover(0); });
+zoneR.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') setHover(1); });
+zoneR.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && hover === 1) setHover(0); });
+let resizeT = 0;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(layout, 50); });
+
+/* ---------- debug: deterministic freeze (1 ms ticks on a virtual clock; no rAF, no input). The pointer is taken to be in
+   the zone of each click (as in the footage): hover follows the clicks, and the pre-state is the settled peek of the
+   first click's zone. onStep(t) is called after every tick (for trace()). ---------- */
+function freezeRun(actions, tEnd, onStep) {  // actions: [{ at, dir }], sorted; the state tEnd ms after the first
+  frozen = true; if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  resetDeck(); hover = actions[0].dir; jumpAll();
+  let ai = 0;
+  const due = t => { while (ai < actions.length && actions[ai].at <= t) { hoverTo(actions[ai].dir); flip(actions[ai++].dir); } };
+  onStep?.(0);
+  for (let t = 0; t < tEnd; t++) { vnow = t; due(t); vnow = t + 1; step(1); settle(); onStep?.(t + 1); }
+  vnow = tEnd; due(tEnd);
+  render();
+}
+/* every ms of a frozen run: per card (by DECK index) the centre x (model and DOM, px from the viewport centre), z, scale */
+function trace(names, dt, tEnd) {
+  const actions = names.map((n, i) => ({ at: Math.round(i * dt), dir: n === 'prev' ? -1 : 1 }));
+  const rows = [];
+  freezeRun(actions, tEnd, t => {
+    render();
+    const shown = deck.slice().sort((a, b) => a - b);
+    rows.push({ t, phase, apex: apexDue == null ? null : +(apexDue).toFixed(1),
+                x: shown.map(j => +(xOf(cards[j].rot.value) + cards[j].ex.value).toFixed(3)),
+                dom: shown.map(j => { const r = cards[j].el.getBoundingClientRect(); return +(r.left + r.width / 2 - G.cx).toFixed(3); }),
+                z: shown.map(j => zOf(zDeck.indexOf(j))), sc: shown.map(j => +cards[j].sc.value.toFixed(4)),
+                tl: shown.map(j => +cards[j].tl.value.toFixed(4)) });
+  });
+  return rows;
+}
+
+/* ======================= TEMP knob panel (#knobs) =======================
+   Below the viewer, in normal flow (scroll down). Delete this block together with the #knobs element and its CSS once
+   the values are final — the defaults (MOTION.speed / .tilt / .dir, STACK.radius / .border / .shadow.alpha) are the
+   constants. Range inputs with a live readout, a select for dir; "copy values" console.logs the knob JSON (plus the
+   equivalent query string) and copies the JSON. */
+if (knobsEl) {
+  const dec = d => Math.max(0, Math.ceil(-Math.log10(d.step) - 1e-9));
+  const fmt = (d, v) => (+v).toFixed(dec(d));
+  const label = (txt, ...ctrls) => { const l = document.createElement('label'); l.append(txt + ' ', ...ctrls); knobsEl.append(l); return l; };
+  for (const d of KNOB_DEFS) {
+    if (d.type === 'select') {
+      const sel = document.createElement('select');
+      for (const o of d.options) { const op = document.createElement('option'); op.value = o; op.textContent = o; sel.append(op); }
+      sel.value = knobs[d.key];
+      sel.addEventListener('change', () => setKnob(d.key, sel.value));
+      label(d.label, sel); d.input = sel;
+    } else {
+      const inp = document.createElement('input'); inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = knobs[d.key];
+      const val = document.createElement('span'); val.className = 'val'; val.textContent = fmt(d, knobs[d.key]);
+      inp.addEventListener('input', () => { setKnob(d.key, +inp.value); val.textContent = fmt(d, knobs[d.key]); });
+      label(d.label, inp, val); d.input = inp; d.val = val;
+    }
+  }
+  const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'copy values';
+  copy.addEventListener('click', () => {
+    const json = JSON.stringify(knobs), qs = Object.entries(knobs).map(([k, v]) => `${k}=${v}`).join('&');
+    console.log('[knobs] ' + json + '\n?' + qs);
+    navigator.clipboard?.writeText(json).catch(() => {});
+  });
+  knobsEl.append(copy);
+}
+
+/* ---------- boot ---------- */
+let naturalT = 0;
+function useNatural(c) {                    // refine a card's ratio from the decoded image
+  const nw = c.img.naturalWidth, nh = c.img.naturalHeight;
+  if (nw && nh && Math.abs(nw / nh - c.deck.w / c.deck.h) > .002) {
+    c.deck.w = nw; c.deck.h = nh;
+    clearTimeout(naturalT); naturalT = setTimeout(layout, 0);
+  }
+}
+applySpeed();
+resetDeck();
+layout();
+for (const c of cards) { if (c.img.complete) useNatural(c); else c.img.addEventListener('load', () => useNatural(c), { once: true }); }
+
+const flipQ = query.get('flip'), seqQ = query.get('seq');
+if (flipQ || seqQ) {
+  const t = Math.max(0, parseInt(query.get('t')) || 0), dt = Math.max(0, parseFloat(query.get('dt')) || 0);
+  const names = flipQ ? [flipQ] : seqQ.split(',');
+  const actions = names.map((n, i) => ({ at: flipQ ? 0 : Math.round(i * dt), dir: n.trim() === 'prev' ? -1 : 1 }));
+  frozen = true;
+  addEventListener('load', () => setTimeout(() => { clearTimeout(naturalT); layout(); freezeRun(actions, t); document.documentElement.dataset.frozen = String(t); }, 30));
+}
+
+window.__flip = {
+  next: () => flip(1), prev: () => flip(-1), flip, hover: setHover, trace,
+  get deck() { return deck.slice(); },
+  get ids() { return deck.map(j => DECK[j].id); },
+  get hoverSide() { return hover; },
+  get phase() { return phase; },
+  get flight() { return flight; },
+  cards, geom: G, FLIP, MOTION, KNOB_DEFS, knobs, setKnob, frames, timing, layout,
+  settled: () => !active(),
+  // the static layout for the current deck order + hover: viewport rect (bbox of the rotated card) + z per card
+  staticRects: () => deck.map((j, i) => {
+    const c = cards[j], rot = targetRot(j), a = rot * Math.PI / 180, x = xOf(rot);
+    const bw = c.w * Math.abs(Math.cos(a)) + c.h * Math.abs(Math.sin(a)), bh = c.w * Math.abs(Math.sin(a)) + c.h * Math.abs(Math.cos(a));
+    return { id: c.deck.id, j, slot: i, rel: relOf(i), rot: +rot.toFixed(4), x: +x.toFixed(3), left: G.cx + x - bw / 2, top: G.cy - bh / 2, width: bw, height: bh, z: zOf(i) };
+  }),
+  state: () => deck.map((j, i) => { const c = cards[j], r = c.el.getBoundingClientRect();
+    return { id: c.deck.id, j, slot: i, rel: relOf(i), z: +c.el.style.zIndex, rot: +c.rot.value.toFixed(4), x: +(xOf(c.rot.value) + c.ex.value).toFixed(3),
+             ex: +c.ex.value.toFixed(3), sc: +c.sc.value.toFixed(4), tilt: +c.tl.value.toFixed(4), target: +c.rot.target.toFixed(4), exTarget: +c.ex.target.toFixed(2), hand: c.hand,
+             done: c.rot.isDone && c.ex.isDone && c.sc.isDone && c.tl.isDone, left: r.left, top: r.top, width: r.width, height: r.height }; }),
+};
+})();
+</script>
+</body>
+</html>
