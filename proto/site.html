@@ -1057,6 +1057,16 @@ const ghost = $('ghost'), backdrop = $('backdrop');
 const zoneL = $('zoneL'), zoneR = $('zoneR'), effEl = $('eff'), shield = $('shield');
 const cursorEl = $('cursor'), cursorDownEl = $('cursorDown'), cursorDisc = $('cursorDisc'), cursorArrowEl = $('cursorArrow');
 const viewer = $('viewer');                                 // the first 100 vh: the frame of every layout value below
+/* PERF: KEEPALIVE (the .keep CSS): one 1 px copy of every image the row paints — the same srcset / sizes / src, so the same candidate
+   and the same decoded image — under the white square. keepImg(im): at a card's load (loadCard(): BOOT for the deck cards, loadTucked()
+   later for the rest) and for the floor textures. */
+const keepEl = $('keep'), keepWhite = keepEl.appendChild(document.createElement('div')), kept = new Set();
+function keepImg(im) {
+  const key = im.srcset || im.src; if (!key || kept.has(key)) return; kept.add(key);
+  const k = document.createElement('img'); k.alt = ''; k.decoding = 'async'; k.draggable = false;
+  if (im.sizes) k.sizes = im.sizes; if (im.srcset) k.srcset = im.srcset; k.src = im.src;
+  keepEl.insertBefore(k, keepWhite);
+}
 
 const pageQuery = new URLSearchParams(location.search);    // site: the URL knobs / debug hooks — the primary stack's (the drawings) only
 /* site 2026-09-28, the CAMERA (owner: "why bring the whole stack forward and move away everything else if I can just zoom in the
@@ -1137,7 +1147,8 @@ const SH = cfg.shadow || STACK.shadow;                        // site: this stac
 const query = cfg.primary ? pageQuery : new URLSearchParams('');
 const REST = cfg.rest || null;                              // site: the HOME-only pose (the sleeve: the tile's old tilt / raise), × (1 − p) in render()
 const audio = cfg.audio ? new Audio() : null;               // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it
-if (audio) { audio.preload = 'auto'; audio.src = cfg.audio; }
+if (audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
+function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { audio.preload = 'auto'; audio.load(); } }
 /* site: its play / pause button (the .play CSS): built with the audio, in the .item; the glyph follows the audio's own state
    (syncPlay on its play / pause / ended events — a refused autoplay shows play). A click toggles it (OPEN only) and never
    reaches the viewer's close routing. */
@@ -1219,8 +1230,7 @@ const outMs = () => knobs.outMs / knobs.speed;               // the OUT phase (t
    home card treatment at HOME), the SEAT motions (px / py px, pr degrees, ps size factor: toward its slot's pose — see
    the header), the PEEK spring (pk px, additive on x), the FLIGHT motions (flip.html: `ex` px excursion, `sc` lift scale,
    `tl` tilt degrees; site: `ey` px arc y, `sp` spin degrees), the pending seat event (seatDue) and the last written
-   DOM values. Every image is decoded ahead (img.decode() as soon as its src is set; decoding="sync" so a raster never
-   paints a card without its image); every card is painted in every state (opacity 1). */
+   DOM values. Sources: SOURCES below (a srcset per card, decoded async, the tucked cards lazily); every card is painted in every state (opacity 1). */
 const cards = [];
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 function makeShade(id, cls) {                      // <svg class=shade><defs><filter><feGaussianBlur/></filter></defs><path/></svg>
@@ -1233,15 +1243,48 @@ function makeShade(id, cls) {                      // <svg class=shade><defs><fi
   svg.style.opacity = 0;
   return { svg, blur, path, key: '' };
 }
+/* site 2026-09-28 PERF — SOURCES. Each card image is on disk in three sizes (…-1000, …-1400 and the 2000 px original: brew/website-perf/
+   mkvariants.py) as a srcset whose `sizes` is the card's CSS width at the OPEN box B (a card is laid out at B in every state and shown at
+   1 / S at HOME), so Safari fetches the smallest file that is 1:1 at this window and dpr, once, and never swaps it under the zoom (at
+   1440 × 820 @2x the 1400 px file: 2.6× fewer pixels than the 2000 px one; a 2560 × 1440 screen still gets the original). Decoded ASYNC,
+   off the main thread (was decoding=sync: ~30 ms of the main thread per image at first paint and at every re-raster whose decoded image
+   Safari had dropped); a card's white paper (the img's background) paints first if a decode is not through — at BOOT only, the KEEPALIVE
+   keeps them decoded after. LAZY: a card beyond the home deck is under the pile at HOME, never seen, so it gets NO source at BOOT (the
+   drawings: 5 of 8); loadTucked() sets them on the first hover / press / expand of this stack, in flip order (the prev card, the
+   next-next, the rest) — the zoom (540 ms) and the untuck (one a frame from OPEN) come after; a card still without its image is its paper. */
+const VARIANTS = [1000, 1400, 1800];
+const fileDims = pic => pic.file || [pic.w, pic.h];                       // the FILE's px (a bleed image is larger than its print: pic.file)
+function srcsetOf(pic) {
+  const src = pic.src || ASSETS + pic.id + '.jpg', m = src.match(/^(.*)\.(jpe?g|webp|png)$/i), [fw, fh] = fileDims(pic), L0 = Math.max(fw, fh);
+  if (!m) return { src, srcset: '' };
+  const cands = VARIANTS.filter(L => L < L0).map(L => `${m[1]}-${L}.${m[2]} ${Math.round(fw * L / L0)}w`);
+  return { src, srcset: cands.concat(`${src} ${fw}w`).join(', ') };
+}
+const estB = () => Math.min(FLIP.boxVw * viewer.clientWidth, FLIP.boxVh * viewer.clientHeight) * ZOOM.viewScale;   // B before the first layout (= pageLayout()'s)
+function sizesOf(c) {                        // the img's CSS width at B: the card's contain-fit width (× its bleed overhang)
+  const r = c.pic.w / c.pic.h, B = G.B || estB(), w = c.w || (r >= 1 ? B : B * r), bl = c.pic.bleed;
+  return Math.round(w * (bl ? 1 + bl[0] + bl[2] : 1)) + 'px';
+}
+function loadCard(c, priority) {             // its source, once: srcset + sizes + src, decoded ahead, kept alive
+  if (c.src) return; c.src = true;
+  const im = c.img, { src, srcset } = srcsetOf(c.pic);
+  if (priority) im.fetchPriority = priority;
+  im.sizes = sizesOf(c); if (srcset) im.srcset = srcset; im.src = src;
+  im.addEventListener('load', () => useNatural(c), { once: true });      // refine its ratio from the file (a lazily loaded card too)
+  im.decode?.().catch(() => {});
+  keepImg(im);
+}
+function loadTucked() {                      // the cards beyond the home deck, in the order a flip can show them (untuck()'s)
+  const N = knobs.deck.length, q = [];
+  if (D > N + 1) q.push(order[D - 1]); if (D > N) q.push(order[N]); for (let i = N + 1; i < D - 1; i++) q.push(order[i]);
+  for (const j of q) loadCard(cards[j]);
+}
 for (let j = 0; j < D; j++) {
   const pic = IMAGES[j];
   const el = document.createElement('div'), img = document.createElement('img');
   el.className = 'card';
   if (pic.bleed) { el.classList.add('bleed'); ['bl', 'bt', 'br', 'bb'].forEach((k, i) => el.style.setProperty('--' + k, pic.bleed[i])); }   // site: its own shadow round the print
-  img.decoding = 'sync';
-  img.fetchPriority = knobs.deck.includes(j) ? 'high' : 'low';
-  img.src = pic.src || ASSETS + pic.id + '.jpg';                          // site: or its own src (the polaroids' webp)
-  img.decode?.().catch(() => {});                                          // decoded before the first zoom / flip needs it
+  img.decoding = 'async';                                                  // PERF: SOURCES (above) — its source is loadCard()'s, off the main thread
   img.alt = ''; img.draggable = false;
   const shade = makeShade(IDP + 'shade' + j, 'rest'), shade2 = makeShade(IDP + 'shadeL' + j, 'lifted');   // rest shadow + flip.html's lifted shadow, behind the img
   el.appendChild(shade.svg); el.appendChild(shade2.svg); el.appendChild(img);
@@ -1251,7 +1294,7 @@ for (let j = 0; j < D; j++) {
   if (FLOOR) {
     fl = floorEl.appendChild(Object.assign(document.createElement('div'), { className: 'fcast' }));
     fl.style.setProperty('--fx', FLOOR.fx); fl.style.setProperty('--fy', FLOOR.fy);
-    fl.appendChild(Object.assign(document.createElement('img'), { src: FLOOR.src, alt: '', draggable: false, decoding: 'sync' }));
+    keepImg(fl.appendChild(Object.assign(document.createElement('img'), { src: FLOOR.src, alt: '', draggable: false, decoding: 'async' })));
   }
   const c = { j, el, img, pic, w: 0, h: 0, hslot: -1, clipKey: '', pathD: '', shade, shade2, castbox, casts: [], pose: null, fl, fo: null,
               hand: false,                   // in the "hand": the outgoing card of a flip, from its click to the apex
@@ -1427,6 +1470,7 @@ function arrangeCards() {
   for (const c of cards) {
     const r = c.pic.w / c.pic.h, w = r >= 1 ? B : B * r, h = r >= 1 ? B / r : B;
     c.w = w; c.h = h;
+    if (c.src) { const sz = sizesOf(c); if (c.img.sizes !== sz) c.img.sizes = sz; }   // PERF: SOURCES — the srcset's `sizes` = this width (Safari only ever upgrades)
     c.el.style.width = w + 'px'; c.el.style.height = h + 'px';
     c.el.style.margin = `${-h / 2}px 0 0 ${-w / 2}px`;
     if (c.fl) Object.assign(c.fl.style, { width: w + 'px', height: h + 'px', margin: c.el.style.margin });   // site: FLOOR, the card's box
@@ -1563,6 +1607,7 @@ function setDeck(list) {
   const dk = list.filter((v, i) => v >= 0 && v < D && list.indexOf(v) === i);
   if (dk.length < 2) return;
   knobs.deck = dk; knobs.front = dk[0];
+  for (const j of dk) loadCard(cards[j], 'high');                                          // PERF: SOURCES — a deck card is always loaded
   resetOrder(); arrange(); render();
   // the hit area (box + fanned cards) may have changed under a still pointer: re-evaluate hover where it last was
   if (lastX >= 0) hoverTo(document.elementFromPoint(lastX, lastY)?.closest('.cards') === cardsEl ? 1 : 0);
@@ -1809,6 +1854,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
   state = 'zoom'; delta = 0;
+  loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: this stack takes the page (the zones, the fades), above the other stacks
   for (const s of stacks) if (s !== self) s.letGo();                                       // site: the other stacks let go of their hover (they fade with the row elements)
   if (!move) {
@@ -1839,6 +1885,7 @@ let primed = false, homeDue = false;
 function prime(nb) {                        // site: nb = the press is on this stack as the open one's peeking neighbour (a CAMERA move)
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !nb) || primed) return;
   primed = true; homeDue = false; perfMark('prime ' + cfg.name);
+  loadTucked(); warmAudio();                                                              // PERF: SOURCES — the tucked cards' files and the song, if the hover did not already
   setLayout('viewer'); shadeLayers(true);
   if (audio && audio.paused) { audio.volume = 0; audio.currentTime = 0; audio.play().catch(() => {}); }
 }
@@ -1919,6 +1966,7 @@ function checkState() {
 
 /* ---------- home hover (spec 02): binary state, no cursor-position dependence; HOME only ---------- */
 function hoverTo(t) {
+  if (t) { loadTucked(); warmAudio(); }                                                    // PERF: SOURCES — the first hover fetches what a click will need (the tucked cards, the song)
   if (hover.target !== t && state === 'home' && !activeStack) perfMark('hover ' + t + ' ' + cfg.name);
   if (hPinned !== null || pinned !== null || frozen || state !== 'home' || activeStack) return;   // site: no hover while any stack is away from HOME
   if (hover.target !== t) { hover.set(t); kick(); }
@@ -2129,7 +2177,7 @@ function openNow() {
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
   scrollTo(0, 0); unlockPage();                                                            // OPEN: at the top, not locked (as enterOpen())
   hover.jump(0); p.jump(1);
-  vhover = 0; jumpAll(); setLayout('viewer'); untuck(true);
+  loadTucked(); vhover = 0; jumpAll(); setLayout('viewer'); untuck(true);
   viewer.classList.add('open');
   cursorSync();
   render();
@@ -2137,8 +2185,9 @@ function openNow() {
 applyConfigs();
 syncHomeSlots();
 resetOrder();
+for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
 function boot() {
-for (const c of cards) { if (c.img.complete) useNatural(c); else c.img.addEventListener('load', () => useNatural(c), { once: true }); }
+// (useNatural: loadCard() listens for each image's load)
 const flipQ = query.get('flip'), seqQ = query.get('seq');
 const closeQ = query.has('close') ? clamp(parseFloat(query.get('close')) || 0, 0, 1) : null;
 if (hPinned !== null) hover.jump(hPinned);
@@ -2947,7 +2996,7 @@ stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: 
    --bl / --bt / --br / --bb). rest = the tile's old HOME pose (--tilt, --up, its hover turn), squared up by the zoom, so the
    record faces you in the viewer. audio: 2021 Dandelion/dt01-drum_variation01-01.mp3 (owner 2026-09-26: "on click the
    dandelion … it will play that song"): from the top on every zoom, volume = p, paused at HOME. */
-const DANDELION = [{ id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, bleed: [0.14599, 0.00000, 0.14599, 0.19082] }];
+const DANDELION = [{ id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082] }];   // file: the webp's px (the print + its bleed): the srcset descriptors
 const DAN_KNOBS = { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 };
 stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DANDELION, deck: [0], knobs: DAN_KNOBS,
                                         rest: { rot: 3, up: .03 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3' }));
@@ -2958,13 +3007,7 @@ const CD1 = [{ id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 }];
 stacks.push(makeStack($('cd1'), { name: 'cd1', idp: 'cd-', images: CD1, deck: [0], rest: { rot: -2, up: 0 } }));
 layoutAll();
 for (const s of stacks) s.boot();
-/* PERF: KEEPALIVE (the .keep CSS): one 1 px copy of every image the row paints (the same URL: the same decoded image), then the white
-   square over them. A card's src never changes after BOOT. */
-(function keepAlive() {
-  const keep = $('keep'), srcs = new Set([...row.querySelectorAll('img')].map(im => im.src).filter(Boolean));
-  for (const src of srcs) keep.appendChild(Object.assign(document.createElement('img'), { src, alt: '', decoding: 'sync', draggable: false }));
-  keep.appendChild(document.createElement('div'));
-})();
+// (KEEPALIVE: keepImg(), at each image's load — see the DOM section)
 for (const t of tiles) {                    // site: a row element re-lays out the row if its decoded aspect is not the one it was sized by
   const im = t.querySelector('img');
   if (im && !im.complete) im.addEventListener('load', () => {
