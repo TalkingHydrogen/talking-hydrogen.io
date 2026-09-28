@@ -1270,6 +1270,7 @@ function sizesOf(c) {                        // the img's CSS width at B: the ca
 }
 function loadCard(c, priority) {             // its source, once: srcset + sizes + src, decoded ahead, kept alive
   if (c.src) return; c.src = true;
+  if (!c.pic.file) c.pic.file = [c.pic.w, c.pic.h];                       // the FILE's px, pinned (useNatural() may refine pic.w / h for layout)
   const im = c.img, { src, srcset } = srcsetOf(c.pic);
   if (priority) im.fetchPriority = priority;
   im.sizes = sizesOf(c); if (srcset) im.srcset = srcset; im.src = src;
@@ -2163,10 +2164,13 @@ function applyFlipPreset(name) {
    BOOT + debug hooks (site: construction here; boot() once every stack exists and layoutAll() has run — a layout needs
    every box in the row)
    ============================================================ */
-function useNatural(c) {                    // refine a card's ratio from the decoded image
+function useNatural(c) {                    // refine a card's ratio from the decoded image (a safety net: the IMAGES dims are the files')
   if (c.pic.bleed) return;                  // site: a bleed card's ratio is its print's (pic w / h), not the image's (+ its shadow margin)
   const nw = c.img.naturalWidth, nh = c.img.naturalHeight;
-  if (nw && nh && Math.abs(nw / nh - c.pic.w / c.pic.h) > .002) {
+  // PERF 2026-09-28: under a srcset naturalWidth / Height are the chosen file's px ÷ its density, ROUNDED to integers (painting-17:
+  // 620 × 443 for 1400 × 1002) — a ratio error of up to ½ px each way, which used to pass the .002 test and force a second full
+  // layoutAll at boot. The tolerance carries that rounding bound.
+  if (nw && nh && Math.abs(nw / nh - c.pic.w / c.pic.h) > .002 + 1 / Math.min(nw, nh)) {
     c.pic.w = nw; c.pic.h = nh;
     scheduleLayout();
   }
@@ -2203,7 +2207,7 @@ if (pinned === null && (flipQ || seqQ || closeQ !== null)) {
   const actions = names.map((n, i) => ({ at: flipQ ? 0 : Math.round(i * dt), dir: n.trim() === 'prev' ? -1 : 1 }));
   frozen = true;
   addEventListener('load', () => setTimeout(() => {
-    clearTimeout(naturalT); layoutAll();
+    clearTimeout(naturalT); layoutAll('freeze');
     if (closeQ !== null) { const r = freezeClose(actions, closeQ); document.documentElement.dataset.frozen = `close@${r.p.toFixed(4)}`; }
     else { freezeRun(actions, t); document.documentElement.dataset.frozen = String(t); }
   }, 30));
@@ -2342,8 +2346,8 @@ function pageLayout() {
   row.style.setProperty('--tile-a', String(kn.shadow));
   ghost.style.cssText = `left:${(W - B) / 2}px;top:${(H - B) / 2}px;width:${B}px;height:${B}px`;
 }
-function layoutAll() {                      // the page, then every stack's box (the row's positions depend on all of them), then every stack's measure
-  perfMark('layoutAll');
+function layoutAll(why = '') {              // the page, then every stack's box (the row's positions depend on all of them), then every stack's measure
+  perfMark('layoutAll ' + (typeof why === 'string' ? why : 'event'));
   pageLayout();
   for (const s of stacks) s.size();
   for (const s of stacks) s.measure();
@@ -2354,7 +2358,7 @@ function layoutAll() {                      // the page, then every stack's box 
   placeShield();                            // PERF: OPEN's cursor layer (its play-button hole)
 }
 let naturalT = 0;
-function scheduleLayout() { clearTimeout(naturalT); naturalT = setTimeout(layoutAll, 0); }
+function scheduleLayout() { clearTimeout(naturalT); naturalT = setTimeout(() => layoutAll('natural'), 0); }
 
 /* the frame loop: one loop, every spring and motion of the page and of every stack */
 let last = 0, rafId = 0;
@@ -2924,7 +2928,7 @@ for (const z of [nzL, nzR]) {                                                   
 }
 
 let resizeT = 0;
-addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(layoutAll, 50); });   // geometry only; springs untouched
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => layoutAll('resize'), 50); });   // geometry only; springs untouched
 
 /* ---------- cursor (stack.html: spec section 5, simplified: pop in/out instead of edge fly). The disc (and the native cursor
    hidden) in every state — OPEN too since 2026-09-27 (owner: "make it appear on the zoom in too"), where a white flip arrow
@@ -3011,7 +3015,7 @@ stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: 
    rest = the tile's old --tilt, squared up by the zoom. */
 const CD1 = [{ id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 }];
 stacks.push(makeStack($('cd1'), { name: 'cd1', idp: 'cd-', images: CD1, deck: [0], rest: { rot: -2, up: 0 } }));
-layoutAll();
+layoutAll('boot');
 for (const s of stacks) s.boot();
 // (KEEPALIVE: keepImg(), at each image's load — see the DOM section)
 for (const t of tiles) {                    // site: a row element re-lays out the row if its decoded aspect is not the one it was sized by
@@ -3020,7 +3024,7 @@ for (const t of tiles) {                    // site: a row element re-lays out t
     if (Math.abs(tileAspect(t, im) - t._a) > .002) scheduleLayout();
   }, { once: true });
 }
-if (document.fonts?.ready) document.fonts.ready.then(layoutAll);
+if (document.fonts?.ready) document.fonts.ready.then(() => { if (document.fonts.size) layoutAll('fonts'); });   // PERF 2026-09-28: only when a web font is in play (?type's lab) — the system font never re-flows anything, and this was a second full layoutAll (30 squircle paths, every clip / shade re-applied) at boot
 if (pageQuery.get('zones') === '1') document.documentElement.classList.add('zones');   // debug outlines of the effective rect + zones (OPEN)
 window.__stacks = stacks;                   // site: every stack's page-facing object (debug); window.__site = the drawings' full API
 })();
