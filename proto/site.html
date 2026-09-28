@@ -7,6 +7,10 @@
 <style>
   :root { --em: 20px; --viewer-bg: #FCFCFC; --play-gray: #E6E7E8; }   /* --play-gray: the play button's disc */           /* flip.html: the page is #FCFCFC while the viewer is open */
   html, body { margin: 0; overscroll-behavior: none; }   /* the page is exactly the viewer (100 vh): the page never scrolls (the row scrolls in .scroller); no history swipe */
+  /* PERF 2026-09-28: the root's overflow is hidden FOR GOOD. It used to be toggled by lockPage() / unlockPage() at every transition
+     (expand, open, close, home) — a style change on <html> that Safari answers with a full relayout and a compositing-tree walk of
+     every layer on the page: the first frame of the zoom in / out stalled 167–215 ms (frame recorder). Nothing ever overflows. */
+  html { overflow: hidden; }
   body {
     background: #fff; color: #8e8e93;                    /* stack.html's home page */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -22,8 +26,8 @@
   /* the viewer: the whole page (100 vh, in normal flow; the document never overflows it). It clips its content (the
      outgoing card of a flip is partly beyond its edge). The viewer IS the viewport: the fixed .cursor and the absolute
      nodes (.hdr-root, .scroller, .ghost, .zone) share one frame. During the ZOOM and the CLOSE the page is also scrolled
-     to the top and locked (html overflow hidden: lockPage() in expand() / closeNow(), released by enterOpen() /
-     enterHome()) — inert, since nothing overflows. The row scrolls horizontally inside .scroller (below), never the
+     to the top (lockPage() in expand() / closeNow(); the root's overflow is hidden for good, see the html rule) — inert, since
+     nothing overflows. The row scrolls horizontally inside .scroller (below), never the
      viewer; every measurement in layout() is in the viewer's frame (minus its rect, plus the scroller's scrollLeft for
      the row) and zoneAt() reads the viewer's rect, so they are scroll-proof. */
   .viewer { position: relative; height: 100vh; overflow: hidden; }
@@ -58,7 +62,7 @@
      width is the scroll range. Elements 13em apart (owner: Mike's 5em + 30 %, then doubled). */
   .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; width: max-content; column-gap: 10.4em;
          transform-style: preserve-3d; }   /* PERF 2026-09-27: a 3D context — the OPEN cover and the parked elements are ordered by DEPTH (translate z), never by z-index (the .cover note) */   /* site: 13em × .8 (owner 2026-09-26: "reduce the space between the things a bit", with the row at uiScale .8) */
-  .wrap { position: relative; z-index: 20; flex: none; }
+  .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }   /* PERF 2026-09-28: its own layer FOR GOOD (was `.row.parting .wrap:not(.active)`: will-change toggled on the four other stacks at the zoom's first frame and the close's last — layers created / destroyed mid-motion, a compositing-tree rebuild each time). Its children are layers already: this one holds no bitmap. */
   /* PERF 2026-09-27: the COVER — an opaque sheet over the whole viewport IN the row's 3D context at depth −1 px, coloured exactly as
      the backdrop is at that p (rowWrite()), so it is never seen: above the PARKED row elements (depth −2 px), under the active
      stack and every row element still on its way (depth 0). See PARKING (rowWrite()). */
@@ -68,7 +72,6 @@
      z-index change re-rasters every card of that stack (45–80 ms on the zoom's first frame, the "lag" at every zoom in). The
      order never shows: PARTING moves every other row element out along the zoom's own plane map, so nothing overlaps the
      zooming pile (checked frame by frame at 1440 × 848, 1024 × 700, 2560 × 1440, 800 × 1000). */
-  .row.parting .wrap:not(.active) { will-change: transform; }   /* site: the other stacks ride the zoom (the CAMERA, or PARTING: their own layers from the zoom's start to the close's end) */
   /* site: a plain row element — every row child but the stack: <div class="tile" style="--tilt: 2deg"><img src width height></div>.
      Contain-fit in the row height (longer side = the row height, like the stack's cards), sized by layout() from the img's
      natural size (its width / height attributes until it has loaded); the home card treatment (radius 1, shadow .04 in
@@ -1848,8 +1851,8 @@ const flipActive = () => phase !== 'rest' || !flipDone();
    ============================================================ */
 /* the page scroll lock (see the header): every transition runs at scroll 0 with the page locked (the viewer IS the viewport).
    Inert: the page is exactly the 100 vh viewer, so it never scrolls in any state. */
-function lockPage() { scrollTo(0, 0); document.documentElement.style.overflow = 'hidden'; }   // to the top first, then locked
-function unlockPage() { document.documentElement.style.overflow = ''; }
+function lockPage() { scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
+function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
@@ -3020,6 +3023,6 @@ window.__stacks = stacks;                   // site: every stack's page-facing o
 })();
 </script>
 <script>/* site 2026-09-28: the polaroid caption's TYPE LAB (typelab.js: drag / scale the blocks, fonts, colour, the panel under the page), ?type only */
-if (new URLSearchParams(location.search).has('type')) document.body.appendChild(Object.assign(document.createElement('script'), { src: 'typelab.js?v=' + Date.now() }));</script>
+if (new URLSearchParams(location.search).has('type')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'typelab.js?v=' + Date.now() })); }</script>   <!-- the lab's panel sits under the page: the root scrolls in ?type only -->
 </body>
 </html>
