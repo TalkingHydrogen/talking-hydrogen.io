@@ -2377,7 +2377,7 @@ const PERF = { N: 4000, f: [], marks: [], wheel: 0, ev: '', evW: 0, t0: performa
 /* PERF 2026-09-28: the recorder, the rAF-delta ring (`frames`) and the row log are ON only with ?hud=1 or ?perf=1 (brew/website-perf/perfrun.py
    reads the ?hud=1 tab). Off, the loop allocates nothing per frame: they were a record object + two strings + a row-log array every
    frame (and one per wheel event), plus a splice of 1000–2000 entries now and then — garbage for the collector in a 120 Hz loop. */
-const DIAG = pageQuery.get('hud') === '1' || pageQuery.get('perf') === '1';
+const DIAG = pageQuery.has('hud') || pageQuery.has('perf');   // any value (the designer's tab reads ?hud=1. — a stray dot)
 function perfMark(s) { if (DIAG) PERF.marks.push(s); }
 function perfFrameStart() { if (!DIAG) return; PERF.ev = PERF.marks.join(', '); PERF.evW = PERF.wheel; PERF.marks.length = 0; PERF.wheel = 0; }   // what ran BETWEEN frames (events)
 function perfFrame(now, raw, js) {         // a slow interval pays for the steps of the frame before (its callback) + the events since
@@ -2398,7 +2398,7 @@ function perfCause(i) {                     // the steps whose rendering the int
   if (p.cb) a.push(p.cb);
   return a.join(', ');
 }
-if (pageQuery.get('hud') === '1') {
+if (pageQuery.has('hud')) {
   PERF.hud = document.body.appendChild(Object.assign(document.createElement('div'), { textContent: 'frame recorder on' }));
   PERF.hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2000;font:11px/1.3 ui-monospace,Menlo,monospace;color:#333;background:rgba(255,255,255,.85);padding:4px 7px;border-radius:5px;pointer-events:none;max-width:70vw';
 }
