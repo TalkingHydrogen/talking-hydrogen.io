@@ -105,9 +105,9 @@
      the cards' pile order is their DEPTH (render(): translateZ(z) in the card's transform), not z-index: in Safari a z-index change
      re-rasters the card (every flip's apex swap re-ordered the whole pile: 35–60 ms), a depth change is a compositor move */
   /* .card is the transformed node (one per image, laid out at its contain-fit size in the viewer box). The squircle clip
-     sits on the img; the shadows are inline SVGs behind it (.shade: the same outline, feGaussianBlur'd) — a box-shadow on the
-     clipped node would be clipped away, one on the wrapper would stay rectangular, and a CSS drop-shadow filter is re-applied
-     by the compositor every frame. Two shades per card: the rest one and flip.html's lifted one (cross-faded by the lift).
+     sits on the img; the shadows are .shade divs behind it (a box-shadow on a rounded rect of the card's radius — PERF 2026-09-28, was an inline
+     SVG of the squircle outline through feGaussianBlur) — a box-shadow on the clipped node would be clipped away, and a CSS
+     drop-shadow filter is re-applied by the compositor every frame. Two shades per card: the rest one and flip.html's lifted one (cross-faded by the lift).
      Print border (`border` / `vborder` > 0): the card gets .print, its ::before is the white paper — the outer squircle
      (--paper) between the shades and the img — and the img is inset by the border with its own smaller clip. */
   /* every card is on the table in every state, at opacity 1 (nothing is hidden or faded: a card beyond the preview is
@@ -1053,7 +1053,6 @@ class Motion extends Spring {
 
 /* ---------- DOM ---------- */
 const $ = id => document.getElementById(id);
-const SVG = 'http://www.w3.org/2000/svg';
 const hdrRoot = $('hdrRoot'), hdr = $('hdr'), row = $('row');
 const scroller = $('scroller'), tiles = [...row.querySelectorAll('.tile')], cover = $('cover');   // site: the row's scroller; the row elements besides the stacks
 const ghost = $('ghost'), backdrop = $('backdrop');
@@ -1236,15 +1235,16 @@ const outMs = () => knobs.outMs / knobs.speed;               // the OUT phase (t
    DOM values. Sources: SOURCES below (a srcset per card, decoded async, the tucked cards lazily); every card is painted in every state (opacity 1). */
 const cards = [];
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
-function makeShade(id, cls) {                      // <svg class=shade><defs><filter><feGaussianBlur/></filter></defs><path/></svg>
-  const svg = document.createElementNS(SVG, 'svg'), defs = document.createElementNS(SVG, 'defs'),
-        filter = document.createElementNS(SVG, 'filter'), blur = document.createElementNS(SVG, 'feGaussianBlur'),
-        path = document.createElementNS(SVG, 'path');
-  svg.setAttribute('class', 'shade ' + cls); svg.setAttribute('aria-hidden', 'true');
-  filter.id = id; filter.appendChild(blur); defs.appendChild(filter); svg.appendChild(defs);
-  path.setAttribute('fill', '#000'); path.setAttribute('filter', `url(#${id})`); svg.appendChild(path);   // fill-opacity 1: the alpha is the svg's opacity (per frame)
-  svg.style.opacity = 0;
-  return { svg, blur, path, key: '' };
+/* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
+   squircle outline through feGaussianBlur — which Safari renders as a software filter pass per shade (30 of them) at boot and at every
+   size change (a resize, a natural-size relayout), and whose layer carried the filter region. At these radii (1–4 px in the card's px,
+   under a blur of σ 3–6 px) the rounded rect IS the squircle; the box-shadow's blur radius = 2σ (the sources' own convention:
+   "box-shadow 0 1px 4px = gaussian sigma 2"). Painted by CoreGraphics' shadow, one op. */
+function makeShade(id, cls) {
+  const el = document.createElement('div');
+  el.className = 'shade ' + cls; el.setAttribute('aria-hidden', 'true');
+  el.style.opacity = 0;                                                    // the alpha is the div's opacity (per frame, render())
+  return { el, key: '' };
 }
 /* site 2026-09-28 PERF — SOURCES. Each card image is on disk in three sizes (…-1000, …-1400 and the 2000 px original: brew/website-perf/
    mkvariants.py) as a srcset whose `sizes` is the card's CSS width at the OPEN box B (a card is laid out at B in every state and shown at
@@ -1290,7 +1290,7 @@ for (let j = 0; j < D; j++) {
   img.decoding = 'async';                                                  // PERF: SOURCES (above) — its source is loadCard()'s, off the main thread
   img.alt = ''; img.draggable = false;
   const shade = makeShade(IDP + 'shade' + j, 'rest'), shade2 = makeShade(IDP + 'shadeL' + j, 'lifted');   // rest shadow + flip.html's lifted shadow, behind the img
-  el.appendChild(shade.svg); el.appendChild(shade2.svg); el.appendChild(img);
+  el.appendChild(shade.el); el.appendChild(shade2.el); el.appendChild(img);
   const castbox = CAST ? el.appendChild(Object.assign(document.createElement('div'), { className: 'castbox' })) : null;   // site: CAST
   cardsEl.appendChild(el);
   let fl = null;                                                           // site: FLOOR — this card's table shadow
@@ -1546,8 +1546,8 @@ function applyCard(c) {
   }
   // shadows: the rest one (home: stack.html's geometry in rest px → ÷ size; viewer: flip.html's) and flip.html's lifted one
   const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && (knobs.shadow > 0 || knobs.vshadow > 0);   // site: CAST draws no SVG shade
-  setShade(c, c.shade,  sh.sigma * KB / sz, sh.y * KB / sz, on, sx * KB / sz);
-  setShade(c, c.shade2, sh.sigma * KB * knobs.liftShade, sh.y * KB * knobs.liftShade, on, sx * KB * knobs.liftShade);
+  setShade(c, c.shade,  sh.sigma * KB / sz, sh.y * KB / sz, on, sx * KB / sz, rad);
+  setShade(c, c.shade2, sh.sigma * KB * knobs.liftShade, sh.y * KB * knobs.liftShade, on, sx * KB * knobs.liftShade, rad);
   if (CAST) {                               // site: card c's shadow as it falls on every other card: its size + box-shadow, in c's own px (as its shade)
     // CONTACT: the measured print-on-print line — the tail of a σ-blurred step r·σ inside the edge (r = −.57), on the right /
     // bottom only: shifted 1.2σ right + down and shrunk by (1.2 + .57)σ, so the top / left step sits ≈ 3σ inside (≈ 0)
@@ -1560,16 +1560,14 @@ function applyCard(c) {
     }
   }
 }
-function setShade(c, s, sigma, sy, on, sx = 0) {   // the svg overhangs the card by `pad` on every side; its opacity is render()'s. site: sx, an x offset (the polaroids)
-  const pad = Math.ceil(3 * sigma + Math.abs(sy) + Math.abs(sx)), key = `${c.clipKey}|${sigma.toFixed(4)}|${sy.toFixed(4)}|${sx.toFixed(4)}|${on}`;
+function setShade(c, s, sigma, sy, on, sx = 0, rad = 0) {   // the div is the card's box (its outline: the card's radius); the box-shadow overhangs it. Its opacity is render()'s. site: sx, an x offset (the polaroids)
+  const key = `${c.w.toFixed(2)}|${c.h.toFixed(2)}|${rad.toFixed(3)}|${sigma.toFixed(4)}|${sy.toFixed(4)}|${sx.toFixed(4)}|${on}`;
   if (s.key === key) return;
   s.key = key;
-  const st = s.svg.style;
-  st.left = st.top = -pad + 'px'; st.width = (c.w + 2 * pad) + 'px'; st.height = (c.h + 2 * pad) + 'px'; st.display = on ? 'block' : 'none';
-  s.svg.setAttribute('viewBox', `0 0 ${c.w + 2 * pad} ${c.h + 2 * pad}`);
-  s.blur.setAttribute('stdDeviation', sigma);
-  s.path.setAttribute('d', c.pathD);
-  s.path.setAttribute('transform', `translate(${pad + sx} ${pad + sy})`);
+  const st = s.el.style;
+  st.left = st.top = '0px'; st.width = c.w + 'px'; st.height = c.h + 'px'; st.display = on ? 'block' : 'none';
+  st.borderRadius = rad >= .5 ? rad.toFixed(3) + 'px' : '0px';           // square below .5 px (the clip's rule)
+  st.boxShadow = `${sx.toFixed(3)}px ${sy.toFixed(3)}px ${(2 * sigma).toFixed(3)}px #000`;
 }
 
 /* ---------- knob setters: change one knob live; the static layout is recomputed, then the current values re-rendered ---------- */
@@ -2049,8 +2047,8 @@ function render() {
     const lift = Math.abs(ld) < 1e-9 ? 0 : Math.round(clamp((c.sc.value - 1) / ld, 0, 1) * 50) / 50;
     c.lift = lift;
     const o1 = Math.round(a * (1 - lift) * 1000) / 1000, o2 = Math.round(a * lift * 1000) / 1000;
-    if (o1 !== c.o1) { c.o1 = o1; c.shade.svg.style.opacity = Math.max(o1, SHADE_FLOOR); }   // PERF: SHADE_FLOOR
-    if (o2 !== c.o2) { c.o2 = o2; c.shade2.svg.style.opacity = o2; }
+    if (o1 !== c.o1) { c.o1 = o1; c.shade.el.style.opacity = Math.max(o1, SHADE_FLOOR); }   // PERF: SHADE_FLOOR
+    if (o2 !== c.o2) { c.o2 = o2; c.shade2.el.style.opacity = o2; }
     if (c.fl && o1 !== c.fo) { c.fo = o1; c.fl.style.opacity = o1; }                     // site: FLOOR, the rest shade's alpha
   }
   // site: CAST — in every card L, the shadow of each card U above it (z): U's box at U's pose in L's own frame (the inverse of
