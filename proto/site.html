@@ -2372,9 +2372,14 @@ const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.a
    layout, paint, decode, commit) for what those steps changed. window.__perf.report() lists the slow frames with their steps
    (read from the live tab with osascript); ?hud=1 shows the last slow frame live (one text write per slow frame only). */
 const PERF = { N: 4000, f: [], marks: [], wheel: 0, ev: '', evW: 0, t0: performance.now(), hud: null, slow: 0 };
-function perfMark(s) { PERF.marks.push(s); }
-function perfFrameStart() { PERF.ev = PERF.marks.join(', '); PERF.evW = PERF.wheel; PERF.marks.length = 0; PERF.wheel = 0; }   // what ran BETWEEN frames (events)
+/* PERF 2026-09-28: the recorder, the rAF-delta ring (`frames`) and the row log are ON only with ?hud=1 or ?perf=1 (brew/website-perf/perfrun.py
+   reads the ?hud=1 tab). Off, the loop allocates nothing per frame: they were a record object + two strings + a row-log array every
+   frame (and one per wheel event), plus a splice of 1000–2000 entries now and then — garbage for the collector in a 120 Hz loop. */
+const DIAG = pageQuery.get('hud') === '1' || pageQuery.get('perf') === '1';
+function perfMark(s) { if (DIAG) PERF.marks.push(s); }
+function perfFrameStart() { if (!DIAG) return; PERF.ev = PERF.marks.join(', '); PERF.evW = PERF.wheel; PERF.marks.length = 0; PERF.wheel = 0; }   // what ran BETWEEN frames (events)
 function perfFrame(now, raw, js) {         // a slow interval pays for the steps of the frame before (its callback) + the events since
+  if (!DIAG) return;
   const r = { t: Math.round(now - PERF.t0), dt: +raw.toFixed(1), js: +js.toFixed(1), ev: PERF.ev || '', w: PERF.evW || 0, cb: PERF.marks.join(', ') };
   PERF.marks.length = 0;
   PERF.f.push(r); if (PERF.f.length > PERF.N) PERF.f.splice(0, PERF.f.length - PERF.N);
@@ -2399,7 +2404,7 @@ window.__perf = {
   PERF,
   clear() { PERF.f.length = 0; PERF.slow = 0; PERF.t0 = performance.now(); },
   report(th = 25) {                         // the slow frames, each with its steps and the frame before's
-    const F = PERF.f, out = [`frames ${F.length} · ${innerWidth}×${innerHeight} @${devicePixelRatio} · ${navigator.userAgent.match(/Version\/[\d.]+/)?.[0] || ''}`];
+    const F = PERF.f, out = [`frames ${F.length}${DIAG ? '' : ' (recorder off: add ?hud=1 or ?perf=1)'} · ${innerWidth}×${innerHeight} @${devicePixelRatio} · ${navigator.userAgent.match(/Version\/[\d.]+/)?.[0] || ''}`];
     for (let i = 0; i < F.length; i++) if (F[i].dt > th) {
       out.push(`t ${F[i].t}  ${F[i].dt} ms (script ${F[i].js})  after: ${perfCause(i) || '—'}`);
     }
@@ -2411,7 +2416,7 @@ function frame() {
   const now = performance.now(), raw = now - last;
   let dt = Math.min(ZOOM.maxFrameDt, now - last);
   if (startGuard > 0) { startGuard--; dt = Math.min(dt, 1000 / 60); }
-  frames.push(now - last); if (frames.length > 6000) frames.splice(0, 1000);
+  if (DIAG) { frames.push(now - last); if (frames.length > 6000) frames.splice(0, 1000); }
   last = now;
   for (const s of pageSprings) s.tick(dt);
   for (const s of stacks) s.step(dt, now);
@@ -2508,7 +2513,7 @@ const ROWPHYS = {
 const RP = { S: 0, sPrev: 0, sl: 0, V: 0, drive: 'rest', M: 0, W: 1, gap: 0, els: [], part: null, pv: '', cv: '', move: null, dPart: null, dFrom: null,   // move: a CAMERA move { from, to }; dPart / dFrom: the neighbour peek's side shifts (sideShift()) of the open framing(s)   // part / pv: PARTING; cv: the cover's colour (PARKING)   // drive: 'input' (wheel / finger) | 'free' (fling / bounce) | 'rest'
              wT: -1e9, wAxis: 'x', wN: 0, wPeak: 0, wAbs: 0, wR: 0, wSign: 0, wDec: 0, wV: 0, swallow: false, act: '', touch: null, caught: false,
              log: [] };                     // log: the last wheel events + frames, for diagnosis (window.__row.RP.log)
-const rowLog = a => { const L = RP.log; L.push(a); if (L.length > 6000) L.splice(0, 2000); };
+const rowLog = DIAG ? a => { const L = RP.log; L.push(a); if (L.length > 6000) L.splice(0, 2000); } : () => {};   // PERF: ?hud=1 / ?perf=1 only
 const rowOver = S => S < 0 ? -S : S > RP.M ? S - RP.M : 0;
 const rowActive = () => RP.drive !== 'rest' || RP.els.some(e => e.o || e.v) || RP.S !== Math.round(RP.S);
 function rowSync() {                        // adopt a scrollLeft the browser set on its own (a resize clamp, find-in-page)
