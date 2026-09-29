@@ -30,14 +30,17 @@
   'use strict';
 
   const KNOBS = {
-    lens: 3.2,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
+    lens: 5,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
     smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
     hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
-    lift: 1,            // × the phone's own lift (retargeted); the print never dips below the table whatever this is
+    lift: .15,          // × the phone's own lift (retargeted) — designer: "the image must raise lightly" (1 = as the hand did)
+    clear: 1,           // share of the lift a turn about its middle needs to clear the table (1 = physical: at 90° the centre
+                        // rises half a print width). Below 1 the print dips through the table and the dipped half casts its
+                        // shadow toward the light — keep 1; soften the rise with `lens` (a longer lens = less growth)
     travel: .5,         // × the phone's sideways travel (retargeted; it lands in place)
-    thick: 1.6,         // the paper's thickness, CSS px at the print's width (a 0.25 mm print ≈ 1.6 px at ~1000 px)
+    thick: .5,          // the paper's edge, CSS px — designer: "a picture, so as thin as paper" (a hairline at edge-on)
     az: 135,            // light azimuth, degrees (135 = from the upper left, as the site's shadows)
     el: 58,             // light elevation, degrees
     ambient: .5,        // the room's fill light (white walls): the share of light that doesn't depend on the face's angle
@@ -47,7 +50,7 @@
     gloss: 60,          // Blinn exponent: higher = a tighter, briefer glint
     sheenW: .45,        // the band's width, print widths
     backSheen: .12,     // the back is resin-coated paper: a faint, broad sheen
-    edge: 236,          // the cut edge's grey at full light
+    edge: 248,          // the cut edge's grey at full light (near the paper's white: an edge, not a board)
     contact: .006,      // print widths: the rest shadow is a CONTACT line — gone once any edge is this far off the table
     sharpTo: .1,        // height (print widths) by which the near-sharp silhouette (σ .01) has become the soft one (σ .03)
     shadowFade: 1.1,    // print widths of height over which the lifted shadow fades out
@@ -194,7 +197,7 @@
     let lo = Infinity;
     for (const [u, v] of [[-.5, aspect / 2], [.5, aspect / 2], [.5, -aspect / 2], [-.5, -aspect / 2]])
       lo = Math.min(lo, R[6] * u + R[7] * v);
-    const need = Math.max(0, -lo + th / 2 * (Math.abs(R[8]) - 1));
+    const need = Math.max(0, -lo + th / 2 * (Math.abs(R[8]) - 1)) * k.clear;
     const e = .004;
     P[2] = Math.max(0, smax(P[2], need, e) - e / 2);
     return { R, P, u: s.u, face: (flip.from === 'back') ? 'back' : 'front', rest: false, done: false };
