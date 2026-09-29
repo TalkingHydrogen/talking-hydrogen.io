@@ -1499,7 +1499,7 @@ function makeTurn(FR, take) {
   for (const key of Object.keys(k)) { const v = parseFloat(pageQuery.get('t' + key)); if (Number.isFinite(v)) k[key] = v; }   // ?tlens= ?tspeed= … (turn.html's knobs, t-prefixed)
   const W = c.w || estB(), H = c.h || W * c.pic.h / c.pic.w;
   const S = FR.attach({ card: c.el, img: c.img, fcast: c.fl, rim: c.fl && c.fl.querySelector('img'),
-                        back: Object.assign({ sizes: sizesOf(c) }, cfg.turn.back), floorSoft: cfg.turn.floorSoft, floorWide: cfg.turn.floorWide, W, H });
+                        back: Object.assign({ sizes: sizesOf(c) }, cfg.turn.back), floorSharp: cfg.turn.floorSharp, floorSoft: cfg.turn.floorSoft, floorWide: cfg.turn.floorWide, W, H });
   for (const im of S.images) keepImg(im);                                  // PERF: KEEPALIVE — the back and the lifted shadows too
   const T = { S, take, k, card: c, playing: false, t: 0, from: 'front', side: take.side, dirty: true };
   T.resize = () => { S.resize(c.w, c.h); T.dirty = true; };
@@ -3270,6 +3270,7 @@ const ROOM_FLOOR = { src: '../assets/photo/room-floor.webp', fx: .03331, fy: .06
 const ROOM_TURN = pageQuery.has('turn') ? {
   back: { src: '../assets/flip/room-back.webp',
           srcset: '../assets/flip/room-back-1000.webp 1000w, ../assets/flip/room-back-1400.webp 1400w, ../assets/flip/room-back-1800.webp 1800w, ../assets/flip/room-back.webp 2018w' },
+  floorSharp: { src: '../assets/flip/room-floor-sharp.webp', fx: .03333, fy: .06211 },
   floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .09667, fy: .18012 },
   floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 },
   ready: new Promise((resolve, reject) => {

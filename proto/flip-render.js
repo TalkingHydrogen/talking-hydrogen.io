@@ -46,7 +46,8 @@
     sheenW: .45,        // the band's width, print widths
     backSheen: .12,     // the back is resin-coated paper: a faint, broad sheen
     edge: 236,          // the cut edge's grey at full light
-    shadowLift: .05,    // print widths of height over which the rest rim gives way to the lifted silhouette
+    contact: .006,      // print widths: the rest shadow is a CONTACT line — gone once any edge is this far off the table
+    sharpTo: .1,        // height (print widths) by which the near-sharp silhouette (σ .01) has become the soft one (σ .03)
     shadowFade: 1.1,    // print widths of height over which the lifted shadow fades out
     softMax: 1,         // the lifted shadow's strength (its texture: D .12 at the core, the measured warm colour)
     wideAt: .35,        // height (print widths) by which the soft penumbra has become the wide one
@@ -243,8 +244,8 @@
     }
     const stage = document.createElement('div'); stage.className = 'fr-stage'; host.appendChild(stage);
     const mk = (cls, parent) => { const d = document.createElement('div'); d.className = cls; (parent || stage).appendChild(d); return d; };
-    const floors = [];                                             // bottom → top: wide, soft (the lifted silhouette), rim (rest)
-    for (const f of [cfg.floorWide, cfg.floorSoft, cfg.floor]) {
+    const floors = [];                                             // bottom → top: wide, soft, sharp (the lifted silhouette), rim (rest)
+    for (const f of [cfg.floorWide, cfg.floorSoft, cfg.floorSharp, cfg.floor]) {
       if (!f) { floors.push(null); continue; }
       const el = mk('fr-layer fr-floor');
       const img = document.createElement('img'); img.src = f.src; img.alt = ''; img.decoding = 'async'; el.appendChild(img);
@@ -403,19 +404,28 @@
     const A = faceA(R, P, Bs);
     const Sh = [A[0] - L[0] / L[2] * A[6], A[1] - L[0] / L[2] * A[7], A[2] - L[0] / L[2] * A[8],
                 A[3] - L[1] / L[2] * A[6], A[4] - L[1] / L[2] * A[7], A[5] - L[1] / L[2] * A[8], 0, 0, 0];
+    // the REST shadow is a contact line hugging the print's edge: it never travels with the light (a displaced sharp line
+    // reads as a second print edge — designer: "it doubles the picture" just before it settled) — it stays on the print's
+    // footprint and is gone once ANY edge is `contact` off the table. The filled silhouette takes over, its penumbra
+    // growing with height: sharp (σ .01) → soft (σ .03) by `sharpTo`, soft → wide (σ .09) by `wideAt`.
+    const Foot = [A[0], A[1], A[2], A[3], A[4], A[5], 0, 0, 0];
     const hgt = Math.max(0, P[2]);
-    const oRim = st.rest ? 1 : Math.exp(-hgt / k.shadowLift);
+    let top = -Infinity;
+    for (const [u, v] of [[-.5, a / 2], [.5, a / 2], [.5, -a / 2], [-.5, -a / 2]]) top = Math.max(top, R[6] * u + R[7] * v);
+    const hTop = Math.max(0, P[2] + top);
+    const ss = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+    const oRim = st.rest ? 1 : Math.exp(-hTop / k.contact);
     const lifted = st.rest ? 0 : (1 - oRim) * Math.exp(-hgt / k.shadowFade) * k.softMax;
-    const tw = Math.min(1, hgt / k.wideAt), mixW = tw * tw * (3 - 2 * tw);
-    const ops = [lifted * mixW, lifted * (1 - mixW), oRim];
-    // at rest the two lifted shadows are PARKED: opaque, shrunk to 45 % under the print's middle (covered by it), so Safari
+    const mSoft = ss(hgt / k.sharpTo), mWide = ss((hgt - k.sharpTo) / Math.max(1e-6, k.wideAt - k.sharpTo));
+    const ops = [lifted * mSoft * mWide, lifted * mSoft * (1 - mWide), lifted * (1 - mSoft), oRim];
+    // at rest the three lifted shadows are PARKED: opaque, shrunk to 45 % under the print's middle (covered by it), so Safari
     // keeps their bitmaps — at opacity 0 it would drop them after ~1 s and redraw them in the flip's first frame
     const tuck = [.45 / W, 0, -.225, 0, -.45 / W, .225 * a, 0, 0, 0];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const fl = S.floors[i];
       if (!fl) continue;
-      const parked = st.rest && i < 2;
-      const tfs = css(parked ? tuck : Sh, W, F, st.rest ? 0 : -.5 + i * .01, S.origin);   // at rest z 0 (flat pixels), DOM order stacks them
+      const parked = st.rest && i < 3, rim = i === 3;
+      const tfs = css(parked ? tuck : rim ? Foot : Sh, W, F, st.rest ? 0 : -.5 + i * .01, S.origin);   // at rest z 0 (flat pixels), DOM order stacks them
       const o = parked ? 1 : ops[i];
       if (tfs !== fl.tf) { fl.el.style.transform = tfs; fl.tf = tfs; }
       if (Math.abs(o - fl.o) > .002 || (o === 0 && fl.o !== 0) || (o === 1 && fl.o !== 1)) {
@@ -460,7 +470,7 @@
     for (const [name, el, img] of [['back', backEl, bimg], ['front', frontEl, cfg.img]])
       faces[name] = { el, img, tint: mk('fr-tint', el), sheen: mk('fr-sheen', el), tf: '', o: -1, so: -1, st: '', tc: '' };
     const edges = [0, 1, 2, 3].map(() => ({ el: mk('fr-layer fr-edge', card), tf: '', o: -1, c: '' }));
-    const floors = [null, null, null];
+    const floors = [null, null, null, null];
     if (cfg.fcast && cfg.rim) {
       const wrap = (f, img) => {
         const el = mk('fr-layer fr-in fr-sh', cfg.fcast, img || null);
@@ -469,10 +479,12 @@
         el.style.setProperty('--fx', f.fx); el.style.setProperty('--fy', f.fy);
         return { el, img, f, o: -1, tf: '', site: true };
       };
-      floors[2] = wrap({ fx: +getComputedStyle(cfg.fcast).getPropertyValue('--fx') || 0, fy: +getComputedStyle(cfg.fcast).getPropertyValue('--fy') || 0 }, cfg.rim);
+      floors[3] = wrap({ fx: +getComputedStyle(cfg.fcast).getPropertyValue('--fx') || 0, fy: +getComputedStyle(cfg.fcast).getPropertyValue('--fy') || 0 }, cfg.rim);
+      if (cfg.floorSharp) floors[2] = wrap(cfg.floorSharp);
       if (cfg.floorSoft) floors[1] = wrap(cfg.floorSoft);
       if (cfg.floorWide) floors[0] = wrap(cfg.floorWide);
-      cfg.fcast.insertBefore(floors[1].el, floors[2].el); cfg.fcast.insertBefore(floors[0].el, floors[1].el);
+      let above = floors[3];                             // DOM order bottom → top: wide, soft, sharp, rim
+      for (let i = 2; i >= 0; i--) if (floors[i]) { cfg.fcast.insertBefore(floors[i].el, above.el); above = floors[i]; }
     }
     const S = { faces, edges, floors, aspect: cfg.H / cfg.W, W: cfg.W, origin: [cfg.W / 2, cfg.H / 2], attached: true };
     S.resize = (W, H) => {
