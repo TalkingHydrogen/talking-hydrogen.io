@@ -178,6 +178,8 @@
   .play:active { transform: scale(.92); }
   .play:focus-visible { box-shadow: 0 0 0 3px rgba(0, 122, 255, .5); }
   .viewer.open .wrap.active .play { pointer-events: auto; }
+  .card .play { z-index: 4; }   /* site: anchored to its card (the sleeve: playSlot) — over the card's own layers */
+  .play-slot { position: absolute; visibility: hidden; pointer-events: none; }   /* site: where an anchored button rests: the shield's hole (placeShield()) */
   .play svg { position: absolute; left: 50%; top: 50%; width: 56%; height: 56%; transform: translate(-50%, -50%); display: block; fill: #fff; }
   .play .i-pause, .play.playing .i-play { display: none; }
   .play.playing .i-pause { display: block; }
@@ -1127,13 +1129,18 @@ const frames = [];                  // rAF deltas (ms) while the loop runs — f
 let lastX = -1, lastY = -1;         // the last pointer position (hover re-evaluation)
 
 /* PERF: OPEN's cursor layer (the .shield CSS) with a hole where the active stack's play button is (its rect at p = 1, read
-   here: enterOpen() and a resize while OPEN), so the button keeps its own cursor, press and click */
+   here: enterOpen() and a resize while OPEN), so the button keeps its own cursor, press and click. site 2026-09-29: the flip
+   ZONES too (a pile's right zone reaches over the sleeve's button: it would flip, not play) — and playRect, the hole in client
+   px, is the middle band for zoneAt() (no flip, no peek, no close there) */
+let playRect = null;
+function holePath(el, r) {                  // el's own box minus r (client px): an evenodd clip-path
+  const er = el.getBoundingClientRect(), x = r.left - er.left, y = r.top - er.top, f = v => v.toFixed(2);
+  return `path(evenodd, "M0 0H${f(er.width)}V${f(er.height)}H0Z M${f(x)} ${f(y)}h${f(r.width)}v${f(r.height)}h${f(-r.width)}Z")`;
+}
 function placeShield() {
-  const b = activeStack?.state === 'open' && activeStack.songOn ? activeStack.playBtn : null;   // site: a hidden button (its card not in front) has no hole
-  if (!b) { shield.style.clipPath = ''; return; }
-  const vr = viewer.getBoundingClientRect(), r = b.getBoundingClientRect(), W = vr.width, H = vr.height;
-  const x = r.left - vr.left, y = r.top - vr.top, f = v => v.toFixed(2);
-  shield.style.clipPath = `path(evenodd, "M0 0H${f(W)}V${f(H)}H0Z M${f(x)} ${f(y)}h${f(r.width)}v${f(r.height)}h${f(-r.width)}Z")`;
+  const b = activeStack?.state === 'open' && activeStack.songOn ? activeStack.playHole : null;   // site: a hidden button (its card not in front) has no hole
+  playRect = b ? b.getBoundingClientRect() : null;
+  for (const el of [shield, zoneL, zoneR]) el.style.clipPath = playRect ? holePath(el, playRect) : '';
 }
 /* site: the song's play / pause button (the .play CSS): diameter and gap to the card, 680-box px (× KV, as the viewer's px);
    the glyphs in a 24 box — pause 14 tall, play 15 (round-joined), shifted right of centre (optical centre of a triangle) */
@@ -1463,6 +1470,11 @@ for (let j = 0; j < D; j++) {
   cards.push(c);
   if (pic.lid) lid = makeLid(el, pic.lid, estB() * (devicePixelRatio || 1));   // site: the MACBOOK's lid clips over its poster (LID)
 }
+/* site 2026-09-29 (owner: "you must anchor it to the album"): with a pic.song card the play button is a CHILD of that card — it
+   rides its every pose (the flip's flight and lift, the peek, the zoom); placePlay() sets it right of the card, bottoms
+   aligned. playSlot: an empty box in the .item where the button rests (the card at the front seat) — the shield's hole. */
+const playSlot = playBtn && SONG >= 0 ? item.appendChild(Object.assign(document.createElement('div'), { className: 'play-slot' })) : null;
+if (playSlot) cards[SONG].el.appendChild(playBtn);
 if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site: CAST — in card c, one .cast per other card u (its shadow on c)
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
   c.casts.push({ u, el, tf: '', o: null, key: '' });
@@ -1574,8 +1586,9 @@ function arrange() { arrangeHome(); syncHomeSlots(); arrangeCards(); reseat(); p
 function placePlay() {
   if (!playBtn || !G.B) return;
   const B = G.B, KV = G.KV, d = PLAY.d * KV, pc = IMAGES[SONG >= 0 ? SONG : knobs.deck[0]], r = pc.w / pc.h;
-  const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B;
-  Object.assign(playBtn.style, { left: (B + cw) / 2 + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px', width: d + 'px', height: d + 'px' });
+  const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B, sz = { width: d + 'px', height: d + 'px' };
+  Object.assign((playSlot || playBtn).style, sz, { left: (B + cw) / 2 + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px' });   // the resting rect, item px
+  if (playSlot) Object.assign(playBtn.style, sz, { left: cw + PLAY.gap * KV + 'px', top: ch - d + 'px' });            // anchored: the card's own px
 }
 /* THE SLOT POSES (per SLOT, no DOM), the one table of every state: slots 0 … N−1 = stack.html's arrange() (the seeded rest
    pose + nudge, and the hover ramp), slots N … D−1 = the tuck (centred, rotation 0, knobs.vshrink, no ramp). Everything in
@@ -2258,6 +2271,8 @@ cardsEl.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') h
    portrait card's overhang included) → close. On the viewer element. Ignored in every other state. */
 function zoneAt(clientX, clientY) {         // −1 the left zone, +1 the right one (both padded by FLIP.zonePad), 0 the middle band, null outside
   const e = G.eff; if (!e) return null;
+  const pr = activeStack === self && playRect;                                        // site: on the play button — the middle band (placeShield())
+  if (pr && clientX >= pr.left && clientX <= pr.right && clientY >= pr.top && clientY <= pr.bottom) return 0;
   const r = viewer.getBoundingClientRect();
   const x = clientX - r.left + viewer.scrollLeft - e.left, y = clientY - r.top - e.top;   // the viewer's content frame (the zones' and the ghost's)
   if (D < 2) return (x >= 0 && x <= e.width && y >= 0 && y <= e.height) ? 0 : null;   // site: a single card: on it nothing, outside it closes
@@ -2406,7 +2421,7 @@ const self = {                              // site: what the page sees of this 
   active, step, idle, size: layoutSize, measure: layoutMeasure, placeZones, boot, render,
   expand, collapse, flip, zoneAt, setVHover, hoverTo, setKnob, setNudge,   // setKnob / setNudge: debug (window.__stacks)
   prime, unprime,                                                          // PERF: the click's costly work on the press (the page's pointerdown / pointerup)
-  audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); },                                                   // site: the song and its button (null but for the sleeve); the caption (null but for the polaroids)
+  audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (null but for the sleeve); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
