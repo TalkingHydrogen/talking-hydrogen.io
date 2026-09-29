@@ -1117,7 +1117,7 @@ let lastX = -1, lastY = -1;         // the last pointer position (hover re-evalu
 /* PERF: OPEN's cursor layer (the .shield CSS) with a hole where the active stack's play button is (its rect at p = 1, read
    here: enterOpen() and a resize while OPEN), so the button keeps its own cursor, press and click */
 function placeShield() {
-  const b = activeStack?.state === 'open' ? activeStack.playBtn : null;
+  const b = activeStack?.state === 'open' && activeStack.songOn ? activeStack.playBtn : null;   // site: a hidden button (its card not in front) has no hole
   if (!b) { shield.style.clipPath = ''; return; }
   const vr = viewer.getBoundingClientRect(), r = b.getBoundingClientRect(), W = vr.width, H = vr.height;
   const x = r.left - vr.left, y = r.top - vr.top, f = v => v.toFixed(2);
@@ -1174,9 +1174,41 @@ if (playBtn) {
   playBtn.addEventListener('click', e => {
     e.stopPropagation();
     if (state !== 'open') return;
-    if (audio.paused) audio.play().catch(syncPlay); else audio.pause();
+    if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
     syncPlay();
   });
+}
+/* site 2026-09-29 (owner: "play/ pause vynyl only when its in view"): in a pile with a pic.song card (the sleeve behind the
+   CD) the song and its button belong to THAT card — they play / show only while it is the front card (order[0]). A flip to
+   it resumes the song (inside the click: the gesture), unless the button paused it (songHeld); a flip away fades it out and
+   pauses it. songG: 0..1 toward songUp() over SONG_FADE ms, × p on the volume and on the button's fade (songWrite()).
+   No pic.song card: the whole stack (a pile of one, as before). */
+const SONG = IMAGES.findIndex(m => m.song), SONG_FADE = { in: 350, out: 250 };
+const songUp = () => SONG < 0 || order[0] === SONG;
+let songG = 1, songT = 1, songRaf = 0, songLast = 0, songHeld = false;
+function songWrite() {                      // render() and the fade: the volume and the button's opacity
+  const v = clamp(p.value, 0, 1);
+  if (audio) { const vol = Math.round(v * songG * 1000) / 1000; if (audio.volume !== vol) audio.volume = vol; }   // site: the song rises with the zoom, falls with the close
+  if (playBtn) {                            // site: its button — the header's fade, mirrored
+    const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * songG * 1000) / 1000;
+    put(playBtn, 'pbO', 'opacity', String(o)); put(playBtn, 'pbV', 'visibility', o > 0 ? 'visible' : 'hidden');
+  }
+}
+function songStep(t) {
+  const dt = Math.max(0, t - songLast); songLast = t;
+  songG = songT > songG ? Math.min(songT, songG + dt / SONG_FADE.in) : Math.max(songT, songG - dt / SONG_FADE.out);
+  songWrite();
+  if (songG !== songT) { songRaf = requestAnimationFrame(songStep); return; }
+  songRaf = 0;
+  if (songG === 0 && !audio.paused) audio.pause();
+}
+function songFollow() {                     // flip(): the front card changed — the song and its button follow it (OPEN only)
+  if (!audio || SONG < 0 || state !== 'open') return;
+  const on = songUp();
+  if (on && !songHeld && audio.paused) audio.play().catch(syncPlay);
+  songT = on ? 1 : 0; songLast = performance.now();
+  if (!songRaf) songRaf = requestAnimationFrame(songStep);
+  placeShield();                            // the play button's cursor hole: only while it shows
 }
 
 /* nudge: [[dx, dy, drot] × D] ⇐ "dx,dy,rot;dx,dy,rot;…" (slots in order; a missing / malformed value = 0; "" = no nudges).
@@ -1689,6 +1721,7 @@ function flip(dir) {                        // +1 = next (front → back), −1 
   if (tuckQ) untuck(true);                                // PERF: a flip before the untuck is through (< 200 ms after OPEN): the rest at once
   const o = dir > 0 ? order[0] : order[D - 1];            // the outgoing card: the top card for next, the bottom one for prev
   if (dir > 0) order.push(order.shift()); else order.unshift(order.pop());
+  songFollow();                                           // site: the song / its button follow the front card (inside the click)
   const t = tnow(), k = knobs;
   if (!preBack()) { phase = 'out'; for (const j of order) { cards[j].hand = false; cards[j].seatDue = null; } }   // a fresh flight; else it joins
   phase = 'out';
@@ -1885,7 +1918,13 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   shadeLayers(true);
   primed = false; homeDue = false;
   startGuard = 2; drive(1, ZOOM.ease.inMs); kick();
-  if (audio) { audio.volume = 0; if (audio.paused || audio.currentTime > .25) audio.currentTime = 0; if (audio.paused) audio.play().catch(syncPlay); syncPlay(); }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
+  if (audio) {                                                                            // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
+    if (songRaf) { cancelAnimationFrame(songRaf); songRaf = 0; }
+    songHeld = false; songG = songT = songUp() ? 1 : 0;                                    // only if its card is the front one (a pile: the sleeve behind the CD)
+    audio.volume = 0; if (audio.paused || audio.currentTime > .25) audio.currentTime = 0;
+    if (songG) { if (audio.paused) audio.play().catch(syncPlay); } else if (!audio.paused) audio.pause();
+    syncPlay();
+  }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
 }
 /* PERF 2026-09-27: the click's costly work, moved to the PRESS (pointerdown on this stack at HOME; the click is its pointerup):
    the viewer clips (setLayout re-rasters the preview cards, ~30 ms on the drawings: sub-pixel at rest scale, as expand()
@@ -1897,7 +1936,7 @@ function prime(nb) {                        // site: nb = the press is on this s
   primed = true; homeDue = false; perfMark('prime ' + cfg.name);
   loadTucked(); warmAudio();                                                              // PERF: SOURCES — the tucked cards' files and the song, if the hover did not already
   setLayout('viewer'); shadeLayers(true);
-  if (audio && audio.paused) { audio.volume = 0; audio.currentTime = 0; audio.play().catch(() => {}); }
+  if (audio && audio.paused && songUp()) { audio.volume = 0; audio.currentTime = 0; audio.play().catch(() => {}); }
 }
 function unprime() {
   if (!primed) return;
@@ -2076,11 +2115,7 @@ function render() {
       if (tf !== k.tf) { k.tf = tf; k.el.style.transform = tf; }
     }
   }
-  if (audio) { const vol = Math.round(clamp(v, 0, 1) * 1000) / 1000; if (audio.volume !== vol) audio.volume = vol; }   // site: the song rises with the zoom, falls with the close
-  if (playBtn) {                                                                          // site: its button — the header's fade, mirrored
-    const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * 1000) / 1000;
-    put(playBtn, 'pbO', 'opacity', String(o)); put(playBtn, 'pbV', 'visibility', o > 0 ? 'visible' : 'hidden');
-  }
+  if (audio || playBtn) songWrite();                                                      // site: the song's volume and its button's fade (× songG: only while its card is in front)
   if (capEl) {                                                                            // site: its caption — the same fade
     const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * 1000) / 1000;
     put(capEl, 'cpO', 'opacity', String(o)); put(capEl, 'cpV', 'visibility', o > 0 ? 'visible' : 'hidden');
@@ -2247,7 +2282,7 @@ const self = {                              // site: what the page sees of this 
   active, step, idle, size: layoutSize, measure: layoutMeasure, placeZones, boot, render,
   expand, collapse, flip, zoneAt, setVHover, hoverTo, setKnob, setNudge,   // setKnob / setNudge: debug (window.__stacks)
   prime, unprime,                                                          // PERF: the click's costly work on the press (the page's pointerdown / pointerup)
-  audio, playBtn, capEl,                                                   // site: the song and its button (null but for the sleeve); the caption (null but for the polaroids)
+  audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); },                                                   // site: the song and its button (null but for the sleeve); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
@@ -3019,10 +3054,10 @@ const DAN_KNOBS = { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vsh
 /* site 2026-09-29 (owner: "put the album vynyl of dandelion behind the cd image"): the CD jewel case and the sleeve are ONE pile —
    the CD in front with the drawings' card treatment (the stack's knobs: it had them as a pile of one), the sleeve behind with
    its own (pic.knobs = DAN_KNOBS). nudge: the sleeve up-right of the case and turned the other way, so it reads as the record behind it (a same-box pile
-   would hide all but a sliver). rest = the CD's old one; the song and its button stay (the button right of the front card). */
+   would hide all but a sliver). rest = the CD's old one. song: the song and its button are the sleeve's — only while it is in front (SONG). */
 const DANDELION = [
   { id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 },
-  { id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082], knobs: DAN_KNOBS },   // file: the webp's px (the print + its bleed): the srcset descriptors
+  { id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082], knobs: DAN_KNOBS, song: true },   // file: the webp's px (the print + its bleed): the srcset descriptors
 ];
 stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DANDELION, deck: [0, 1], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
                                         rest: { rot: -2, up: 0 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3' }));
