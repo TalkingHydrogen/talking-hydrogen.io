@@ -228,6 +228,8 @@
      CAMERA it is PRINTED ON THE TABLE — laid out in the viewport as at p = 1, and moved by its pile's map (capWrite(): the pile's
      row slot ∘ its zoom at p ∘ its zoom at 1⁻¹, about the viewport's origin), so it zooms, pans and tilts with its pile; at p = 1
      the identity (the type as set). The fade stays. */
+  /* 2026-09-29 (owner: "no need for that, just fade in"): it no longer rides — set as at p = 1 the whole way, the fade only
+     (?capride = the ride above). */
   .caption { position: absolute; left: 0; top: 0; height: 0; translate: 0 0 -.5px; transform-origin: 0 0; display: flex; align-items: center;
              pointer-events: none; opacity: 0; visibility: hidden; will-change: opacity; white-space: nowrap;
              font-size: var(--em); line-height: 1.2; font-weight: 450; color: #DCDCDE; }   /* owner 2026-09-28: weight 450 (between SF Regular 400 and SF Medium 510; Safari maps it straight to the wght axis). The type lab (site.html?type=1): rgb(220, 220, 222) — position / size / weight / tracking kept (their values = the live layout within 0.3 px). Was #C7C7CC (2026-09-27); the play button's #E6E7E8 was tried then: too faint on the backdrop; before that the page's #8e8e93 */
@@ -1078,6 +1080,7 @@ const pageQuery = new URLSearchParams(location.search);    // site: the URL knob
    master spring): they grow and slide out as the page would, and whatever still frames the pile at p = 1 stays in view. ?zoom=part
    = the previous PARTING (the others slide out on x without scaling, the name fades), for A/B. See ROW PHYSICS. */
 const CAMERA = pageQuery.get('zoom') !== 'part';
+const CAP_RIDE = pageQuery.has('capride');   // site 2026-09-29 (owner: "the text … animated with translation, no need for that, just fade in"): the caption stays put, fade only; ?capride = the old table-printed ride (capWrite())
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
 const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
 { const b = (pageQuery.get('zbez') || '').split(',').map(parseFloat); if (b.length === 4 && b.every(Number.isFinite)) ZOOM.ease.bez = b;
@@ -2704,7 +2707,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     if (e.r !== ro) { e.r = ro; e.el.style.rotate = ro; }
     e.rot = ro ? +rt.toFixed(4) : 0;
     e.k = +sc || 1; e.tx = v ? +tx.toFixed(2) : 0; e.ty = v && Math.abs(ty) >= .005 ? +ty.toFixed(2) : 0;   // as written (rowExtents() / rowUntransform() un-do them)
-    if (CAMERA && e.st?.capEl) capWrite(e, park);
+    if (CAMERA && CAP_RIDE && e.st?.capEl) capWrite(e, park);
     if (!!e.pk !== park) { e.pk = park; perfMark((park ? 'park ' : 'unpark ') + (e.el.id || 'tile')); }
   }
   if (CAMERA) {                                                                               // the name: the camera, about its layer's centre
