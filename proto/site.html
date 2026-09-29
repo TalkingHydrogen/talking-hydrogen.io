@@ -1566,15 +1566,14 @@ function targets() {                                        // box.x in the scre
 
 /* ---------- arrange: static layout, once per knob change / layout, never per frame ---------- */
 function arrange() { arrangeHome(); syncHomeSlots(); arrangeCards(); reseat(); placePlay(); }
-/* site: the song's button right of the PILE (every preview slot's pose at p = 1: the sleeve behind the CD sticks out past the
-   front card), its bottom on the front card's bottom — contain-fit rects in B, slot 0 on the box centre. After arrangeHome():
-   it reads the slot poses (a pile of one: the front card's right edge, as before). */
+/* site: the song's button right of ITS card with its bottom on that card's bottom — the contain-fit rect in B at p = 1, where
+   the front card sits (slot 0 on the box centre). Its card = the pic.song one (the sleeve: the button only shows while it is
+   in front — SONG), else the front card. After arrangeCards(). */
 function placePlay() {
   if (!playBtn || !G.B) return;
-  const B = G.B, KV = G.KV, d = PLAY.d * KV, pc = IMAGES[knobs.deck[0]], ch = pc.w >= pc.h ? B * pc.h / pc.w : B;
-  let r = 0;
-  for (let i = 0; i < knobs.deck.length; i++) { const c = cards[order[i]], sl = slots[i]; if (c && sl) r = Math.max(r, sl.dx + bboxW(c, sl.rot, sl.size) / 2); }
-  Object.assign(playBtn.style, { left: B / 2 + r + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px', width: d + 'px', height: d + 'px' });
+  const B = G.B, KV = G.KV, d = PLAY.d * KV, pc = IMAGES[SONG >= 0 ? SONG : knobs.deck[0]], r = pc.w / pc.h;
+  const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B;
+  Object.assign(playBtn.style, { left: (B + cw) / 2 + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px', width: d + 'px', height: d + 'px' });
 }
 /* THE SLOT POSES (per SLOT, no DOM), the one table of every state: slots 0 … N−1 = stack.html's arrange() (the seeded rest
    pose + nudge, and the hover ramp), slots N … D−1 = the tuck (centred, rotation 0, knobs.vshrink, no ramp). Everything in
