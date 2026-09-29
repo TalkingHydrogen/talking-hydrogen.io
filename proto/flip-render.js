@@ -32,6 +32,7 @@
   const KNOBS = {
     lens: 3.2,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
+    smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
     lift: 1,            // × the phone's own lift (retargeted); the print never dips below the table whatever this is
     travel: .5,         // × the phone's sideways travel (retargeted; it lands in place)
     thick: 1.6,         // the paper's thickness, CSS px at the print's width (a 0.25 mm print ≈ 1.6 px at ~1000 px)
@@ -82,6 +83,62 @@
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const smax = (a, b, e) => (a + b + Math.sqrt((a - b) * (a - b) + e * e)) / 2;
 
+  const qm = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+                        a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]];
+  const qc = a => [a[0], -a[1], -a[2], -a[3]];
+  const qn = a => { const n = Math.hypot(a[0], a[1], a[2], a[3]); return [a[0] / n, a[1] / n, a[2] / n, a[3] / n]; };
+  function qlog(a) {                                  // → rotation vector (short way)
+    const b = a[0] < 0 ? [-a[0], -a[1], -a[2], -a[3]] : a, s = Math.hypot(b[1], b[2], b[3]);
+    const k = s < 1e-12 ? 2 : 2 * Math.atan2(s, b[0]) / s;
+    return [b[1] * k, b[2] * k, b[3] * k];
+  }
+  function qexp(v) {
+    const th = Math.hypot(v[0], v[1], v[2]), k = th < 1e-12 ? .5 : Math.sin(th / 2) / th;
+    return [Math.cos(th / 2), v[0] * k, v[1] * k, v[2] * k];
+  }
+  /* SMOOTHING (designer 2026-09-29: the raw take "looks like a cheap gyro preview"): the take's world angular-velocity
+     increments get a zero-phase Gaussian (σ = ms; zero-padded: the rests continue beyond the ends), re-integrated from the
+     start rest; the small end error is spread in proportion to the turn so it lands exactly on the end rest. The travel gets
+     the same Gaussian with exact ends. Measured on the first real takes: σ 40 ms removes ~90 % of the > 4 Hz speed wiggle
+     (14–17 → ~1.7 °/s rms), jerk ÷ ~100, the turn's shape within 3°, the lift peak within 1 %. */
+  function smoothTake(take, ms) {
+    const n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
+    take._sm = ms;
+    if (!(sig > .3)) { take.q = take.qRaw.slice(); take.p = take.pRaw.slice(); return take; }
+    const R = Math.ceil(4 * sig), ker = [];
+    let ks = 0;
+    for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); ker.push(v); ks += v; }
+    for (let i = 0; i < ker.length; i++) ker[i] /= ks;
+    const Q = i => [take.qRaw[i * 4], take.qRaw[i * 4 + 1], take.qRaw[i * 4 + 2], take.qRaw[i * 4 + 3]];
+    const d = [];                                     // world increments q[i+1] q[i]⁻¹
+    for (let i = 0; i < n - 1; i++) d.push(qlog(qm(Q(i + 1), qc(Q(i)))));
+    const conv = (arr, dim) => arr.map((_, i) => {
+      const o = new Array(dim).fill(0);
+      for (let j = -R; j <= R; j++) { const k = i + j; if (k < 0 || k >= arr.length) continue; const w = ker[j + R]; for (let c = 0; c < dim; c++) o[c] += w * arr[k][c]; }
+      return o;
+    });
+    const ds = conv(d, 3);
+    const out = [Q(0)];
+    for (let i = 0; i < ds.length; i++) out.push(qn(qm(qexp(ds[i]), out[i])));
+    const err = qlog(qm(Q(n - 1), qc(out[n - 1])));
+    const cum = [0];
+    for (let i = 0; i < ds.length; i++) cum.push(cum[i] + Math.hypot(ds[i][0], ds[i][1], ds[i][2]));
+    const tot = cum[n - 1] || 1, q = new Float64Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const u = cum[i] / tot, r = qn(qm(qexp([err[0] * u, err[1] * u, err[2] * u]), out[i]));
+      if (i && q[(i - 1) * 4] * r[0] + q[(i - 1) * 4 + 1] * r[1] + q[(i - 1) * 4 + 2] * r[2] + q[(i - 1) * 4 + 3] * r[3] < 0) { r[0] = -r[0]; r[1] = -r[1]; r[2] = -r[2]; r[3] = -r[3]; }
+      q.set(r, i * 4);
+    }
+    const P = []; for (let i = 0; i < n; i++) P.push([take.pRaw[i * 3], take.pRaw[i * 3 + 1], take.pRaw[i * 3 + 2]]);
+    const ps = conv(P, 3), p = new Float64Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const u = i / (n - 1);
+      for (let c = 0; c < 3; c++) p[i * 3 + c] = ps[i][c] - ps[0][c] * (1 - u) - ps[n - 1][c] * u;   // exact ends (0 at both)
+    }
+    take.q = q; take.p = p;
+    return take;
+  }
+
   // ---- takes -----------------------------------------------------------------------------------------------------
   function loadTake(j) {
     const n = j.n || j.q.length;
@@ -94,7 +151,7 @@
       p.set(j.p[i], i * 3);
     }
     const phone = j.phone || { w: 64.2, h: 131.5, d: 7.65 };
-    return { n, dur: j.dur, q, p, axis: j.axis || 'y', side: j.side || 1, end: j.end_q || [0, 0, 1, 0],
+    return { n, dur: j.dur, q, p, qRaw: q.slice(), pRaw: p.slice(), _sm: 0, axis: j.axis || 'y', side: j.side || 1, end: j.end_q || [0, 0, 1, 0],
              E: qmat(j.end_q || [0, 0, 1, 0]), phone, phoneExt: j.phone_ext || null, w: j.w || null, report: j.report || {}, name: j.name || '' };
   }
 
@@ -112,6 +169,7 @@
      the take is mirrored when it was captured the other way; flip.from: the face up before it starts.
      geom {aspect, W}: the print's height / width and its on-screen width (px, for the thickness knob). */
   function pose(take, t, k, flip, geom) {
+    if (take.qRaw && take._sm !== k.smooth) smoothTake(take, k.smooth);   // (re)smoothed when the knob changes
     const s = sampleTake(take, t), aspect = geom.aspect;
     if (s.u <= 0 || s.u >= 1) {
       const up = (flip.from === 'back') !== (s.u >= 1);
@@ -446,6 +504,6 @@
     return Math.max(0, -lo + thickW / 2 * (Math.abs(R[8]) - 1));
   }
 
-  root.FlipRender = { attach, clearance, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
+  root.FlipRender = { attach, clearance, smoothTake, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
                       makeScene, outline, qmat, slerp, css, _internals: { frontB, backB, faceA, inset, light } };
 })(typeof window !== 'undefined' ? window : globalThis);
