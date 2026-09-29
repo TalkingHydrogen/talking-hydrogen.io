@@ -1162,9 +1162,9 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
    a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
    incoming clip is shown once it holds that frame (seeked + a frame), the outgoing one hidden in that same frame (ALPHA, below) — the
    same picture (measured: ≤ 1.7 levels composited on white). Goals (lidSync(), from the stack's state): closed · crack (the hover at HOME) · open (from the zoom's start until the close).
-   Stops: a clip's own last frame (every move ends on one: the land clip brakes a closing lid onto the crack). Rate: every clip
-   plays at LID.speed (owner 2026-09-29: "speed it up 50%" → 1.5; one rate for all six, so the swaps keep their matched speeds),
-   × ?lidopen= (fwd / open) or ?lidclose= (rev); ?lidspeed= overrides the speed. Set before a play only.
+   Stops: a clip's own last frame (every move ends on one: the land clip brakes a closing lid onto the crack). Rates: the CLICK's
+   opening (fwd / open) at LID.open 1.5 (owner 2026-09-29: "the click one to speed up 50% not the hover"; open's ramp is matched to
+   fwd, both at it), the close (rev) and the hover's clips as shot. URL ?lidopen= ?lidclose=. Set before a play only.
    ALPHA: the shot's white ground is taken out (colour-to-alpha against white, the display solid), so the machine sits on the page
    like a print — its shadow and silver darken whatever is under it, #FFF or the open page's #FCFCFC — and never shows a box (an opaque
    white clip showed as one on #FCFCFC, over a neighbour's caption in a camera move, and as an empty white corner when it peeked).
@@ -1172,8 +1172,8 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
    VP9 with alpha (.webm). The card's image is the closed pose as an RGBA poster, shown until the first move; from then one clip at a
    time holds the lid, and a swap shows the incoming clip and hides the outgoing one (or the poster) in the SAME frame — two
    translucent layers at once would double the shadow. */
-const LID = { speed: 1.5, open: 1, close: 1, pick: .9 };   // speed: × the shot's pace, every clip; pick: the clip size ≥ .9 × the open card's device px
-{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidspeed', 'speed'); q('lidopen', 'open'); q('lidclose', 'close'); }
+const LID = { open: 1.5, close: 1, pick: .9 };   // open / close: × the shot's pace (the click's opening, the close); pick: the clip size ≥ .9 × the open card's device px
+{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidopen', 'open'); q('lidclose', 'close'); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
   const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
@@ -1219,7 +1219,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     raf = requestAnimationFrame(tick);
   }
   function play(K) {
-    K.el.playbackRate = LID.speed * (K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1);
+    K.el.playbackRate = K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1;
     K.el.play().catch(() => {});
     arm();
   }
