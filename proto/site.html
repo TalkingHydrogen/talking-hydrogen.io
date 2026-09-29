@@ -1154,17 +1154,19 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
 /* site 2026-09-29 — the MACBOOK's LID (the markup's comment). brew/lidvideo/lidvideo.py renders the frog-bare lid master as SIX web
    clips that all show the same 101 poses (pose s = the master's frame 60 + s: 0 closed … 100 the settled open pose), timed apart,
    and lid.json = each clip's fps and pose per frame:
-     fwd 0 → 100 as shot (Apple's lid curve, its overshoot and settle) · rev 100 → 0 · crack 0 → 13 and uncrack 13 → 0, eased (the
-     hover) · open 13 → 100 from rest at the crack (its speed ramps up to fwd's: the click after a hover — a mouse always hovers first)
+     fwd 0 → 100, Apple's lid curve and settle in 1.2 s · rev 100 → 0 as shot (3.4 s) · crack 0 → 13 and uncrack 13 → 0, eased (the
+     hover) · open 13 → 100 in 1.2 s from rest at the crack (its speed ramps up to fwd's: the click after a hover — a mouse always
+     hovers first)
      · land 22 → 13, rev's speed braked to rest (a closing lid the hover catches: rev plays down to 22, land takes it onto the crack).
    The lid is only ever PLAYED at one constant rate (hardware decode, never a scrub): WebKit's media clock stalls 100–200 ms at every
    playbackRate change mid-play (measured 2026-09-29: the lid overshot its stop by 2 frames), so every ease is baked into a clip, and
    a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
    incoming clip is shown once it holds that frame (seeked + a frame), the outgoing one hidden in that same frame (ALPHA, below) — the
    same picture (measured: ≤ 1.7 levels composited on white). Goals (lidSync(), from the stack's state): closed · crack (the hover at HOME) · open (from the zoom's start until the close).
-   Stops: a clip's own last frame (every move ends on one: the land clip brakes a closing lid onto the crack). Rates: the CLICK's
-   opening (fwd / open) at LID.open 1.5 (owner 2026-09-29: "the click one to speed up 50% not the hover"; open's ramp is matched to
-   fwd, both at it), the close (rev) and the hover's clips as shot. URL ?lidopen= ?lidclose=. Set before a play only.
+   Stops: a clip's own last frame (every move ends on one: the land clip brakes a closing lid onto the crack). Every clip plays at
+   1× (owner 2026-09-29: "make it 1.2s" + "there is a stutter": a 1.5× rate on the 30 fps clip was 45 fps on a 60 Hz panel, frames
+   held 1-1-2 — the click's clips are 60 fps at 1.2 s now, their in-betweens warped on the lid's plane, lidvideo.py). URL ?lidopen=
+   ?lidclose= still scale them (for trying a pace only: any rate but 1 or 2 breaks the even cadence). Set before a play only.
    ALPHA: the shot's white ground is taken out (colour-to-alpha against white, the display solid), so the machine sits on the page
    like a print — its shadow and silver darken whatever is under it, #FFF or the open page's #FCFCFC — and never shows a box (an opaque
    white clip showed as one on #FCFCFC, over a neighbour's caption in a camera move, and as an empty white corner when it peeked).
@@ -1172,7 +1174,7 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
    VP9 with alpha (.webm). The card's image is the closed pose as an RGBA poster, shown until the first move; from then one clip at a
    time holds the lid, and a swap shows the incoming clip and hides the outgoing one (or the poster) in the SAME frame — two
    translucent layers at once would double the shadow. */
-const LID = { open: 1.5, close: 1, pick: .9 };   // open / close: × the shot's pace (the click's opening, the close); pick: the clip size ≥ .9 × the open card's device px
+const LID = { open: 1, close: 1, pick: .9 };   // open / close: × the clip's pace (the click's opening, the close); pick: the clip size ≥ .9 × the open card's device px
 { const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidopen', 'open'); q('lidclose', 'close'); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
   const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
