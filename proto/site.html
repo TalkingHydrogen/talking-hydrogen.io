@@ -62,7 +62,8 @@
      width is the scroll range. Elements 13em apart (owner: Mike's 5em + 30 %, then doubled). */
   .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; width: max-content; column-gap: 10.4em;
          transform-style: preserve-3d; }   /* PERF 2026-09-27: a 3D context — the OPEN cover and the parked elements are ordered by DEPTH (translate z), never by z-index (the .cover note) */   /* site: 13em × .8 (owner 2026-09-26: "reduce the space between the things a bit", with the row at uiScale .8) */
-  .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }   /* PERF 2026-09-28: its own layer FOR GOOD (was `.row.parting .wrap:not(.active)`: will-change toggled on the four other stacks at the zoom's first frame and the close's last — layers created / destroyed mid-motion, a compositing-tree rebuild each time). Its children are layers already: this one holds no bitmap. */
+  .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }
+  html.skip-wrapwc .wrap { will-change: auto; }   /* debug: ?skip=wrapwc */   /* PERF 2026-09-28: its own layer FOR GOOD (was `.row.parting .wrap:not(.active)`: will-change toggled on the four other stacks at the zoom's first frame and the close's last — layers created / destroyed mid-motion, a compositing-tree rebuild each time). Its children are layers already: this one holds no bitmap. */
   /* PERF 2026-09-27: the COVER — an opaque sheet over the whole viewport IN the row's 3D context at depth −1 px, coloured exactly as
      the backdrop is at that p (rowWrite()), so it is never seen: above the PARKED row elements (depth −2 px), under the active
      stack and every row element still on its way (depth 0). See PARKING (rowWrite()). */
@@ -1109,6 +1110,8 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
    case's REST rot is cancelled), about its drawn centre; `rest` is where its most protruding corner stands (owner: "dont make them
    bigger than they are" — the tilt never shows more than the sliver). Ramps in with the zoom, straightens as the camera moves onto
    it. URL knobs ?nrest= ?nhover= ?nstagger= ?npad= ?ntilt=. */
+const SKIP = new Set((pageQuery.get('skip') || '').split(',').filter(Boolean));   // debug (perf A/B, 2026-09-29): ?skip=cast,floor,shade,wrapwc leaves those layers out
+if (SKIP.has('wrapwc')) document.documentElement.classList.add('skip-wrapwc');
 const NB = { rest: 24, hover: 1, stagger: 70, pad: 12, tilt: 4 };
 for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
 
@@ -1261,8 +1264,8 @@ const DEFAULT_DECK = cfg.deck, DEFAULT_NUDGE = cfg.nudge || [];
 const box = wrap.querySelector('.box'), item = wrap.querySelector('.item');
 const hoverEl = wrap.querySelector('.hover'), cardsEl = wrap.querySelector('.cards');
 const SIZE = +wrap.dataset.size > 0 ? +wrap.dataset.size : 1;   // site: the rest box = the row height × data-size (the polaroids: .9)
-const CAST = !!cfg.castOnly;                                   // site: cast-only shadows (the CSS .castbox note)
-const FLOOR = cfg.floor || null;                               // site: the table shadow texture { src, fx, fy } (the CSS .floor note)
+const CAST = !!cfg.castOnly && !SKIP.has('cast');              // site: cast-only shadows (the CSS .castbox note); ?skip=cast: none (debug)
+const FLOOR = SKIP.has('floor') ? null : cfg.floor || null;      // ?skip=floor: no table shadow (debug)                               // site: the table shadow texture { src, fx, fy } (the CSS .floor note)
 const CONTACT = cfg.contact || null;                           // site: CAST as a contact line { sigma × the card width, color } (applyCard)
 const SH = cfg.shadow || STACK.shadow;                        // site: this stack's shadow geometry, 340-box px: { x, y, sigma } (the drawings: STACK.shadow)
 const query = cfg.primary ? pageQuery : new URLSearchParams('');
@@ -1447,10 +1450,11 @@ for (let j = 0; j < D; j++) {
   const castbox = CAST ? el.appendChild(Object.assign(document.createElement('div'), { className: 'castbox' })) : null;   // site: CAST
   cardsEl.appendChild(el);
   let fl = null;                                                           // site: FLOOR — this card's table shadow
-  if (FLOOR) {
+  const F = FLOOR && (pic.floor || FLOOR);                                 // site: a card's own texture (pic.floor: a pile of mixed aspects) over the stack's
+  if (F) {
     fl = floorEl.appendChild(Object.assign(document.createElement('div'), { className: 'fcast' }));
-    fl.style.setProperty('--fx', FLOOR.fx); fl.style.setProperty('--fy', FLOOR.fy);
-    keepImg(fl.appendChild(Object.assign(document.createElement('img'), { src: FLOOR.src, alt: '', draggable: false, decoding: 'async' })));
+    fl.style.setProperty('--fx', F.fx); fl.style.setProperty('--fy', F.fy);
+    keepImg(fl.appendChild(Object.assign(document.createElement('img'), { src: F.src, alt: '', draggable: false, decoding: 'async' })));
   }
   const c = { j, el, img, pic, w: 0, h: 0, hslot: -1, clipKey: '', pathD: '', shade, shade2, castbox, casts: [], pose: null, fl, fo: null,
               hand: false,                   // in the "hand": the outgoing card of a flip, from its click to the apex
@@ -1711,13 +1715,13 @@ function applyCard(c) {
     if (b > 0) c.el.style.setProperty('--paper', rad >= .5 ? `path("${c.pathD}")` : 'none'); else c.el.style.removeProperty('--paper');
   }
   // shadows: the rest one (home: stack.html's geometry in rest px → ÷ size; viewer: flip.html's) and flip.html's lifted one
-  const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && (kc(c, 'shadow') > 0 || kc(c, 'vshadow') > 0);   // site: CAST draws no SVG shade
+  const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && !SKIP.has('shade') && (kc(c, 'shadow') > 0 || kc(c, 'vshadow') > 0);   // site: CAST draws no shade; ?skip=shade: none (debug)
   setShade(c, c.shade,  sh.sigma * KB / sz, sh.y * KB / sz, on, sx * KB / sz, rad);
   setShade(c, c.shade2, sh.sigma * KB * knobs.liftShade, sh.y * KB * knobs.liftShade, on, sx * KB * knobs.liftShade, rad);
   if (CAST) {                               // site: card c's shadow as it falls on every other card: its size + box-shadow, in c's own px (as its shade)
     // CONTACT: the measured print-on-print line — the tail of a σ-blurred step r·σ inside the edge (r = −.57), on the right /
     // bottom only: shifted 1.2σ right + down and shrunk by (1.2 + .57)σ, so the top / left step sits ≈ 3σ inside (≈ 0)
-    const g = CONTACT ? CONTACT.sigma * c.w : 0;
+    const g = CONTACT ? (CONTACT.sigmaLong ? CONTACT.sigmaLong * Math.max(c.w, c.h) : CONTACT.sigma * c.w) : 0;   // sigmaLong: × the long side (mixed aspects)
     const bs = CONTACT ? `${(1.2 * g).toFixed(3)}px ${(1.2 * g).toFixed(3)}px ${(2 * g).toFixed(3)}px ${(-1.77 * g).toFixed(3)}px ${CONTACT.color}`
                        : `${(sx * KB / sz).toFixed(3)}px ${(sh.y * KB / sz).toFixed(3)}px ${(2 * sh.sigma * KB / sz).toFixed(3)}px #000`;
     for (const L of cards) for (const k of L.casts) if (k.u === c) {
@@ -1992,7 +1996,8 @@ function homeBox(drawn, noRest, vis) {      // noRest: without the REST rotation
     }
     if (drawn) {
       const bl = c.pic.bleed || [0, 0, 0, 0], sh = (3 * SH.sigma + Math.abs(SH.y) + Math.abs(SH.x || 0)) * G.K;
-      hw += Math.max(bl[0], bl[2], FLOOR ? FLOOR.fx : 0) * c.w * sl.size + sh; hh += Math.max(bl[1], bl[3], FLOOR ? FLOOR.fy : 0) * c.h * sl.size + sh;
+      const F = FLOOR && (c.pic.floor || FLOOR);
+      hw += Math.max(bl[0], bl[2], F ? F.fx : 0) * c.w * sl.size + sh; hh += Math.max(bl[1], bl[3], F ? F.fy : 0) * c.h * sl.size + sh;
     }
     l = Math.min(l, cx - hw); r = Math.max(r, cx + hw); t = Math.min(t, cy - hh); b = Math.max(b, cy + hh);
   }
@@ -2559,8 +2564,8 @@ const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.a
    interval (raw, before maxFrameDt / startGuard), the loop's own script time, and the named steps (perfMark) that ran since
    the frame before — in a ring of PERF.N frames. A slow frame's interval minus its script time is Safari's own work (style,
    layout, paint, decode, commit) for what those steps changed. window.__perf.report() lists the slow frames with their steps
-   (read from the live tab with osascript); ?hud=1 shows the last slow frame live (one text write per slow frame only). */
-const PERF = { N: 4000, f: [], marks: [], wheel: 0, ev: '', evW: 0, t0: performance.now(), hud: null, slow: 0 };
+   (read from the live tab with osascript). The on-page slow-frame readout is gone (designer 2026-09-29); ?hud=1 only turns the recorder on. */
+const PERF = { N: 4000, f: [], marks: [], wheel: 0, ev: '', evW: 0, t0: performance.now() };
 /* PERF 2026-09-28: the recorder, the rAF-delta ring (`frames`) and the row log are ON only with ?hud=1 or ?perf=1 (brew/website-perf/perfrun.py
    reads the ?hud=1 tab). Off, the loop allocates nothing per frame: they were a record object + two strings + a row-log array every
    frame (and one per wheel event), plus a splice of 1000–2000 entries now and then — garbage for the collector in a 120 Hz loop. */
@@ -2572,10 +2577,6 @@ function perfFrame(now, raw, js) {         // a slow interval pays for the steps
   const r = { t: Math.round(now - PERF.t0), dt: +raw.toFixed(1), js: +js.toFixed(1), ev: PERF.ev || '', w: PERF.evW || 0, cb: PERF.marks.join(', ') };
   PERF.marks.length = 0;
   PERF.f.push(r); if (PERF.f.length > PERF.N) PERF.f.splice(0, PERF.f.length - PERF.N);
-  if (raw > 25 && PERF.hud) {
-    PERF.slow++;
-    PERF.hud.textContent = `slow frames ${PERF.slow} · last ${Math.round(raw)} ms · after: ${perfCause(PERF.f.length - 1) || '—'}`;
-  }
 }
 function perfCause(i) {                     // the steps whose rendering the interval ending at frame i paid for: the frame before's events + callback
   const p = PERF.f[i - 1], a = [];            // (Safari renders once per frame, right after the callback: everything changed since the last render)
@@ -2585,13 +2586,9 @@ function perfCause(i) {                     // the steps whose rendering the int
   if (p.cb) a.push(p.cb);
   return a.join(', ');
 }
-if (pageQuery.has('hud')) {
-  PERF.hud = document.body.appendChild(Object.assign(document.createElement('div'), { textContent: 'frame recorder on' }));
-  PERF.hud.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2000;font:11px/1.3 ui-monospace,Menlo,monospace;color:#333;background:rgba(255,255,255,.85);padding:4px 7px;border-radius:5px;pointer-events:none;max-width:70vw';
-}
 window.__perf = {
   PERF,
-  clear() { PERF.f.length = 0; PERF.slow = 0; PERF.t0 = performance.now(); },
+  clear() { PERF.f.length = 0; PERF.t0 = performance.now(); },
   report(th = 25) {                         // the slow frames, each with its steps and the frame before's
     const F = PERF.f, out = [`frames ${F.length}${DIAG ? '' : ' (recorder off: add ?hud=1 or ?perf=1)'} · ${innerWidth}×${innerHeight} @${devicePixelRatio} · ${navigator.userAgent.match(/Version\/[\d.]+/)?.[0] || ''}`];
     for (let i = 0; i < F.length; i++) if (F[i].dt > th) {
