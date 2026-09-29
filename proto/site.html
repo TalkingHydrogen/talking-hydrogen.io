@@ -1154,10 +1154,11 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
 /* site 2026-09-29 — the MACBOOK's LID (the markup's comment). brew/lidvideo/lidvideo.py renders the frog-bare lid master as SIX web
    clips that all show the same 101 poses (pose s = the master's frame 60 + s: 0 closed … 100 the settled open pose), timed apart,
    and lid.json = each clip's fps and pose per frame:
-     fwd 0 → 100, Apple's lid curve and settle in 1.2 s · rev 100 → 0 as shot (3.4 s) · crack 0 → 13 and uncrack 13 → 0, eased (the
+     fwd 0 → 100, Apple's lid curve and settle in 1.2 s · rev 100 → 0, fwd reversed (owner: "lid closing the same timing as the open") · crack 0 → 13 and uncrack 13 → 0, eased (the
      hover) · open 13 → 100 in 1.2 s from rest at the crack (its speed ramps up to fwd's: the click after a hover — a mouse always
      hovers first)
-     · land 22 → 13, rev's speed braked to rest (a closing lid the hover catches: rev plays down to 22, land takes it onto the crack).
+     · land 27.6 → 13 in .35 s, rev's speed braked to rest (a closing lid the hover catches: rev plays down to J.land, land takes it
+     onto the crack).
    The lid is only ever PLAYED at one constant rate (hardware decode, never a scrub): WebKit's media clock stalls 100–200 ms at every
    playbackRate change mid-play (measured 2026-09-29: the lid overshot its stop by 2 frames), so every ease is baked into a clip, and
    a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
