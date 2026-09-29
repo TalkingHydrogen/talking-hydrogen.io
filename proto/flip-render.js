@@ -95,7 +95,7 @@
     }
     const phone = j.phone || { w: 64.2, h: 131.5, d: 7.65 };
     return { n, dur: j.dur, q, p, axis: j.axis || 'y', side: j.side || 1, end: j.end_q || [0, 0, 1, 0],
-             E: qmat(j.end_q || [0, 0, 1, 0]), phone, w: j.w || null, report: j.report || {}, name: j.name || '' };
+             E: qmat(j.end_q || [0, 0, 1, 0]), phone, phoneExt: j.phone_ext || null, w: j.w || null, report: j.report || {}, name: j.name || '' };
   }
 
   function sampleTake(take, t) {
@@ -125,7 +125,8 @@
     }
     if (flip.from === 'back') R = mmul(R, take.E);         // world-frame motion, composed onto the current rest
     // retarget: the phone's travel (mm) in print widths, scaled by the swept half-extents of the two objects
-    const kk = take.axis === 'x' ? aspect / take.phone.h : 1 / take.phone.w;
+    const ext = take.phoneExt || [take.phone.w, take.phone.h];   // the phone's extent along the print's x, y (mm)
+    const kk = take.axis === 'x' ? aspect / ext[1] : 1 / ext[0];
     const P = [p[0] * kk * k.travel, p[1] * kk * k.travel, p[2] * kk * k.lift];
     // it never goes through the table: the slab's lowest point stays on or above it (smooth max, exact where both are 0)
     const th = k.thick / geom.W;

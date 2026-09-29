@@ -4,21 +4,21 @@
   {
    "id": "synth-basic",
    "file": "synth-basic.json",
-   "label": "synthetic \u00b7 right edge first (stand-in until a real take)",
+   "label": "synthetic \u00b7 over the long side (stand-in until a real take)",
    "synthetic": true,
    "added": "2026-09-29 17:31"
   },
   {
    "id": "synth-fast",
    "file": "synth-fast.json",
-   "label": "synthetic \u00b7 fast flick",
+   "label": "synthetic \u00b7 over the long side, fast",
    "synthetic": true,
    "added": "2026-09-29 17:31"
   },
   {
    "id": "synth-end-over",
    "file": "synth-end-over.json",
-   "label": "synthetic \u00b7 end over end",
+   "label": "synthetic \u00b7 over the short side",
    "synthetic": true,
    "added": "2026-09-29 17:31"
   }
