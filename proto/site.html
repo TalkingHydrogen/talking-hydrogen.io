@@ -1503,7 +1503,7 @@ function makeTurn(FR, take) {
   for (const im of S.images) keepImg(im);                                  // PERF: KEEPALIVE — the back and the lifted shadows too
   const T = { S, take, k, card: c, playing: false, t: 0, from: 'front', side: take.side, dirty: true,
               hint: { t: 0, v: 0, target: 0, side: 0, want: 0 }, tHint: 0 };
-  FR.smoothTake(take, k.smooth); T.tHint = FR.hintTime(take, k.hint);
+  FR.smoothTake(take, k); T.tHint = FR.hintTime(take, k.hint);
   T.resize = () => { S.resize(c.w, c.h); T.dirty = true; };
   /* the HOVER TEASER (designer 2026-09-29: "on hovering to the right corner it will play the animation just a little bit
      showing that it can be turned around"): over an edge band of the print in OPEN, the take's own start plays to its

@@ -33,6 +33,9 @@
     lens: 5,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
     smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
+    wobble: .1,         // share of the hand's SWAY kept (everything off the flip axis: the print turning in its own plane,
+                        // rocking) — designer: "it wobbles … almost entirely smoothed out". 0 = a pure turn about the flip axis
+    wobbleSmooth: 200,  // ms: the kept sway's smoothing (Gaussian σ) — only its slow drift survives
     hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
     lift: .15,          // × the phone's own lift (retargeted) — designer: "the image must raise lightly" (1 = as the hand did)
@@ -107,10 +110,12 @@
      start rest; the small end error is spread in proportion to the turn so it lands exactly on the end rest. The travel gets
      the same Gaussian with exact ends. Measured on the first real takes: σ 40 ms removes ~90 % of the > 4 Hz speed wiggle
      (14–17 → ~1.7 °/s rms), jerk ÷ ~100, the turn's shape within 3°, the lift peak within 1 %. */
-  function smoothTake(take, ms) {
-    const n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
-    take._sm = ms;
-    if (!(sig > .3)) { take.q = take.qRaw.slice(); take.p = take.pRaw.slice(); return take; }
+  const smKey = k => k.smooth + '|' + k.wobble + '|' + k.wobbleSmooth;
+  function smoothTake(take, kk) {
+    const k = typeof kk === 'number' ? Object.assign({}, KNOBS, { smooth: kk }) : Object.assign({}, KNOBS, kk);
+    const ms = k.smooth, n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
+    take._sm = smKey(k);
+    if (!(sig > .3)) { take.q = take.qRaw.slice(); take.p = take.pRaw.slice(); return sway(take, k); }
     const R = Math.ceil(4 * sig), ker = [];
     let ks = 0;
     for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); ker.push(v); ks += v; }
@@ -142,6 +147,43 @@
       for (let c = 0; c < 3; c++) p[i * 3 + c] = ps[i][c] - ps[0][c] * (1 - u) - ps[n - 1][c] * u;   // exact ends (0 at both)
     }
     take.q = q; take.p = p;
+    return sway(take, k);
+  }
+  /* the SWAY (designer: "the flat image rotating angled right and left … it wobbles cuz my hands are shaky"): each frame is
+     split into the turn about the flip axis (twist) and the rest (swing — the print turning in its own plane, rocking):
+     q = swing ⊗ twist. The swing's rotation vector gets a heavy Gaussian (wobbleSmooth) and is scaled by `wobble`; the
+     turn is untouched. Rests stay exact (the swing is the identity there). take-002: up to 5.5° in-plane, 2.6° rocking. */
+  function sway(take, k) {
+    const a = take.axis === 'x' ? [1, 0, 0] : take.axis === 'y' ? [0, 1, 0] : null;
+    if (!a || k.wobble >= 1) return take;
+    const n = take.n, fps = (n - 1) / take.dur, sig = k.wobbleSmooth / 1000 * fps;
+    const tw = [], sv = [];
+    for (let i = 0; i < n; i++) {
+      const q = [take.q[i * 4], take.q[i * 4 + 1], take.q[i * 4 + 2], take.q[i * 4 + 3]];
+      const d = q[1] * a[0] + q[2] * a[1] + q[3] * a[2];
+      const t = qn([q[0], d * a[0], d * a[1], d * a[2]]);
+      tw.push(t); sv.push(qlog(qm(q, qc(t))));
+    }
+    let sm = sv;
+    if (sig > .3) {
+      const R = Math.ceil(4 * sig), ker = []; let ks = 0;
+      for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); ker.push(v); ks += v; }
+      sm = sv.map((_, i) => {
+        const o = [0, 0, 0];
+        for (let j = -R; j <= R; j++) { const m = i + j; if (m < 0 || m >= n) continue; const w = ker[j + R] / ks; o[0] += w * sv[m][0]; o[1] += w * sv[m][1]; o[2] += w * sv[m][2]; }
+        return o;
+      });
+    }
+    const q2 = new Float64Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const u = i / (n - 1), e0 = sm[0], e1 = sm[n - 1];               // the smoothed sway pinned to 0 at both rests
+      const v = [(sm[i][0] - e0[0] * (1 - u) - e1[0] * u) * k.wobble, (sm[i][1] - e0[1] * (1 - u) - e1[1] * u) * k.wobble,
+                 (sm[i][2] - e0[2] * (1 - u) - e1[2] * u) * k.wobble];
+      let r = qn(qm(qexp(v), tw[i]));
+      if (i && q2[(i - 1) * 4] * r[0] + q2[(i - 1) * 4 + 1] * r[1] + q2[(i - 1) * 4 + 2] * r[2] + q2[(i - 1) * 4 + 3] * r[3] < 0) r = [-r[0], -r[1], -r[2], -r[3]];
+      q2.set(r, i * 4);
+    }
+    take.q = q2;
     return take;
   }
 
@@ -175,7 +217,7 @@
      the take is mirrored when it was captured the other way; flip.from: the face up before it starts.
      geom {aspect, W}: the print's height / width and its on-screen width (px, for the thickness knob). */
   function pose(take, t, k, flip, geom) {
-    if (take.qRaw && take._sm !== k.smooth) smoothTake(take, k.smooth);   // (re)smoothed when the knob changes
+    if (take.qRaw && take._sm !== smKey(k)) smoothTake(take, k);          // (re)smoothed when a knob changes
     const s = sampleTake(take, t), aspect = geom.aspect;
     if (s.u <= 0 || s.u >= 1) {
       const up = (flip.from === 'back') !== (s.u >= 1);
