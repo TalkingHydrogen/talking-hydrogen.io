@@ -33,9 +33,10 @@
     lens: 5,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
     smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
-    wobble: .1,         // share of the hand's SWAY kept (everything off the flip axis: the print turning in its own plane,
-                        // rocking) — designer: "it wobbles … almost entirely smoothed out". 0 = a pure turn about the flip axis
-    wobbleSmooth: 200,  // ms: the kept sway's smoothing (Gaussian σ) — only its slow drift survives
+    wobble: 1,          // the hand's SWAY (everything off the flip axis: the print turning in its own plane, rocking), kept
+                        // at its size (designer: "don't rule it out … draw some curve on the input approximating and
+                        // smoothing lots of it"); 0 = a pure turn about the flip axis
+    wobbleCurve: 4,     // the curve drawn through the sway: control points of a cubic spline, flat at both rests (fewer = smoother)
     hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
     lift: .15,          // × the phone's own lift (retargeted) — designer: "the image must raise lightly" (1 = as the hand did)
@@ -110,7 +111,7 @@
      start rest; the small end error is spread in proportion to the turn so it lands exactly on the end rest. The travel gets
      the same Gaussian with exact ends. Measured on the first real takes: σ 40 ms removes ~90 % of the > 4 Hz speed wiggle
      (14–17 → ~1.7 °/s rms), jerk ÷ ~100, the turn's shape within 3°, the lift peak within 1 %. */
-  const smKey = k => k.smooth + '|' + k.wobble + '|' + k.wobbleSmooth;
+  const smKey = k => k.smooth + '|' + k.wobble + '|' + k.wobbleCurve;
   function smoothTake(take, kk) {
     const k = typeof kk === 'number' ? Object.assign({}, KNOBS, { smooth: kk }) : Object.assign({}, KNOBS, kk);
     const ms = k.smooth, n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
@@ -149,14 +150,32 @@
     take.q = q; take.p = p;
     return sway(take, k);
   }
-  /* the SWAY (designer: "the flat image rotating angled right and left … it wobbles cuz my hands are shaky"): each frame is
-     split into the turn about the flip axis (twist) and the rest (swing — the print turning in its own plane, rocking):
-     q = swing ⊗ twist. The swing's rotation vector gets a heavy Gaussian (wobbleSmooth) and is scaled by `wobble`; the
-     turn is untouched. Rests stay exact (the swing is the identity there). take-002: up to 5.5° in-plane, 2.6° rocking. */
+  /* the SWAY (designer: "the flat image rotating angled right and left … it wobbles cuz my hands are shaky", then "don't
+     rule it out … draw some curve on the input approximating and smoothing lots of it"): each frame is split into the turn
+     about the flip axis (twist, kept as recorded) and the rest (swing: the print turning in its own plane, rocking),
+     q = swing ⊗ twist. A least-squares cubic B-spline with `wobbleCurve` free control points is drawn through the swing's
+     rotation vector — its value and slope pinned to 0 at both rests — and replaces it (× `wobble`): the hand's slow lean at
+     its real size, none of its shake. take-002 sways up to 5.4° in-plane and 2.4° rocking. */
+  function bsplineBasis(m, u) {                         // clamped uniform cubic basis, m + 1 control points, at u ∈ [0, 1]
+    const kn = [0, 0, 0, 0];
+    for (let i = 1; i < m - 2; i++) kn.push(i / (m - 2));
+    kn.push(1, 1, 1, 1);
+    const uu = Math.min(u, 1 - 1e-9);
+    let N = kn.slice(0, -1).map((_, i) => (uu >= kn[i] && uu < kn[i + 1]) ? 1 : 0);
+    for (let p = 1; p <= 3; p++) {
+      const M = [];
+      for (let i = 0; i < kn.length - p - 1; i++) {
+        const a = kn[i + p] - kn[i], b = kn[i + p + 1] - kn[i + 1];
+        M.push((a ? (uu - kn[i]) / a * N[i] : 0) + (b ? (kn[i + p + 1] - uu) / b * N[i + 1] : 0));
+      }
+      N = M;
+    }
+    return N;                                          // m + 1 values
+  }
   function sway(take, k) {
     const a = take.axis === 'x' ? [1, 0, 0] : take.axis === 'y' ? [0, 1, 0] : null;
-    if (!a || k.wobble >= 1) return take;
-    const n = take.n, fps = (n - 1) / take.dur, sig = k.wobbleSmooth / 1000 * fps;
+    if (!a || (k.wobble === 1 && !(k.wobbleCurve > 0))) return take;
+    const n = take.n;
     const tw = [], sv = [];
     for (let i = 0; i < n; i++) {
       const q = [take.q[i * 4], take.q[i * 4 + 1], take.q[i * 4 + 2], take.q[i * 4 + 3]];
@@ -164,21 +183,30 @@
       const t = qn([q[0], d * a[0], d * a[1], d * a[2]]);
       tw.push(t); sv.push(qlog(qm(q, qc(t))));
     }
-    let sm = sv;
-    if (sig > .3) {
-      const R = Math.ceil(4 * sig), ker = []; let ks = 0;
-      for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); ker.push(v); ks += v; }
-      sm = sv.map((_, i) => {
-        const o = [0, 0, 0];
-        for (let j = -R; j <= R; j++) { const m = i + j; if (m < 0 || m >= n) continue; const w = ker[j + R] / ks; o[0] += w * sv[m][0]; o[1] += w * sv[m][1]; o[2] += w * sv[m][2]; }
-        return o;
-      });
+    // the curve: free control points c2 … c(m−2) of an (m + 1)-point clamped spline (c0 = c1 = c(m−1) = cm = 0: flat rests)
+    const K = Math.max(1, Math.round(k.wobbleCurve || 4)), m = K + 3;
+    const B = [];
+    for (let i = 0; i < n; i++) B.push(bsplineBasis(m, i / (n - 1)).slice(2, m - 1));
+    const A = Array.from({ length: K }, () => new Array(K).fill(0)), rhs = [0, 1, 2].map(() => new Array(K).fill(0));
+    for (let i = 0; i < n; i++) for (let r = 0; r < K; r++) {
+      for (let c = 0; c < K; c++) A[r][c] += B[i][r] * B[i][c];
+      for (let d = 0; d < 3; d++) rhs[d][r] += B[i][r] * sv[i][d];
     }
+    for (let r = 0; r < K; r++) A[r][r] += 1e-9;
+    const solve = (M, v) => {                         // Gauss–Jordan, K ≤ ~12
+      const X = M.map((row, i) => [...row, v[i]]);
+      for (let c = 0; c < K; c++) {
+        let p = c; for (let r = c + 1; r < K; r++) if (Math.abs(X[r][c]) > Math.abs(X[p][c])) p = r;
+        [X[c], X[p]] = [X[p], X[c]];
+        for (let r = 0; r < K; r++) if (r !== c) { const f = X[r][c] / X[c][c]; for (let j = c; j <= K; j++) X[r][j] -= f * X[c][j]; }
+      }
+      return X.map((row, i) => row[K] / row[i]);
+    };
+    const C = [0, 1, 2].map(d => solve(A, rhs[d]));
+    const sm = B.map(b => [0, 1, 2].map(d => b.reduce((acc, v, j) => acc + v * C[d][j], 0)));
     const q2 = new Float64Array(n * 4);
     for (let i = 0; i < n; i++) {
-      const u = i / (n - 1), e0 = sm[0], e1 = sm[n - 1];               // the smoothed sway pinned to 0 at both rests
-      const v = [(sm[i][0] - e0[0] * (1 - u) - e1[0] * u) * k.wobble, (sm[i][1] - e0[1] * (1 - u) - e1[1] * u) * k.wobble,
-                 (sm[i][2] - e0[2] * (1 - u) - e1[2] * u) * k.wobble];
+      const v = [sm[i][0] * k.wobble, sm[i][1] * k.wobble, sm[i][2] * k.wobble];
       let r = qn(qm(qexp(v), tw[i]));
       if (i && q2[(i - 1) * 4] * r[0] + q2[(i - 1) * 4 + 1] * r[1] + q2[(i - 1) * 4 + 2] * r[2] + q2[(i - 1) * 4 + 3] * r[3] < 0) r = [-r[0], -r[1], -r[2], -r[3]];
       q2.set(r, i * 4);
