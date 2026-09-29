@@ -114,6 +114,9 @@
      TUCKED — small, centred — under the pile); will-change: transform keeps each card its own layer, rastered once */
   .card { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; will-change: transform; transform: translateZ(0); }
   .card img { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; background: #fff; }   /* clip-path (+ print inset) set inline */
+  /* site 2026-09-29: the MACBOOK's lid clips (makeLid(), the LID note): the card's box, over its poster (the closed pose); one shown at a time */
+  .card video.lid { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+  .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
   .card::before { content: ''; display: none; position: absolute; inset: 0; z-index: 1; background: #fff; clip-path: var(--paper, none); }
   .card.print::before { display: block; }
   /* site: a card whose image carries its own shadow (pic.bleed: the Dandelion sleeve): the card box is the PRINT (pic w / h), the
@@ -246,6 +249,14 @@
 <div class="backdrop" id="backdrop"></div>
 <div class="scroller" id="scroller">                  <!-- site: the row's horizontal scroller (the whole viewer) -->
 <main class="row" id="row">
+  <!-- site 2026-09-29: the MACBOOK (owner: "put the macbook mockup on the left from the polaroid stack a laptop video of macbook from brew …
+       first closed, and when I hover it it opens just a little bit, when I click it fully opens and zooms in. when clicking outside it will
+       zoom out and gradually close" — "its all from brew work. no windows open for now just desktop"): Apple's lid-open clip with the brew
+       desktop on its screen (lid-screen.html's frog-bare master: the film's frog wallpaper and dock, no windows). A STACK of one: its card
+       is the closed poster with the lid's two clips over it (LID / makeLid(); MACBOOK in BOOT); data-size 1, on the row's baseline (rest.up) -->
+  <div class="wrap" id="macbook" data-size="1"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the lid's clips) is built by the script -->
+  </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
        before it loads); --tilt rotates it.
        site: the POLAROIDS are a second STACK (makeStack() below: the drawings stack's engine as its own instance — the same
@@ -1132,6 +1143,101 @@ const PLAY = { d: 46, gap: 20 };
 const SHADE_FLOOR = .002;
 const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.75 5.5v13L18.75 12z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>' +
                  '<svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="3.8" height="14" rx="1.2"/><rect x="13.7" y="5" width="3.8" height="14" rx="1.2"/></svg>';
+/* site 2026-09-29 — the MACBOOK's LID (the markup's comment). brew/lidvideo/lidvideo.py renders the frog-bare lid master as SIX web
+   clips that all show the same 101 poses (pose s = the master's frame 60 + s: 0 closed … 100 the settled open pose), timed apart,
+   and lid.json = each clip's fps and pose per frame:
+     fwd 0 → 100 as shot (Apple's lid curve, its overshoot and settle) · rev 100 → 0 · crack 0 → 13 and uncrack 13 → 0, eased (the
+     hover) · open 13 → 100 from rest at the crack (its speed ramps up to fwd's: the click after a hover — a mouse always hovers first)
+     · land 22 → 13, rev's speed braked to rest (a closing lid the hover catches: rev plays down to 22, land takes it onto the crack).
+   The lid is only ever PLAYED at one constant rate (hardware decode, never a scrub): WebKit's media clock stalls 100–200 ms at every
+   playbackRate change mid-play (measured 2026-09-29: the lid overshot its stop by 2 frames), so every ease is baked into a clip, and
+   a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
+   incoming clip is shown once it holds that frame (seeked + a frame), the outgoing one hidden in that same frame (ALPHA, below) — the
+   same picture (measured: ≤ 1.7 levels composited on white). Goals (lidSync(), from the stack's state): closed · crack (the hover at HOME) · open (from the zoom's start until the close).
+   Stops: a clip's own last frame (every move ends on one: the land clip brakes a closing lid onto the crack). Rates: ?lidopen=
+   (fwd / open) ?lidclose= (rev), set before a play only.
+   ALPHA: the shot's white ground is taken out (colour-to-alpha against white, the display solid), so the machine sits on the page
+   like a print — its shadow and silver darken whatever is under it, #FFF or the open page's #FCFCFC — and never shows a box (an opaque
+   white clip showed as one on #FCFCFC, over a neighbour's caption in a camera move, and as an empty white corner when it peeked).
+   WebKit plays HEVC with alpha (.mp4: premultiplied and gamma-compensated for WebKit's video path, lidvideo.py to_rgba()); the others
+   VP9 with alpha (.webm). The card's image is the closed pose as an RGBA poster, shown until the first move; from then one clip at a
+   time holds the lid, and a swap shows the incoming clip and hides the outgoing one (or the poster) in the SAME frame — two
+   translucent layers at once would double the shadow. */
+const LID = { open: 1, close: 1, pick: .9 };   // pick: the clip size ≥ .9 × the open card's device px
+{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidopen', 'open'); q('lidclose', 'close'); }
+function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
+  const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
+  const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
+  host.classList.add('lidcard');
+  let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false;   // vis: the clip on screen (null: the poster)
+  const ready = () => !!J && vids.every(K => K.el.readyState >= 2);
+  function load() {                         // the page's load, or the first hover: lid.json, then the six clips (preload auto)
+    if (loaded) return; loaded = true;
+    fetch(L.base + L.json).then(r => r.json()).then(j => {
+      J = j; const ws = j.w.slice().sort((a, b) => a - b), w = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
+      for (const name of ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land']) {   // DOM order = stacking (a later clip on top)
+        const c = j.clips[name], el = document.createElement('video');
+        el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
+        el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
+        el.preload = 'auto'; el.style.opacity = '0';
+        el.src = L.base + j.src[kind].replace('{clip}', name).replace('{w}', w);
+        el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
+        host.appendChild(el);
+        vids.push(V[name] = { name, el, fps: c.fps, pose: c.pose, last: c.pose.length - 1 });
+      }
+      cur = V.fwd;                          // at rest: the poster = fwd's frame 0 (closed)
+    }).catch(() => {});
+  }
+  const frameOf = K => Math.min(K.last, Math.max(0, Math.floor(K.el.currentTime * K.fps + 1e-4)));
+  const poseNow = () => cur ? cur.pose[frameOf(cur)] : 0;
+  const endOf = K => K.pose[K.last], dirOf = K => Math.sign(K.pose[K.last] - K.pose[0]);
+  function entry(K, s) { let best = 0, d = Infinity; for (let i = 0; i <= K.last; i++) { const e = Math.abs(K.pose[i] - s); if (e < d) { d = e; best = i; } } return best; }
+  function show(K) {                        // the incoming clip and the outgoing one (or the poster) in one frame: never two translucent layers
+    const old = vis; if (old === K) return;
+    K.el.style.opacity = '1'; vis = K;
+    if (old) old.el.style.opacity = '0'; else poster.style.visibility = 'hidden';
+  }
+  const arm = () => { if (stopAt && !raf) raf = requestAnimationFrame(tick); };
+  function tick() {                         // only a stop short of the clip's end needs watching (rev caught by the hover)
+    raf = 0;
+    const K = cur; if (!K || K.el.paused || !stopAt) return;
+    const s = poseNow();
+    if (stopAt.dir > 0 ? s >= stopAt.s : s <= stopAt.s) {
+      const then = stopAt.then; stopAt = null;
+      if (then) { swap(V[then], s, ++seq); return; }   // rev at J.land: the land clip brakes it onto the crack
+      K.el.pause(); perfMark('lid stop ' + goal); return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function play(K) {
+    K.el.playbackRate = K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1;
+    K.el.play().catch(() => {});
+    arm();
+  }
+  function swap(K, s, my) {                 // K from its frame nearest pose s, shown once it holds it (seeked + a frame)
+    perfMark('lid → ' + goal + ' (' + K.name + ')');
+    if (!cur.el.paused) cur.el.pause();
+    K.el.currentTime = (entry(K, s) + .25) / K.fps;
+    K.el.addEventListener('seeked', () => requestAnimationFrame(() => { if (my !== seq) return; cur = K; show(K); play(K); }), { once: true });
+  }
+  function to(g) {
+    goal = g; const my = ++seq;
+    if (!ready() || !cur) return;
+    const s = poseNow(), t = g === 'open' ? J.n - 1 : g === 'crack' ? J.crack : 0, C = J.crack, playing = !cur.el.paused;
+    if (Math.abs(t - s) < .5 && !(playing && endOf(cur) === t)) { if (playing) cur.el.pause(); stopAt = null; return; }   // there (a clip landing on it plays on)
+    const dir = t > s ? 1 : -1, land = dir < 0 && t === C;                         // land: closing onto the crack — rev, then the land clip from J.land
+    const toLand = { s: J.land, dir, then: 'land' };
+    if (playing && dirOf(cur) === dir && (dir > 0 ? endOf(cur) >= t : endOf(cur) <= t)) {   // already heading there: keep it
+      if (land && cur === V.rev) { if (s > J.land) { stopAt = toLand; arm(); } else { stopAt = null; swap(V.land, s, my); } return; }
+      stopAt = endOf(cur) === t ? null : { s: t, dir }; arm(); return;
+    }
+    const K = dir > 0 ? (t <= C ? V.crack : s >= C - 1 ? V.open : V.fwd)
+                      : (s <= C + .5 ? V.uncrack : land && s <= J.land + .5 ? V.land : V.rev);
+    stopAt = endOf(K) === t ? null : land && K === V.rev ? toLand : { s: t, dir };
+    swap(K, s, my);
+  }
+  return { to, load, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; } };
+}
 function makeStack(wrap, cfg) {
 /* one stack (site): cfg = { name, primary (the URL knobs, the debug hooks and window.__site: the drawings), idp (a prefix for
    its SVG filter ids), images [{ id, w, h, src? }], assets (the folder of id + '.jpg'), deck, nudge, knobs (own values over
@@ -1267,6 +1373,7 @@ const outMs = () => knobs.outMs / knobs.speed;               // the OUT phase (t
    `tl` tilt degrees; site: `ey` px arc y, `sp` spin degrees), the pending seat event (seatDue) and the last written
    DOM values. Sources: SOURCES below (a srcset per card, decoded async, the tucked cards lazily); every card is painted in every state (opacity 1). */
 const cards = [];
+let lid = null;                                                            // site: the MACBOOK's lid (makeLid(); a card with pic.lid)
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 /* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
    squircle outline through feGaussianBlur — which Safari renders as a software filter pass per shade (30 of them) at boot and at every
@@ -1352,6 +1459,7 @@ for (let j = 0; j < D; j++) {
   c.flight = [c.ex, c.sc, c.tl, c.ey, c.sp];
   c.motions = [...c.seat, c.pk, ...c.flight];
   cards.push(c);
+  if (pic.lid) lid = makeLid(el, pic.lid, estB() * (devicePixelRatio || 1));   // site: the MACBOOK's lid clips over its poster (LID)
 }
 if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site: CAST — in card c, one .cast per other card u (its shadow on c)
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
@@ -1851,18 +1959,25 @@ function stepProt() { if (protDue.length) { const t = tnow(); protDue = protDue.
 /* site: the preview cards' extent at HOME (its rest pose, REST included), px from the box's bottom-centre a0: { l, r, t, b } — the
    cards only (the CAMERA's neighbour peek: where its edge is), or with `drawn` everything they paint round them too (a bleed
    image's own shadow, the FLOOR texture, the shades: PARKING's extents of a pile that is not at HOME to be measured) */
-function homeBox(drawn, noRest) {           // noRest: without the REST rotation (the NB tilt replaces it)
+function homeBox(drawn, noRest, vis) {      // noRest: without the REST rotation (the NB tilt replaces it); vis: a card's visible part only (pic.vis)
   const N = knobs.deck.length, S = G.S || 1, B = G.B || 0;
   let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
   for (let i = 0; i < N; i++) {
     const c = cards[order[i]], sl = slots[i]; if (!c || !sl) continue;
     const rot = sl.rot + (REST && !noRest ? REST.rot : 0), y = sl.dy - (REST ? REST.up * c.h : 0);
-    let hw = bboxW(c, rot, sl.size) / 2, hh = bboxH(c, rot, sl.size) / 2;
+    let hw = bboxW(c, rot, sl.size) / 2, hh = bboxH(c, rot, sl.size) / 2, cx = sl.dx, cy = y;
+    const V = vis && c.pic.vis;                                              // site: [l, t, r, b] of its box (the MACBOOK: the closed machine) — rotated with it
+    if (V) {
+      const a = rot * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a), s = sl.size;
+      const w = (V[2] - V[0]) * c.w * s, h = (V[3] - V[1]) * c.h * s, ox = ((V[0] + V[2]) / 2 - .5) * c.w * s, oy = ((V[1] + V[3]) / 2 - .5) * c.h * s;
+      cx += ox * cs - oy * sn; cy += ox * sn + oy * cs;
+      hw = (Math.abs(w * cs) + Math.abs(h * sn)) / 2; hh = (Math.abs(w * sn) + Math.abs(h * cs)) / 2;
+    }
     if (drawn) {
       const bl = c.pic.bleed || [0, 0, 0, 0], sh = (3 * SH.sigma + Math.abs(SH.y) + Math.abs(SH.x || 0)) * G.K;
       hw += Math.max(bl[0], bl[2], FLOOR ? FLOOR.fx : 0) * c.w * sl.size + sh; hh += Math.max(bl[1], bl[3], FLOOR ? FLOOR.fy : 0) * c.h * sl.size + sh;
     }
-    l = Math.min(l, sl.dx - hw); r = Math.max(r, sl.dx + hw); t = Math.min(t, y - hh); b = Math.max(b, y + hh);
+    l = Math.min(l, cx - hw); r = Math.max(r, cx + hw); t = Math.min(t, cy - hh); b = Math.max(b, cy + hh);
   }
   return l < r ? { l: l / S, r: r / S, t: (t - B / 2) / S, b: (b - B / 2) / S } : { l: 0, r: 0, t: 0, b: 0 };
 }
@@ -1897,6 +2012,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
   state = 'zoom'; delta = 0;
+  lidSync();                                                                               // site: the lid opens with the zoom (LID)
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: this stack takes the page (the zones, the fades), above the other stacks
   for (const s of stacks) if (s !== self) s.letGo();                                       // site: the other stacks let go of their hover (they fade with the row elements)
@@ -1968,6 +2084,7 @@ function collapse() {                       // OPEN → CLOSE (the `viewer:close
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
   perfMark('close ' + cfg.name);
   state = 'close';
+  lidSync();                                                                               // site: … and closes, slowly, from the close's first frame (LID)
   setNHover(0);                                                                            // site: a peeking neighbour slides back
   if (!move) RP.move = null;                                                               // (a close during a camera move's last frames: the camera is this stack's own again)
   lockPage();                                                                              // to the top first, then locked until HOME (as expand())
@@ -1994,6 +2111,7 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
 function enterHome() {                      // CLOSE → HOME: unlock the page, hover back on (a flight still landing keeps flying, at home scale)
   perfMark('home ' + cfg.name);
   state = 'home';
+  lidSync();
   if (activeStack === self) activeStack = null;                                            // site: every stack at HOME again (unless the CAMERA moved on to another)
   wrap.classList.remove('active');
   if (audio) audio.pause();                                                                // site: the song ends with the close (its volume is ~0 by now)
@@ -2015,11 +2133,14 @@ function checkState() {
 
 /* ---------- home hover (spec 02): binary state, no cursor-position dependence; HOME only ---------- */
 function hoverTo(t) {
-  if (t) { loadTucked(); warmAudio(); }                                                    // PERF: SOURCES — the first hover fetches what a click will need (the tucked cards, the song)
+  if (t) { loadTucked(); warmAudio(); lid?.load(); }                                                    // PERF: SOURCES — the first hover fetches what a click will need (the tucked cards, the song)
   if (hover.target !== t && state === 'home' && !activeStack) perfMark('hover ' + t + ' ' + cfg.name);
   if (hPinned !== null || pinned !== null || frozen || state !== 'home' || activeStack) return;   // site: no hover while any stack is away from HOME
   if (hover.target !== t) { hover.set(t); kick(); }
+  lidSync();                                                                               // site: the hover cracks the lid open (LID)
 }
+/* site: the MACBOOK's lid goal (LID): open from the zoom's start until the close; at HOME the hover's crack; closed otherwise */
+function lidSync() { if (lid) lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 ? 'crack' : 'closed'); }
 
 /* ============================================================
    FRAME LOOP: one loop, every spring and motion; transforms,
@@ -2221,6 +2342,7 @@ function useNatural(c) {                    // refine a card's ratio from the de
 /* the viewer's open layout without animation: the end state of expand() (?open=1 and the viewer freezes) */
 function openNow() {
   state = 'open'; delta = 0;
+  lidSync();
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: as expand()
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
   scrollTo(0, 0); unlockPage();                                                            // OPEN: at the top, not locked (as enterOpen())
@@ -2233,6 +2355,7 @@ function openNow() {
 }
 applyConfigs();
 syncHomeSlots();
+if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete') ld(); else addEventListener('load', ld, { once: true }); }   // site: the lid's clips after the page (the poster is the card's image)
 resetOrder();
 for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
 function boot() {
@@ -2287,8 +2410,9 @@ const self = {                              // site: what the page sees of this 
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
+  get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
-  letGo() { hPinned = null; if (hover.target !== 0) { hover.set(0); kick(); } },
+  letGo() { hPinned = null; if (hover.target !== 0) { hover.set(0); kick(); } lidSync(); },
 };
 if (cfg.primary) window.__site = {
   get state() { return state; },
@@ -2695,7 +2819,7 @@ function sideShift(s) {                     // + the tilts of its two neighbours
 /* neighbour n on `side` (−1 left, +1 right) of framing F, tilted NB.tilt clockwise (its cards' net tilt), not yet shifted: its
    inner edge's screen x at the middle / top / bottom of its cards, and their screen y */
 function nbEdge(F, n, side) {
-  const h = n.st.homeBox(false, true), a = NB.tilt * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+  const h = n.st.homeBox(false, true, true), a = NB.tilt * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
   const x = side < 0 ? h.r : h.l, dy = n.yb - n.cy, cx = F.k * (n.cx - RP.sl) + F.x, cy = F.k * (RP.rowTop + n.cy) + F.y;
   const at = y => [cx + F.k * (x * c - y * sn), cy + F.k * (x * sn + y * c)];
   const [mid] = at((h.t + h.b) / 2 + dy), top = at(h.t + dy), bot = at(h.b + dy);
@@ -3007,6 +3131,17 @@ if (cursorOn) {
 /* ============================================================
    BOOT: the stacks, in row order
    ============================================================ */
+/* site 2026-09-29: the MACBOOK (the markup's comment; LID): a pile of one — the poster (the closed frame, 1920 × 1110) under the lid's
+   clips (brew/lidvideo/lidvideo.py → assets/macbook/lid-{fwd,rev,open,crack,uncrack,land}-{1280,1920}.{mp4,webm} + lid.json +
+   lid-poster*.webp). No radius / border / shadow (the clip carries the machine's own contact shadow, in its alpha), no hover scale (the hover IS the lid), rest: square, lowered by
+   (w/h − 1)/2 of its height onto the row's baseline. vis: the closed machine's part of the card (the poster's alpha > 30 of 255) —
+   what shows when it peeks as a neighbour (nbEdge()): the card's top is empty until the lid opens into it. */
+const MB = '../assets/macbook/';
+const MACBOOK = [{ id: 'macbook', src: MB + 'lid-poster.webp', w: 1920, h: 1110, vis: [.0104, .9333, .9911, .9865],
+                   lid: { base: MB, json: 'lid.json' } }];   // the clips + their pose table (makeLid())
+stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBOOK, deck: [0],
+                                      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0, hoverScale: 1 },
+                                      rest: { rot: 0, up: -(1920 / 1110 - 1) / 2 } }));
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
    brew/polaroid scan renders, 2400 × 2918 → 1645 × 2000 webp). POL_KNOBS: no radius / border at home or in the viewer (square
    corners, the prints carry their own edge); the measured shadows at home and in the viewer (POL_FLOOR / POL_CONTACT, below); pivot .5: with a pile of two the
