@@ -282,14 +282,12 @@
        site: a STACK of one (makeStack(): the drawings' zoom; owner 2026-09-26: "on click the dandelion … it should zoom in now. It
        will play that song"): the card is the jacket (1918 × 1918 px). Tilted the other way from the polaroid, 90 % of the row
        height, raised 3 % -->
-  <div class="wrap" id="dandelion" data-size=".9"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the sleeve) is built by the script: DANDELION in BOOT -->
-  </div></div>
   <!-- site: the empty CD jewel case (owner 2026-09-27: "to the right from the album put cd 1"; ~/Downloads/cd 1.jpg cropped
-       to the case, assets/cd/cd-1.webp 924 × 821), 90 % of the row height like the sleeve, tilted the other way from it.
-       A STACK of one since 2026-09-27 (owner: "zoom in to add on the disk too"; was a plain .tile): CD1 in BOOT -->
-  <div class="wrap" id="cd1" data-size=".9"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the case) is built by the script: CD1 in BOOT -->
+       to the case, assets/cd/cd-1.webp 924 × 821), 90 % of the row height like the sleeve; a stack of one since 2026-09-27
+       (owner: "zoom in to add on the disk too"). 2026-09-29 (owner: "put the album vynyl of dandelion behind the cd image"):
+       ONE pile — the CD in front, the sleeve behind it: DANDELION in BOOT -->
+  <div class="wrap" id="dandelion" data-size=".9"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
   </div></div>
   <div class="cover" id="cover" aria-hidden="true"><div></div></div>   <!-- PERF: OPEN's cover over the parked row elements (the .cover CSS; not a row element) -->
 </main>
@@ -1396,10 +1394,6 @@ function layoutSize() {
   if (ownsZones()) placeZones();
   G.peekPx = knobs.peekPx * KV;                              // the peek's emergence at this box (default PEEK_PX)
   if (capEl) capEl.style.width = Math.max(0, eff.left) + 'px';   // site: its caption's band, left of the pile (the .caption CSS)
-  if (playBtn) {                                             // site: right of the front card, bottoms aligned — its contain-fit rect in B at p = 1 (slot 0 sits on the box centre)
-    const pc = IMAGES[knobs.deck[0]], r = pc.w / pc.h, cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B, d = PLAY.d * KV;
-    Object.assign(playBtn.style, { left: (B + cw) / 2 + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px', width: d + 'px', height: d + 'px' });
-  }
 }
 function layoutMeasure() {
   // measure (the only getBoundingClientRect calls outside the event handlers and the debug hooks), in the VIEWER's frame
@@ -1431,7 +1425,17 @@ function targets() {                                        // box.x in the scre
 }
 
 /* ---------- arrange: static layout, once per knob change / layout, never per frame ---------- */
-function arrange() { arrangeHome(); syncHomeSlots(); arrangeCards(); reseat(); }
+function arrange() { arrangeHome(); syncHomeSlots(); arrangeCards(); reseat(); placePlay(); }
+/* site: the song's button right of the PILE (every preview slot's pose at p = 1: the sleeve behind the CD sticks out past the
+   front card), its bottom on the front card's bottom — contain-fit rects in B, slot 0 on the box centre. After arrangeHome():
+   it reads the slot poses (a pile of one: the front card's right edge, as before). */
+function placePlay() {
+  if (!playBtn || !G.B) return;
+  const B = G.B, KV = G.KV, d = PLAY.d * KV, pc = IMAGES[knobs.deck[0]], ch = pc.w >= pc.h ? B * pc.h / pc.w : B;
+  let r = 0;
+  for (let i = 0; i < knobs.deck.length; i++) { const c = cards[order[i]], sl = slots[i]; if (c && sl) r = Math.max(r, sl.dx + bboxW(c, sl.rot, sl.size) / 2); }
+  Object.assign(playBtn.style, { left: B / 2 + r + PLAY.gap * KV + 'px', top: (B + ch) / 2 - d + 'px', width: d + 'px', height: d + 'px' });
+}
 /* THE SLOT POSES (per SLOT, no DOM), the one table of every state: slots 0 … N−1 = stack.html's arrange() (the seeded rest
    pose + nudge, and the hover ramp), slots N … D−1 = the tuck (centred, rotation 0, knobs.vshrink, no ramp). Everything in
    the expanded frame (item px at B): offsets are scaled by the box. */
@@ -1520,10 +1524,11 @@ function untuckStep() { if (tuckQ) { tuckQ.shift().away = false; if (!tuckQ.leng
 function shadeLayers(on) {}
 /* the clip of card c for a layout: `radius` / `border` are rest px; the card is shown at size·(1/S) at HOME (size = its slot's
    factor) and at 1 in the viewer → × S / size in the card's own px (stack.html: × S on a card laid out at size·B) */
+const kc = (c, k) => c.pic.knobs?.[k] ?? knobs[k];   // site: a card's own treatment (pic.knobs: radius / border / shadow, v-prefixed too) over its stack's — a pile of mixed objects (the sleeve behind the CD)
 function clipOf(c, home) {
   const S = G.S || 1, sz = home && slots[c.hslot] ? slots[c.hslot].size : 1;
-  const rad = (home ? knobs.radius : knobs.vradius) * S / sz;
-  const b = Math.min((home ? knobs.border : knobs.vborder) * S / sz, Math.min(c.w, c.h) / 2 - 1);
+  const rad = (home ? kc(c, 'radius') : kc(c, 'vradius')) * S / sz;
+  const b = Math.min((home ? kc(c, 'border') : kc(c, 'vborder')) * S / sz, Math.min(c.w, c.h) / 2 - 1);
   return { sz, rad, b };
 }
 function warmClip(c, home) {
@@ -1549,7 +1554,7 @@ function applyCard(c) {
     if (b > 0) c.el.style.setProperty('--paper', rad >= .5 ? `path("${c.pathD}")` : 'none'); else c.el.style.removeProperty('--paper');
   }
   // shadows: the rest one (home: stack.html's geometry in rest px → ÷ size; viewer: flip.html's) and flip.html's lifted one
-  const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && (knobs.shadow > 0 || knobs.vshadow > 0);   // site: CAST draws no SVG shade
+  const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && (kc(c, 'shadow') > 0 || kc(c, 'vshadow') > 0);   // site: CAST draws no SVG shade
   setShade(c, c.shade,  sh.sigma * KB / sz, sh.y * KB / sz, on, sx * KB / sz, rad);
   setShade(c, c.shade2, sh.sigma * KB * knobs.liftShade, sh.y * KB * knobs.liftShade, on, sx * KB * knobs.liftShade, rad);
   if (CAST) {                               // site: card c's shadow as it falls on every other card: its size + box-shadow, in c's own px (as its shade)
@@ -2029,7 +2034,7 @@ function render() {
   const s = 1 / G.S + (1 - 1 / G.S) * v;
   put(item, 'item', 'transform', `translate3d(${x}px, ${y}px, 0) scale(${s})`);
   put(hoverEl, 'hover', 'transform', `scale(${1 + (knobs.hoverScale - 1) * hw})`);        // stack.html's hover scale (× (1 − p): 1 at p = 1, no snap)
-  const alpha = clamp(mix(knobs.shadow, knobs.vshadow, v), 0, 1);                          // the preview cards' shadow alpha, linear in p (a compositor-only change while promoted: shadeLayers)
+  const alpha = c => clamp(mix(kc(c, 'shadow'), kc(c, 'vshadow'), v), 0, 1);              // a preview card's shadow alpha, linear in p (a compositor-only change while promoted: shadeLayers)
   for (let i = 0; i < D; i++) {
     const c = cards[order[i]], sl = slots[i];
     if (!sl) continue;
@@ -2047,7 +2052,7 @@ function render() {
     // shadows: rest / lifted cross-faded by the lift (flip.html, 1/50 steps: fewer repaints), both × the alpha — p-blended for
     // a preview card; the viewer's for the tucked ones (a constant alpha is no repaint — each alpha change repaints the
     // card, blur included)
-    const ld = knobs.lift - 1, a = isPreview(c) ? alpha : knobs.vshadow;                    // the lift fraction: sc from 1 to the lift knob (none at lift 1)
+    const ld = knobs.lift - 1, a = isPreview(c) ? alpha(c) : kc(c, 'vshadow');                    // the lift fraction: sc from 1 to the lift knob (none at lift 1)
     const lift = Math.abs(ld) < 1e-9 ? 0 : Math.round(clamp((c.sc.value - 1) / ld, 0, 1) * 50) / 50;
     c.lift = lift;
     const o1 = Math.round(a * (1 - lift) * 1000) / 1000, o2 = Math.round(a * lift * 1000) / 1000;
@@ -2062,7 +2067,7 @@ function render() {
     const ar = -pl.R * Math.PI / 180, cr = Math.cos(ar), sr = Math.sin(ar);
     for (const k of L.casts) {
       const U = k.u, pu = U.pose, above = !!pu && U.z > L.z;
-      const o = above ? Math.round((isPreview(U) ? alpha : knobs.vshadow) * 1000) / 1000 : 0;
+      const o = above ? Math.round((isPreview(U) ? alpha(U) : kc(U, 'vshadow')) * 1000) / 1000 : 0;
       if (o !== k.o) { k.o = o; k.el.style.opacity = o; }
       if (!above || !o) continue;
       const dx = (pu.X - pl.X) / pl.SC, dy = (pu.Y - pl.Y) / pl.SC;
@@ -3010,15 +3015,17 @@ stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: 
    --bl / --bt / --br / --bb). rest = the tile's old HOME pose (--tilt, --up, its hover turn), squared up by the zoom, so the
    record faces you in the viewer. audio: 2021 Dandelion/dt01-drum_variation01-01.mp3 (owner 2026-09-26: "on click the
    dandelion … it will play that song"): from the top on every zoom, volume = p, paused at HOME. */
-const DANDELION = [{ id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082] }];   // file: the webp's px (the print + its bleed): the srcset descriptors
-const DAN_KNOBS = { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 };
-stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DANDELION, deck: [0], knobs: DAN_KNOBS,
-                                        rest: { rot: 3, up: .03 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3' }));
-/* site: the CD jewel case (the markup's comment): a pile of one, as the sleeve (owner 2026-09-27: "zoom in to add on the disk
-   too"). The drawings' card treatment (no knobs of its own: the look it had as a .tile, which took the drawings' values);
-   rest = the tile's old --tilt, squared up by the zoom. */
-const CD1 = [{ id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 }];
-stacks.push(makeStack($('cd1'), { name: 'cd1', idp: 'cd-', images: CD1, deck: [0], rest: { rot: -2, up: 0 } }));
+const DAN_KNOBS = { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 };   // the sleeve's own (its shadow is baked in)
+/* site 2026-09-29 (owner: "put the album vynyl of dandelion behind the cd image"): the CD jewel case and the sleeve are ONE pile —
+   the CD in front with the drawings' card treatment (the stack's knobs: it had them as a pile of one), the sleeve behind with
+   its own (pic.knobs = DAN_KNOBS). nudge: the sleeve up-right of the case and turned the other way, so it reads as the record behind it (a same-box pile
+   would hide all but a sliver). rest = the CD's old one; the song and its button stay (the button right of the front card). */
+const DANDELION = [
+  { id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 },
+  { id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082], knobs: DAN_KNOBS },   // file: the webp's px (the print + its bleed): the srcset descriptors
+];
+stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DANDELION, deck: [0, 1], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
+                                        rest: { rot: -2, up: 0 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3' }));
 layoutAll('boot');
 for (const s of stacks) s.boot();
 // (KEEPALIVE: keepImg(), at each image's load — see the DOM section)
