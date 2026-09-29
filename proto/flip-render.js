@@ -142,11 +142,15 @@
   /* A: world point of box coords (ex, ey, 1) as a 3×3 row-major matrix (rows X, Y, Z). The camera maps a world point to
      screen px (x right, y down, origin at the rest centre): x = W·X·s, y = −W·Y·s, s = F/(F − Z). Homogeneous rows:
      [W·A_X], [−W·A_Y], [e3 − A_Z/F]. Returned as the CSS matrix3d string (column-major; z passed through + a nudge). */
-  function css(A, W, F, dz) {
+  function css(A, W, F, dz, off) {
     let a = W * A[0], b = W * A[1], c = W * A[2];
     let d = -W * A[3], e = -W * A[4], f = -W * A[5];
     let g = -A[6] / F, h = -A[7] / F, i = Math.max(1e-3, 1 - A[8] / F);
     a /= i; b /= i; c /= i; d /= i; e /= i; f /= i; g /= i; h /= i;
+    if (off) {                                     // + a screen offset (ox, oy): x' = x + ox = (x_h + ox·w) / w
+      const ox = off[0], oy = off[1];
+      a += ox * g; b += ox * h; c += ox; d += oy * g; e += oy * h; f += oy;
+    }
     return 'matrix3d(' + [a, d, 0, g, b, e, 0, h, 0, 0, 1, 0, c, f, dz || 0, 1].map(n6).join(',') + ')';
   }
   const n6 = v => (Math.abs(v) < 1e-12 ? 0 : +v.toPrecision(12));
@@ -253,7 +257,7 @@
       if (!vis) B = inset(B, W, a, 1.5);
       // depth nudges only where they can't be seen: any z ≠ 0 makes WebKit resample the layer (measured: up to 30 levels on
       // the photo), so at rest the face on top sits at exactly z 0 — the same pixels as a flat 2D placement
-      const tf = css(faceA(R, P, B), W, F, vis ? (st.rest ? 0 : .02) : -.02);
+      const tf = css(faceA(R, P, B), W, F, vis ? (st.rest ? 0 : .02) : -.02, S.origin);
       if (tf !== f.tf) { f.el.style.transform = tf; f.tf = tf; }
       // shade: Lambert vs rest, on the visible face only (the hidden one keeps its last value — it is covered)
       if (!vis) continue;
@@ -324,7 +328,7 @@
       const vis = !st.rest && dot(n, [cam[0] - P[0] - mid[0], cam[1] - P[1] - mid[1], cam[2] - P[2] - mid[2]]) > 0;
       const o = vis ? 1 : 0;
       if (vis) {
-        const tf = css(faceA(R, P, sd.B), W, F, .03);
+        const tf = css(faceA(R, P, sd.B), W, F, .03, S.origin);
         if (tf !== e.tf) { e.el.style.transform = tf; e.tf = tf; }
         const m = (k.ambient + (1 - k.ambient) * Math.max(0, dot(n, L))) / (k.ambient + (1 - k.ambient) * L[2]);
         const g = Math.max(0, Math.min(255, Math.round(k.edge * Math.min(1.06, m))));
@@ -352,7 +356,7 @@
       const fl = S.floors[i];
       if (!fl) continue;
       const parked = st.rest && i < 2;
-      const tfs = css(parked ? tuck : Sh, W, F, st.rest ? 0 : -.5 + i * .01);   // at rest z 0 (flat pixels), DOM order stacks them
+      const tfs = css(parked ? tuck : Sh, W, F, st.rest ? 0 : -.5 + i * .01, S.origin);   // at rest z 0 (flat pixels), DOM order stacks them
       const o = parked ? 1 : ops[i];
       if (tfs !== fl.tf) { fl.el.style.transform = tfs; fl.tf = tfs; }
       if (Math.abs(o - fl.o) > .002 || (o === 0 && fl.o !== 0) || (o === 1 && fl.o !== 1)) {
@@ -373,6 +377,66 @@
     return out;
   }
 
+  /* attach to an existing card (the site): cfg {card, img, fcast?, rim?, back:{src,srcset?,sizes?}, floorSoft?, floorWide?,
+     W, H}. The card becomes a 3D context (its faces are ordered by depth); its img moves into the front face wrapper (the
+     img element itself is kept — the page's loaders hold it); the back face, the edges and the lifted shadows are added. All
+     layers use the card's box with the origin at its top-left, so every homography gets the (W/2, H/2) offset. */
+  function attach(cfg) {
+    if (!document.getElementById('fr-css')) {
+      const st = document.createElement('style'); st.id = 'fr-css'; st.textContent = CSS_TEXT + ATTACH_CSS; document.head.appendChild(st);
+    }
+    const card = cfg.card, mk = (cls, parent, before) => {
+      const d = document.createElement('div'); d.className = cls; parent.insertBefore(d, before || null); return d;
+    };
+    card.classList.add('fr-card');
+    const faces = {};
+    const frontEl = mk('fr-layer fr-face fr-front fr-in', card, cfg.img);
+    frontEl.appendChild(cfg.img);
+    const backEl = mk('fr-layer fr-face fr-back fr-in', card, frontEl);
+    const bimg = document.createElement('img'); bimg.alt = ''; bimg.decoding = 'async'; bimg.draggable = false;
+    if (cfg.back.sizes) bimg.sizes = cfg.back.sizes;
+    if (cfg.back.srcset) bimg.srcset = cfg.back.srcset;
+    bimg.src = cfg.back.src;
+    backEl.appendChild(bimg);
+    for (const [name, el, img] of [['back', backEl, bimg], ['front', frontEl, cfg.img]])
+      faces[name] = { el, img, tint: mk('fr-tint', el), sheen: mk('fr-sheen', el), tf: '', o: -1, so: -1, st: '', tc: '' };
+    const edges = [0, 1, 2, 3].map(() => ({ el: mk('fr-layer fr-edge', card), tf: '', o: -1, c: '' }));
+    const floors = [null, null, null];
+    if (cfg.fcast && cfg.rim) {
+      const wrap = (f, img) => {
+        const el = mk('fr-layer fr-in fr-sh', cfg.fcast, img || null);
+        if (img) el.appendChild(img);
+        else { img = document.createElement('img'); img.alt = ''; img.decoding = 'async'; img.draggable = false; img.src = f.src; el.appendChild(img); }
+        el.style.setProperty('--fx', f.fx); el.style.setProperty('--fy', f.fy);
+        return { el, img, f, o: -1, tf: '', site: true };
+      };
+      floors[2] = wrap({ fx: +getComputedStyle(cfg.fcast).getPropertyValue('--fx') || 0, fy: +getComputedStyle(cfg.fcast).getPropertyValue('--fy') || 0 }, cfg.rim);
+      if (cfg.floorSoft) floors[1] = wrap(cfg.floorSoft);
+      if (cfg.floorWide) floors[0] = wrap(cfg.floorWide);
+      cfg.fcast.insertBefore(floors[1].el, floors[2].el); cfg.fcast.insertBefore(floors[0].el, floors[1].el);
+    }
+    const S = { faces, edges, floors, aspect: cfg.H / cfg.W, W: cfg.W, origin: [cfg.W / 2, cfg.H / 2], attached: true };
+    S.resize = (W, H) => {
+      S.W = W; S.aspect = H / W; S.origin = [W / 2, H / 2];
+      for (const f of Object.values(faces)) { f.el.style.width = W + 'px'; f.el.style.height = H + 'px'; f.tf = ''; }
+      for (const e of edges) e.tf = '';
+      for (const fl of floors) if (fl) { fl.el.style.width = W + 'px'; fl.el.style.height = H + 'px'; fl.tf = ''; }
+    };
+    S.resize(cfg.W, cfg.H);
+    S.draw = (state, k, take) => draw(S, state, k || KNOBS, take);
+    S.pose = (take, t, k, flip) => pose(take, t, k || KNOBS, flip || {}, { aspect: S.aspect, W: S.W });
+    S.images = [bimg, ...floors.filter(f => f && !f.site).map(f => f.img)];
+    return S;
+  }
+  const ATTACH_CSS = `
+  .card.fr-card { transform-style: preserve-3d; }
+  .fr-in { overflow: hidden; }
+  .card .fr-face img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: auto; }
+  .fr-sh { overflow: visible; }
+  .fr-sh img { position: absolute; display: block; left: calc(-100% * var(--fx)); top: calc(-100% * var(--fy));
+               width: calc(100% * (1 + 2 * var(--fx))); height: calc(100% * (1 + 2 * var(--fy))); }
+  `;
+
   /* how high the slab's centre must sit so its lowest point clears the table, for any R (print widths) */
   function clearance(R, aspect, thickW) {
     let lo = Infinity;
@@ -381,6 +445,6 @@
     return Math.max(0, -lo + thickW / 2 * (Math.abs(R[8]) - 1));
   }
 
-  root.FlipRender = { clearance, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
+  root.FlipRender = { attach, clearance, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
                       makeScene, outline, qmat, slerp, css, _internals: { frontB, backB, faceA, inset, light } };
 })(typeof window !== 'undefined' ? window : globalThis);

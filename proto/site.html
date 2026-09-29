@@ -1486,6 +1486,35 @@ if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
   c.casts.push({ u, el, tf: '', o: null, key: '' });
 }
+/* site 2026-09-29, TURN (cfg.turn — ?turn=1 only, a preview; the ROOM_TURN note in BOOT): a pile of one turns over like a real
+   photo, by a hand flip captured with the phone (brew/flipcap) and drawn by flip-render.js attach(): the card becomes a 3D
+   context, its img the front face, plus the back, the cut edges and the lifted table shadows (in its .fcast). Clicked in OPEN
+   (the viewer's click routing: turnAt()) — the side clicked lifts first; it stays turned over, like a photo put down. */
+let TURN = null;
+const turnActive = () => !!TURN && TURN.playing;
+if (cfg.turn && D === 1) cfg.turn.ready.then(({ FR, take }) => { TURN = makeTurn(FR, take); kick(); })
+  .catch(err => console.warn('[turn]', err));
+function makeTurn(FR, take) {
+  const c = cards[0], k = Object.assign({}, FR.KNOBS);
+  for (const key of Object.keys(k)) { const v = parseFloat(pageQuery.get('t' + key)); if (Number.isFinite(v)) k[key] = v; }   // ?tlens= ?tspeed= … (turn.html's knobs, t-prefixed)
+  const W = c.w || estB(), H = c.h || W * c.pic.h / c.pic.w;
+  const S = FR.attach({ card: c.el, img: c.img, fcast: c.fl, rim: c.fl && c.fl.querySelector('img'),
+                        back: Object.assign({ sizes: sizesOf(c) }, cfg.turn.back), floorSoft: cfg.turn.floorSoft, floorWide: cfg.turn.floorWide, W, H });
+  for (const im of S.images) keepImg(im);                                  // PERF: KEEPALIVE — the back and the lifted shadows too
+  const T = { S, take, k, card: c, playing: false, t: 0, from: 'front', side: take.side, dirty: true };
+  T.resize = () => { S.resize(c.w, c.h); T.dirty = true; };
+  T.start = side => { if (T.playing) return; T.side = side; T.t = 0; T.playing = true; T.dirty = true; kick(); };
+  T.step = dt => {
+    if (!T.playing) return;
+    T.t += dt / 1000 * k.speed; T.dirty = true;
+    if (T.t >= take.dur) { T.playing = false; T.from = T.from === 'front' ? 'back' : 'front'; T.t = 0; }
+  };
+  T.draw = () => {
+    if (!T.dirty) return; T.dirty = false;
+    S.draw(S.pose(take, T.playing ? T.t : 0, k, { side: T.side, from: T.from }), k, take);
+  };
+  return T;
+}
 /* the viewer spring configs at knobs.speed (ω ∝ speed, ζ unchanged: tension · speed², friction · speed; mass as set): BACK
    (backTension / backFriction / backMass) on every flight motion and on the seat of a card whose role is 'back'; SEATS
    (withBack = BACK's, own = seatTension / …) on the other seats; PEEK on pk. All defaults = FLIP.spring, so at speed 1
@@ -1646,6 +1675,7 @@ function arrangeCards() {
     c.el.style.width = w + 'px'; c.el.style.height = h + 'px';
     c.el.style.margin = `${-h / 2}px 0 0 ${-w / 2}px`;
     if (c.fl) Object.assign(c.fl.style, { width: w + 'px', height: h + 'px', margin: c.el.style.margin });   // site: FLOOR, the card's box
+    if (TURN && TURN.card === c) TURN.resize();                            // site: TURN — its faces / edges / shadows are the card's box
     applyCard(c);
     warmClip(c, true); warmClip(c, false);
   }
@@ -2193,12 +2223,13 @@ function advance(dt) {                      // one step of dt ms: the master / h
   stepFlip(dt); settleFlip();
   checkState();
 }
-const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ;   // PERF: the untuck runs the loop to its end
+const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive();   // PERF: the untuck runs the loop to its end
 /* site: ONE frame loop for the page (frame() / kick(), after makeStack): each frame it steps every stack — advance + render,
    and the ?auto / ?autohover measurements */
 function step(dt, now) {
   advance(dt);
   untuckStep();
+  if (TURN) TURN.step(dt);                                                 // site: TURN
   render();
   if (measure) {
     if (measure.settle == null && (1 - p.value) * measure.px < 1) measure.settle = now - measure.t0;
@@ -2276,6 +2307,7 @@ function render() {
       if (tf !== k.tf) { k.tf = tf; k.el.style.transform = tf; }
     }
   }
+  if (TURN) TURN.draw();                                                                  // site: TURN — the faces' homographies (only when the turn moved)
   if (audio || playBtn) songWrite();                                                      // site: the song's volume and its button's fade (× songG: only while its card is in front)
   if (capEl) {                                                                            // site: its caption — the same fade
     const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * 1000) / 1000;
@@ -2455,6 +2487,14 @@ const self = {                              // site: what the page sees of this 
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
   letGo() { hPinned = null; if (hover.target !== 0) { hover.set(0); kick(); } lidSync(); },
+  get turn() { return TURN; },                                              // site: TURN (null unless ?turn=1)
+  turnAt(clientX, clientY) {                                                // site: TURN — a click on the print in OPEN: the clicked side lifts first
+    if (!TURN || state !== 'open') return false;
+    const e = G.eff, r = viewer.getBoundingClientRect();
+    const x = clientX - r.left + viewer.scrollLeft - e.left, y = clientY - r.top - e.top;
+    TURN.start(TURN.take.axis === 'x' ? (y < e.height / 2 ? 1 : -1) : (x > e.width / 2 ? 1 : -1));
+    return true;
+  },
 };
 if (cfg.primary) window.__site = {
   get state() { return state; },
@@ -3129,6 +3169,7 @@ viewer.addEventListener('click', e => {
   const z = a.zoneAt(e.clientX, e.clientY);
   if (z === null) document.dispatchEvent(new CustomEvent('viewer:close'));
   else if (z) a.flip(z);
+  else if (a.turn) a.turnAt(e.clientX, e.clientY);                                         // site: TURN (?turn=1)
 });
 document.addEventListener('viewer:close', () => activeStack?.collapse());
 zoneL.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') activeStack?.setVHover(-1); });
@@ -3223,7 +3264,30 @@ stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: 
    clockwise turn, lowered by (w/h − 1)/2 of its height so it sits on the row's baseline (its square rest box is centred on it). */
 const ROOM = [{ id: 'room', src: '../assets/photo/room-print.webp', w: 2018, h: 1083 }];
 const ROOM_FLOOR = { src: '../assets/photo/room-floor.webp', fx: .03331, fy: .06207 };
-stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR,
+/* site 2026-09-29, TURN (?turn=1 — a preview, the default page is untouched): the room print turns over by a captured hand flip
+   (brew/flipcap → assets/flip/takes.json's default take, or ?turntake=<id>; tuned in turn.html, its knobs here as ?t<name>=).
+   The renderer and the take load only with the flag. */
+const ROOM_TURN = pageQuery.has('turn') ? {
+  back: { src: '../assets/flip/room-back.webp',
+          srcset: '../assets/flip/room-back-1000.webp 1000w, ../assets/flip/room-back-1400.webp 1400w, ../assets/flip/room-back-1800.webp 1800w, ../assets/flip/room-back.webp 2018w' },
+  floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .09667, fy: .18012 },
+  floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 },
+  ready: new Promise((resolve, reject) => {
+    const sc = document.createElement('script'); sc.src = 'flip-render.js';
+    sc.onerror = () => reject(new Error('flip-render.js'));
+    sc.onload = async () => {
+      try {
+        const idx = await (await fetch('../assets/flip/takes.json', { cache: 'no-store' })).json();
+        const id = pageQuery.get('turntake') || idx.default, meta = idx.takes.find(t => t.id === id) || idx.takes[0];
+        const take = window.FlipRender.loadTake(await (await fetch('../assets/flip/takes/' + meta.file, { cache: 'no-store' })).json());
+        take.name = meta.id;
+        resolve({ FR: window.FlipRender, take });
+      } catch (err) { reject(err); }
+    };
+    document.head.appendChild(sc);
+  }),
+} : null;
+stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR, turn: ROOM_TURN,
                                    rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2 } }));
 stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: IMAGES, assets: ASSETS, deck: DEFAULT_DECK, nudge: DEFAULT_NUDGE }));
 /* site: the DANDELION demo OST (the markup's comment): the sealed record as a pile of one — the drawings' zoom, no flip (a
