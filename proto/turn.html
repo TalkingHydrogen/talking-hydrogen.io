@@ -61,7 +61,7 @@ const PRINT = { front: { src: '../assets/photo/room-print.webp',
                 floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 } };
 const K = Object.assign({}, FR.KNOBS);
 const DEFS = {
-  kMotion: [['lens', 1.2, 8, .05], ['speed', .25, 2, .01], ['smooth', 0, 150, 1], ['lift', 0, 2, .01], ['travel', 0, 2, .01], ['thick', 0, 6, .1]],
+  kMotion: [['lens', 1.2, 8, .05], ['speed', .25, 2, .01], ['smooth', 0, 150, 1], ['hint', 0, 45, 1], ['hintSpeed', 3, 30, .5], ['lift', 0, 2, .01], ['travel', 0, 2, .01], ['thick', 0, 6, .1]],
   kLight: [['az', 0, 360, 1], ['el', 10, 89, 1], ['ambient', 0, 1, .01], ['shade', 0, 1.5, .01], ['lighten', 0, 1.5, .01], ['sheen', 0, 1.5, .01],
            ['gloss', 4, 400, 1], ['sheenW', .05, 1.2, .01], ['backSheen', 0, 1, .01], ['edge', 150, 255, 1]],
   kShadow: [['contact', .001, .05, .001], ['sharpTo', .02, .5, .01], ['wideAt', .05, 1.5, .01], ['shadowFade', .1, 4, .05], ['softMax', 0, 2, .01]],
@@ -71,6 +71,24 @@ for (const k of Object.keys(K)) { const v = parseFloat(Q.get(k)); if (Number.isF
 const viewer = document.getElementById('viewer'), hit = document.getElementById('hit');
 let scene = null, take = null, takes = [];
 let state = { from: 'front', side: 1, t: 0, playing: false, last: 0 };
+const hint = { t: 0, v: 0, target: 0, side: 0, want: 0 };        // the hover teaser (the site's TURN note)
+let hintRaf = 0, hintLast = 0;
+function tHint() { FR.smoothTake(take, K.smooth); return FR.hintTime(take, K.hint); }
+function hover(side) {
+  if (!take || state.playing || frozen !== null) return;
+  if (side === hint.want) return;
+  hint.want = side;
+  if (side && (hint.side === side || hint.t < 1e-3)) { hint.side = side; hint.target = tHint(); } else hint.target = 0;
+  if (!hintRaf) { hintLast = performance.now(); hintRaf = requestAnimationFrame(hintTick); }
+}
+function hintTick(now) {
+  hintRaf = 0;
+  const dt = Math.min(34, now - hintLast) / 1000; hintLast = now;
+  const moving = FR.hintStep(hint, dt, K.hintSpeed);
+  if (hint.t <= 1e-4 && hint.target === 0) { hint.t = 0; hint.v = 0; if (hint.want) { hint.side = hint.want; hint.target = tHint(); } else hint.side = 0; }
+  draw();
+  if (moving || hint.target !== hint.t) hintRaf = requestAnimationFrame(hintTick);
+}
 const frozen = Q.has('t') ? parseFloat(Q.get('t')) : null;
 
 function widthPx() { return Math.round(Math.min(innerWidth * .64, innerHeight * .84)); }
@@ -113,7 +131,8 @@ function showInfo() {
 
 function draw() {
   if (!take || !scene) return;
-  const st = scene.pose(take, state.t, K, { side: state.side, from: state.from });
+  const teased = !state.playing && hint.t > 0 && hint.side;
+  const st = scene.pose(take, teased ? hint.t : state.t, K, { side: teased ? hint.side : state.side, from: state.from });
   scene.draw(st, K, take);
   const sc = document.getElementById('scrub');
   sc.value = take.dur ? Math.min(1, state.t / take.dur) : 0;
@@ -132,8 +151,10 @@ function debugOutline(st) {
 function flip(side) {
   if (!take) return;
   if (state.playing) return;                                 // one turn at a time (a turn is a physical gesture)
-  state.side = side || state.side;
-  state.t = 0; state.playing = true; state.last = performance.now();
+  const from = hint.t > 0 && (!side || hint.side === side) ? hint.t : 0;   // a teased edge: continue its motion
+  state.side = hint.t > 0 && hint.side ? hint.side : side || state.side;
+  hint.t = hint.v = hint.target = 0; hint.want = hint.side = 0;
+  state.t = from; state.playing = true; state.last = performance.now();
   requestAnimationFrame(tick);
 }
 function tick(now) {
@@ -159,6 +180,15 @@ viewer.addEventListener('click', e => {
   flip(side);
 });
 addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); flip(); } });
+viewer.addEventListener('pointermove', e => {                   // the teaser: the print's edge bands (28 % in, 4 % out)
+  if (!take) return;
+  const r = hit.getBoundingClientRect(), f = (e.clientX - r.left) / r.width, g = (e.clientY - r.top) / r.height;
+  let side = 0;
+  if (take.axis === 'x') { if (f > -.04 && f < 1.04) side = g >= -.04 && g < .28 ? 1 : g > .72 && g <= 1.04 ? -1 : 0; }
+  else if (g > -.04 && g < 1.04) side = f > .72 && f <= 1.04 ? 1 : f >= -.04 && f < .28 ? -1 : 0;
+  hover(side);
+});
+viewer.addEventListener('pointerleave', () => hover(0));
 document.getElementById('flipBtn').onclick = () => flip();
 document.getElementById('restBtn').onclick = () => { state = { from: 'front', side: take.side, t: 0, playing: false, last: 0 }; draw(); };
 document.getElementById('scrub').oninput = e => { if (!take) return; state.playing = false; state.t = +e.target.value * take.dur; draw(); };

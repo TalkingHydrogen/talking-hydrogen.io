@@ -33,6 +33,8 @@
     lens: 3.2,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
     smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
+    hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
+    hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
     lift: 1,            // × the phone's own lift (retargeted); the print never dips below the table whatever this is
     travel: .5,         // × the phone's sideways travel (retargeted; it lands in place)
     thick: 1.6,         // the paper's thickness, CSS px at the print's width (a 0.25 mm print ≈ 1.6 px at ~1000 px)
@@ -508,6 +510,21 @@
                width: calc(100% * (1 + 2 * var(--fx))); height: calc(100% * (1 + 2 * var(--fy))); }
   `;
 
+  /* the take time at which the turn first reaches `deg` degrees (the hover teaser's target) */
+  function hintTime(take, deg) {                      // (on the take as it is smoothed now)
+    const c = Math.cos(deg * Math.PI / 360);
+    for (let i = 0; i < take.n; i++) if (Math.abs(take.q[i * 4]) <= c) return i / (take.n - 1) * take.dur;
+    return take.dur * .1;
+  }
+  /* a critically damped spring on the teaser's take time: {t, v, target} advanced by dt seconds at ω */
+  function hintStep(h, dt, w) {
+    const x = h.t - h.target;
+    const a = -w * w * x - 2 * w * h.v;
+    h.v += a * dt; h.t += h.v * dt;
+    if (Math.abs(h.t - h.target) < 1e-4 && Math.abs(h.v) < 1e-3) { h.t = h.target; h.v = 0; return false; }
+    return true;
+  }
+
   /* how high the slab's centre must sit so its lowest point clears the table, for any R (print widths) */
   function clearance(R, aspect, thickW) {
     let lo = Infinity;
@@ -516,6 +533,6 @@
     return Math.max(0, -lo + thickW / 2 * (Math.abs(R[8]) - 1));
   }
 
-  root.FlipRender = { attach, clearance, smoothTake, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
+  root.FlipRender = { attach, clearance, smoothTake, hintTime, hintStep, KNOBS, REST, loadTake, sampleTake, pose: (take, t, k, flip, geom) => pose(take, t, k || KNOBS, flip || {}, geom),
                       makeScene, outline, qmat, slerp, css, _internals: { frontB, backB, faceA, inset, light } };
 })(typeof window !== 'undefined' ? window : globalThis);
