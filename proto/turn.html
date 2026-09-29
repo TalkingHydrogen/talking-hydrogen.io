@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>viktor dune — turn</title>
+<style>
+  /* turn.html — the room print turned over by a captured hand flip (brew/flipcap → assets/flip/takes/*.json), drawn by
+     flip-render.js (the 2D trapezoid projection). The viewer = the site's OPEN view: #FCFCFC, the print contain-fit in
+     min(64 vw, 84 vh), centred. Click the print: the side you click lifts first; click again: it turns back. Space = flip.
+     The knob panel is below the viewer (scroll). URL: ?take= ?t= (freeze at take time t, s) ?side= ?from=back ?debug=1
+     and every knob by name (?lens=2.2&sheen=.8 …). Nothing is stored in the browser: copy the values from the panel. */
+  html, body { margin: 0; }
+  body { background: #FCFCFC; color: #8e8e93; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+         -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none; }
+  .viewer { position: relative; height: 100vh; overflow: hidden; cursor: pointer; }
+  .hit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  svg.debug { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .knobs { box-sizing: border-box; padding: 22px 16px 40px; background: #fff; font: 12px/1.4 -apple-system, system-ui, sans-serif; }
+  .knobs .row { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: center; margin-bottom: 14px; }
+  .knobs label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .knobs input[type=range] { width: 140px; margin: 0; }
+  .knobs .val { min-width: 3.4em; text-align: right; font-variant-numeric: tabular-nums; color: #3a3a3c; }
+  .knobs button, .knobs select { font: inherit; }
+  .knobs textarea { width: min(680px, 100%); height: 64px; font: 11px/1.35 ui-monospace, Menlo, monospace; color: #3a3a3c; }
+  .knobs .info { font-variant-numeric: tabular-nums; color: #636366; white-space: pre-wrap; }
+  .knobs h3 { font: 600 11px/1 -apple-system, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #aeaeb2; margin: 18px 0 10px; }
+  #scrub { width: min(680px, 100%); }
+</style>
+</head>
+<body>
+<div class="viewer" id="viewer"><div class="hit" id="hit"></div></div>
+<div class="knobs" id="knobs">
+  <div class="row">
+    <label>take <select id="takeSel"></select></label>
+    <label>side <select id="sideSel"><option value="auto">where clicked</option><option value="1">right / top first</option><option value="-1">left / bottom first</option></select></label>
+    <button id="flipBtn">Flip</button>
+    <button id="restBtn">Reset</button>
+  </div>
+  <div class="row"><input type="range" id="scrub" min="0" max="1" step=".001" value="0"><span class="val" id="scrubV">0</span></div>
+  <div class="info" id="info"></div>
+  <h3>Camera &amp; motion</h3><div class="row" id="kMotion"></div>
+  <h3>Light</h3><div class="row" id="kLight"></div>
+  <h3>Shadow</h3><div class="row" id="kShadow"></div>
+  <h3>Values</h3>
+  <div class="row"><textarea id="vals" readonly></textarea><button id="copyBtn">Copy</button></div>
+</div>
+<script src="flip-render.js"></script>
+<script>
+'use strict';
+const FR = window.FlipRender;
+const Q = new URLSearchParams(location.search);
+const PRINT = { front: { src: '../assets/photo/room-print.webp',
+                         srcset: '../assets/photo/room-print-1000.webp 1000w, ../assets/photo/room-print-1400.webp 1400w, ../assets/photo/room-print-1800.webp 1800w, ../assets/photo/room-print.webp 2018w' },
+                back: { src: '../assets/flip/room-back.webp',
+                        srcset: '../assets/flip/room-back-1000.webp 1000w, ../assets/flip/room-back-1400.webp 1400w, ../assets/flip/room-back-1800.webp 1800w, ../assets/flip/room-back.webp 2018w' },
+                aspect: 1083 / 2018,
+                floor: { src: '../assets/photo/room-floor.webp', fx: .03331, fy: .06207 },
+                floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .09667, fy: .18012 },
+                floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 } };
+const K = Object.assign({}, FR.KNOBS);
+const DEFS = {
+  kMotion: [['lens', 1.2, 8, .05], ['speed', .25, 2, .01], ['lift', 0, 2, .01], ['travel', 0, 2, .01], ['thick', 0, 6, .1]],
+  kLight: [['az', 0, 360, 1], ['el', 10, 89, 1], ['ambient', 0, 1, .01], ['shade', 0, 1.5, .01], ['lighten', 0, 1.5, .01], ['sheen', 0, 1.5, .01],
+           ['gloss', 4, 400, 1], ['sheenW', .05, 1.2, .01], ['backSheen', 0, 1, .01], ['edge', 150, 255, 1]],
+  kShadow: [['shadowLift', .005, .3, .005], ['shadowFade', .1, 4, .05], ['softMax', 0, 2, .01], ['wideAt', .05, 1.5, .01]],
+};
+for (const k of Object.keys(K)) { const v = parseFloat(Q.get(k)); if (Number.isFinite(v)) K[k] = v; }
+
+const viewer = document.getElementById('viewer'), hit = document.getElementById('hit');
+let scene = null, take = null, takes = [];
+let state = { from: 'front', side: 1, t: 0, playing: false, last: 0 };
+const frozen = Q.has('t') ? parseFloat(Q.get('t')) : null;
+
+function widthPx() { return Math.round(Math.min(innerWidth * .64, innerHeight * .84)); }
+function build() {
+  if (scene) scene.destroy();
+  scene = FR.makeScene(viewer, Object.assign({ widthPx: widthPx() }, PRINT));
+  sizeHit();
+}
+function sizeHit() { const W = scene.W; hit.style.width = W + 'px'; hit.style.height = W * scene.aspect + 'px'; }
+addEventListener('resize', () => { scene.resize(widthPx()); sizeHit(); draw(); });
+
+async function loadTakes() {
+  const idx = await (await fetch('../assets/flip/takes.json', { cache: 'no-store' })).json();
+  takes = idx.takes;
+  const sel = document.getElementById('takeSel');
+  sel.innerHTML = takes.map(t => `<option value="${t.id}">${t.label || t.id}</option>`).join('');
+  const want = Q.get('take') || idx.default || takes[0].id;
+  sel.value = want;
+  await pickTake(want);
+  sel.onchange = () => pickTake(sel.value);
+}
+async function pickTake(id) {
+  const meta = takes.find(t => t.id === id) || takes[0];
+  const j = await (await fetch('../assets/flip/takes/' + meta.file, { cache: 'no-store' })).json();
+  take = FR.loadTake(j); take.name = meta.id;
+  state = { from: Q.get('from') === 'back' ? 'back' : 'front', side: +(Q.get('side') || take.side), t: 0, playing: false, last: 0 };
+  if (frozen !== null) state.t = frozen;
+  showInfo();
+  draw();
+}
+function showInfo() {
+  const r = take.report || {};
+  const f = r.flip || {};
+  document.getElementById('info').textContent =
+    `${take.name}: ${take.dur.toFixed(3)} s · turned ${f.turned_deg ?? '–'}° · peak ${f.peak_dps ?? '–'} °/s · axis ${take.axis} · ` +
+    `side ${take.side > 0 ? 'right/top' : 'left/bottom'} first · lift ${r.lift_max_mm ?? '–'} mm\n` +
+    `camera bump tilt ${r.bump_tilt_deg ?? '–'}° (${r.bump_rest || '–'} rest) · table tilt ${r.table_tilt_deg ?? '–'}° · ` +
+    `end twist ${r.end_twist_deg ?? '–'}° · end correction ${r.end_correction_deg ?? '–'}° · ${r.rate_hz ? r.rate_hz.toFixed(1) : '–'} Hz · ${r.rr_units || ''} · acc ${r.acc_sign || ''}`;
+}
+
+function draw() {
+  if (!take || !scene) return;
+  const st = scene.pose(take, state.t, K, { side: state.side, from: state.from });
+  scene.draw(st, K, take);
+  const sc = document.getElementById('scrub');
+  sc.value = take.dur ? Math.min(1, state.t / take.dur) : 0;
+  document.getElementById('scrubV').textContent = state.t.toFixed(3);
+  if (Q.has('debug')) debugOutline(st);
+  window.__turn = { st, t: state.t, from: state.from, side: state.side, W: scene.W, outline: FR.outline(scene, st, K) };
+}
+function debugOutline(st) {
+  let svg = viewer.querySelector('svg.debug');
+  if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'debug'); viewer.appendChild(svg); }
+  const cx = viewer.clientWidth / 2, cy = viewer.clientHeight / 2;
+  const pts = FR.outline(scene, st, K).map(p => (cx + p[0]).toFixed(2) + ',' + (cy + p[1]).toFixed(2)).join(' ');
+  svg.innerHTML = `<polygon points="${pts}" fill="none" stroke="#ff2d55" stroke-width="1"/>`;
+}
+
+function flip(side) {
+  if (!take) return;
+  if (state.playing) return;                                 // one turn at a time (a turn is a physical gesture)
+  state.side = side || state.side;
+  state.t = 0; state.playing = true; state.last = performance.now();
+  requestAnimationFrame(tick);
+}
+function tick(now) {
+  if (!state.playing) return;
+  const dt = Math.min(.05, (now - state.last) / 1000); state.last = now;
+  state.t += dt * K.speed;
+  if (state.t >= take.dur) {
+    state.t = take.dur; draw();
+    state.playing = false; state.from = state.from === 'front' ? 'back' : 'front'; state.t = 0;
+    draw();
+    return;
+  }
+  draw();
+  requestAnimationFrame(tick);
+}
+viewer.addEventListener('click', e => {
+  if (frozen !== null) return;
+  const r = hit.getBoundingClientRect();
+  const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  if (!inside && !state.playing) return;
+  const sel = document.getElementById('sideSel').value;
+  let side = sel === 'auto' ? (take.axis === 'x' ? (e.clientY < r.top + r.height / 2 ? 1 : -1) : (e.clientX > r.left + r.width / 2 ? 1 : -1)) : +sel;
+  flip(side);
+});
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); flip(); } });
+document.getElementById('flipBtn').onclick = () => flip();
+document.getElementById('restBtn').onclick = () => { state = { from: 'front', side: take.side, t: 0, playing: false, last: 0 }; draw(); };
+document.getElementById('scrub').oninput = e => { if (!take) return; state.playing = false; state.t = +e.target.value * take.dur; draw(); };
+
+// knobs
+function knobRow(id) {
+  const row = document.getElementById(id);
+  for (const [key, min, max, step] of DEFS[id]) {
+    const lab = document.createElement('label');
+    lab.innerHTML = `${key} <input type="range" min="${min}" max="${max}" step="${step}" value="${K[key]}"> <span class="val">${K[key]}</span>`;
+    const inp = lab.querySelector('input'), val = lab.querySelector('.val');
+    inp.oninput = () => { K[key] = +inp.value; val.textContent = inp.value; values(); draw(); };
+    row.appendChild(lab);
+  }
+}
+function values() {
+  const diff = {};
+  for (const k of Object.keys(K)) if (K[k] !== FR.KNOBS[k]) diff[k] = K[k];
+  document.getElementById('vals').value = JSON.stringify({ take: take && take.name, ...diff });
+}
+Object.keys(DEFS).forEach(knobRow);
+document.getElementById('copyBtn').onclick = () => { const t = document.getElementById('vals'); t.select(); navigator.clipboard && navigator.clipboard.writeText(t.value).catch(() => {}); };
+
+build();
+loadTakes().then(values).catch(e => { document.getElementById('info').textContent = 'no takes: ' + e; });
+</script>
+</body>
+</html>
