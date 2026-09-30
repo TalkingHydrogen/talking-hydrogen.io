@@ -59,7 +59,10 @@
     sheenW: .45,        // the band's width, print widths
     backSheen: .12,     // the back is resin-coated paper: a faint, broad sheen
     edge: 248,          // the cut edge's grey at full light (near the paper's white: an edge, not a board)
-    contact: .006,      // print widths: the rest shadow is a CONTACT line — gone once any edge is this far off the table
+    contactFrom: .002,  // print widths: the REST shadow stays whole until the print's highest edge is this far up …
+    contactTo: .03,     // … and has handed over to the lifted shadow by this height; in between it slides with the light,
+                        // so a landing converges into the rest shadow (designer: "it settles and then it quick fades the
+                        // shadow out … supposed to be 1:1 like a physical photo settle") — at most ~.012 W of slide
     sharpTo: .1,        // height (print widths) by which the near-sharp silhouette (σ .01) has become the soft one (σ .03)
     shadowFade: .7,     // print widths of height over which the lifted shadow fades out
     softMax: 1,         // the lifted shadow's strength (its texture: D .12 at the core, the measured warm colour)
@@ -542,14 +545,14 @@
     // reads as a second print edge — designer: "it doubles the picture" just before it settled) — it stays on the print's
     // footprint and is gone once ANY edge is `contact` off the table. The filled silhouette takes over, its penumbra
     // growing with height: sharp (σ .01) → soft (σ .03) by `sharpTo`, soft → wide (σ .09) by `wideAt`.
-    const Foot = [A[0], A[1], A[2], A[3], A[4], A[5], 0, 0, 0];
     const hgt = Math.max(0, Ps[2]);
     let top = -Infinity;
     for (const [u, v] of [[-.5, a / 2], [.5, a / 2], [.5, -a / 2], [-.5, -a / 2]]) top = Math.max(top, R[6] * u + R[7] * v);
     const hTop = Math.max(0, Ps[2] + top);
     const ss = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
-    const oRim = st.rest ? 1 : Math.exp(-hTop / k.contact);
-    const lifted = st.rest ? 0 : (1 - oRim) * Math.exp(-hgt / k.shadowFade) * k.softMax;
+    const w = st.rest ? 0 : ss((hTop - k.contactFrom) / Math.max(1e-6, k.contactTo - k.contactFrom));   // 0 on the table → 1 lifted
+    const oRim = 1 - w;
+    const lifted = w * Math.exp(-hgt / k.shadowFade) * k.softMax;
     const mSoft = ss(hgt / k.sharpTo), mWide = ss((hgt - k.sharpTo) / Math.max(1e-6, k.wideAt - k.sharpTo));
     const ops = [lifted * mSoft * mWide, lifted * mSoft * (1 - mWide), lifted * (1 - mSoft), oRim];
     // at rest the three lifted shadows are PARKED: opaque, shrunk to 45 % under the print's middle (covered by it), so Safari
@@ -559,7 +562,7 @@
       const fl = S.floors[i];
       if (!fl) continue;
       const parked = st.rest && i < 3, rim = i === 3;
-      const tfs = css(parked ? tuck : rim ? Foot : Sh, W, F, st.rest ? 0 : -.5 + i * .01, parked ? S.origin : dOff);   // at rest z 0 (flat pixels), DOM order stacks them
+      const tfs = css(parked ? tuck : Sh, W, F, st.rest ? 0 : -.5 + i * .01, parked ? S.origin : dOff);   // at rest z 0 (flat pixels), DOM order stacks them
       const o = parked ? 1 : ops[i];
       if (tfs !== fl.tf) { fl.el.style.transform = tfs; fl.tf = tfs; }
       if (Math.abs(o - fl.o) > .002 || (o === 0 && fl.o !== 0) || (o === 1 && fl.o !== 1)) {
