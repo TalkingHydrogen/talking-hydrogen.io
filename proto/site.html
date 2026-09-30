@@ -3314,10 +3314,10 @@ const ROOM_FLOOR = { src: '../assets/photo/room-floor.webp', fx: .03331, fy: .06
 const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
   back: { src: '../assets/flip/room-back.webp',
           srcset: '../assets/flip/room-back-1000.webp 1000w, ../assets/flip/room-back-1400.webp 1400w, ../assets/flip/room-back-1800.webp 1800w, ../assets/flip/room-back.webp 2018w' },
-  floorCrisp: { src: '../assets/flip/room-floor-crisp.webp', fx: .01333, fy: .02484 },
-  floorSharp: { src: '../assets/flip/room-floor-sharp.webp', fx: .03333, fy: .06211 },
-  floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .09667, fy: .18012 },
-  floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 },
+  floorCrisp: { src: '../assets/flip/room-floor-crisp.webp', fx: .03331, fy: .06207 },
+  floorSharp: { src: '../assets/flip/room-floor-sharp.webp', fx: .06588, fy: .12276 },
+  floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .12954, fy: .24138 },
+  floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .32199, fy: .60000 },
   ready: new Promise((resolve, reject) => {
     const sc = document.createElement('script'); sc.src = 'flip-render.js';
     sc.onerror = () => reject(new Error('flip-render.js'));
