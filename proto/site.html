@@ -181,7 +181,8 @@
      .cursor-arrow CSS); no native cursor over the shield, the zones or the play button (constant values,
      never toggled; the default / resize / pointer above stay for SHOW_CURSOR off / touch) */
   html.custom-cursor .viewer.open .shield, html.custom-cursor .zone, html.custom-cursor .play { cursor: none; }
-  /* site: the song's PLAY / PAUSE button (a stack with cfg.audio: the sleeve). A child of the .item, right of the front card with
+  /* site: the song's PLAY / PAUSE button (a stack with cfg.audio: the sleeve; cfg.play: the MACBOOK, the same button in the same
+     place — owner 2026-09-30: "put the play button on the macbook … the same as the album position"). A child of the .item, right of the front card with
      its bottom on the card's bottom (layoutSize(): PLAY, 680-box px × KV), so it rides the zoom; laid out at the open size, its
      own layer (crisp in OPEN, a compositor fade). Opacity: render() — the header's fade mirrored (in over the zoom's last
      third, out over the close's first third). Owner 2026-09-26: a flat disc, "the gray must be gray like that and white is
@@ -1273,7 +1274,8 @@ function makeStack(wrap, cfg) {
 /* one stack (site): cfg = { name, primary (the URL knobs, the debug hooks and window.__site: the drawings), idp (a prefix for
    its SVG filter ids), images [{ id, w, h, src? }], assets (the folder of id + '.jpg'), deck, nudge, knobs (own values over
    the defs), rest (site: { rot °, up } — a HOME-only pose of the pile, squared up by the zoom: × (1 − p)), audio (a song src: played
-   from the top by the zoom, its volume = p, paused at HOME) }. Everything below is the drawings stack's engine, per instance;
+   from the top by the zoom, its volume = p, paused at HOME), play (site 2026-09-30: true or fn(on) — the same button without a song:
+   the MACBOOK's; it toggles filmOn and calls the fn) }. Everything below is the drawings stack's engine, per instance;
    the page's shared parts are after it. */
 const IMAGES = cfg.images, D = IMAGES.length, ASSETS = cfg.assets || '', IDP = cfg.idp || '';
 const DEFAULT_DECK = cfg.deck, DEFAULT_NUDGE = cfg.nudge || [];
@@ -1292,8 +1294,10 @@ function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { 
 /* site: its play / pause button (the .play CSS): built with the audio, in the .item; the glyph follows the audio's own state
    (syncPlay on its play / pause / ended events — a refused autoplay shows play). A click toggles it (OPEN only) and never
    reaches the viewer's close routing. */
-const playBtn = audio ? document.createElement('button') : null;
-function syncPlay() { if (!playBtn) return; const on = !audio.paused; playBtn.classList.toggle('playing', on); playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
+const playBtn = audio || cfg.play ? document.createElement('button') : null;
+let filmOn = false;                                         // site 2026-09-30: a cfg.play stack's (the MACBOOK's) own state — its button toggles it (cfg.play(on) is the hook; the screen's film is not wired yet)
+const mediaOn = () => audio ? !audio.paused : filmOn;
+function syncPlay() { if (!playBtn) return; const on = mediaOn(); playBtn.classList.toggle('playing', on); playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
 /* site: its caption (the .caption CSS): page space, in the viewer; the lines, then the credits */
 const capEl = cfg.caption ? document.createElement('div') : null;
 if (capEl) {
@@ -1307,11 +1311,12 @@ if (capEl) {
 if (playBtn) {
   playBtn.className = 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();
   item.appendChild(playBtn);
-  for (const ev of ['play', 'pause', 'ended']) audio.addEventListener(ev, syncPlay);
+  if (audio) for (const ev of ['play', 'pause', 'ended']) audio.addEventListener(ev, syncPlay);
   playBtn.addEventListener('click', e => {
     e.stopPropagation();
     if (state !== 'open') return;
-    if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
+    if (!audio) { filmOn = !filmOn; if (typeof cfg.play === 'function') cfg.play(filmOn); }   // site: the MACBOOK — the glyph toggles; the hook gets the state
+    else if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
     syncPlay();
   });
 }
@@ -1337,7 +1342,7 @@ function songStep(t) {
   songWrite();
   if (songG !== songT) { songRaf = requestAnimationFrame(songStep); return; }
   songRaf = 0;
-  if (songG === 0 && !audio.paused) audio.pause();
+  if (songG === 0 && audio && !audio.paused) audio.pause();
 }
 function songFollow() {                     // flip(): the front card changed — the song and its button follow it (OPEN only)
   if (!audio || SONG < 0 || state !== 'open') return;
@@ -2200,6 +2205,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
     if (songG) { if (audio.paused) audio.play().catch(syncPlay); } else if (!audio.paused) audio.pause();
     syncPlay();
   }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
+  else if (playBtn) { filmOn = false; syncPlay(); }                                        // site: the MACBOOK's button opens showing play (nothing runs until it is pressed)
 }
 /* PERF 2026-09-27: the click's costly work, moved to the PRESS (pointerdown on this stack at HOME; the click is its pointerup):
    the viewer clips (setLayout re-rasters the preview cards, ~30 ms on the drawings: sub-pixel at rest scale, as expand()
@@ -2275,6 +2281,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
   if (activeStack === self) activeStack = null;                                            // site: every stack at HOME again (unless the CAMERA moved on to another)
   wrap.classList.remove('active');
   if (audio) audio.pause();                                                                // site: the song ends with the close (its volume is ~0 by now)
+  else if (playBtn && filmOn) { filmOn = false; if (typeof cfg.play === 'function') cfg.play(false); syncPlay(); }   // site: the MACBOOK's film stops with the close
   if (!activeStack) {
     unlockPage();                                                                          // page scroll unlocked
     scroller.classList.remove('frozen'); row.classList.remove('parting');                  // the row scrolls again
@@ -2572,7 +2579,7 @@ const self = {                              // site: what the page sees of this 
   active, step, idle, size: layoutSize, measure: layoutMeasure, placeZones, boot, render,
   expand, collapse, flip, zoneAt, setVHover, hoverTo, setKnob, setNudge,   // setKnob / setNudge: debug (window.__stacks)
   prime, unprime,                                                          // PERF: the click's costly work on the press (the page's pointerdown / pointerup)
-  audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (null but for the sleeve); the caption (null but for the polaroids)
+  audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (the sleeve's; the MACBOOK's cfg.play button too); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
@@ -3335,7 +3342,8 @@ const MACBOOK = [{ id: 'macbook', src: MB + 'lid-poster.webp', w: 1920, h: 1110,
                    lid: { base: MB, json: 'lid.json' } }];   // the clips + their pose table (makeLid())
 stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBOOK, deck: [0],
                                       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0, hoverScale: 1 },
-                                      rest: { rot: 0, up: -(1920 / 1110 - 1) / 2 } }));
+                                      rest: { rot: 0, up: -(1920 / 1110 - 1) / 2 },
+                                      play: true }));   // site 2026-09-30 (owner: "put the play button on the macbook … the same as the album position"): the sleeve's button, placed by the same rule (placePlay(): right of the card, PLAY.gap, bottoms aligned); the screen's film = the cfg.play hook, not wired yet
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
    brew/polaroid scan renders, 2400 × 2918 → 1645 × 2000 webp). POL_KNOBS: no radius / border at home or in the viewer (square
    corners, the prints carry their own edge); the measured shadows at home and in the viewer (POL_FLOOR / POL_CONTACT, below); pivot .5: with a pile of two the
