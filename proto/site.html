@@ -163,6 +163,8 @@
   .viewer.open .zone { pointer-events: auto; }
   .zone-l { cursor: w-resize; }
   .zone-r { cursor: e-resize; }
+  .zone.vert.zone-l { cursor: s-resize; }   /* site 2026-09-30: the room print's TURN bands when its take lifts the top / bottom edge (placeZones) */
+  .zone.vert.zone-r { cursor: n-resize; }
   /* site 2026-09-27 (owner: "make it appear on the zoom in too", "the arrows for flipping the pages must be there too", then
      "lets try with an arrow akin to this" — a white →): the disc in OPEN too, and over a zone a white arrow shows on it (the
      .cursor-arrow CSS); no native cursor over the shield, the zones or the play button (constant values,
@@ -1491,8 +1493,13 @@ if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site
    context, its img the front face, plus the back, the cut edges and the lifted table shadows (in its .fcast). Clicked in OPEN
    (the viewer's click routing: turnAt()) — the side clicked lifts first; it stays turned over, like a photo put down. */
 let TURN = null;
+const TURN_BAND = { in: .28, out: .04 };    // the print's edge bands (turnHover's teaser; the OPEN zones too, designer 2026-09-30): 28 % in from the edge, 4 % out
 const turnActive = () => !!TURN && (TURN.playing || TURN.hinting());
-if (cfg.turn && D === 1) cfg.turn.ready.then(({ FR, take, tuning }) => { TURN = makeTurn(FR, take, tuning); kick(); })
+if (cfg.turn && D === 1) cfg.turn.ready.then(({ FR, take, tuning }) => {
+  TURN = makeTurn(FR, take, tuning);
+  if (G.eff) { G.zoneCss = zoneCss(G.eff); if (ownsZones()) placeZones(); }              // site 2026-09-30: the zones are its bands now (zoneCss); the boot layout ran before the take arrived
+  kick();
+})
   .catch(err => console.warn('[turn]', err));
 function makeTurn(FR, take, tuning) {
   const c = cards[0], k = Object.assign({}, FR.KNOBS);
@@ -1506,6 +1513,14 @@ function makeTurn(FR, take, tuning) {
               hint: { t: 0, v: 0, target: 0, side: 0, want: 0 }, tHint: 0 };
   FR.smoothTake(take, k); T.tHint = FR.hintTime(take, k.hint);
   T.resize = () => { S.resize(c.w, c.h); T.dirty = true; };
+  /* the CLOSE (closeNow → T.home): the FRONT is the print's rest (designer 2026-09-30: "when I zoom the single image out with
+     an image flipped it will then flip back on its own — the front facing must be the default state"): a print left on its
+     back turns back over on its own as the page zooms out (the same take, the same edge, at its own pace: it lands at HOME);
+     mid-turn, it goes on to land first, then turns back (homing). expand() cancels a pending homing (the print stays as seen). */
+  T.home = () => {
+    if (T.playing) { T.homing = true; return; }
+    if (T.from === 'back') T.start(T.side);
+  };
   /* the HOVER TEASER (designer 2026-09-29: "on hovering to the right corner it will play the animation just a little bit
      showing that it can be turned around"): over an edge band of the print in OPEN, the take's own start plays to its
      first `hint` degrees (a spring on the take time) and holds; off it, it eases back. A click while teased continues the
@@ -1530,7 +1545,10 @@ function makeTurn(FR, take, tuning) {
   T.step = dt => {
     if (T.playing) {
       T.t += dt / 1000 * k.speed; T.dirty = true;
-      if (T.t >= take.dur) { T.playing = false; T.from = T.from === 'front' ? 'back' : 'front'; T.t = 0; }
+      if (T.t >= take.dur) {
+        T.playing = false; T.from = T.from === 'front' ? 'back' : 'front'; T.t = 0;
+        if (T.homing) { T.homing = false; if (T.from === 'back') T.start(T.side); }   // landed on its back after the close: back over to the front
+      }
       return;
     }
     const h = T.hint;
@@ -1612,10 +1630,27 @@ function layoutSize() {
   G.zoneCss = { l: `left:${eff.left - px}px;top:${zt}px;width:${wL}px;height:${zh}px`,
                 r: `left:${eff.left + ew - wR + px}px;top:${zt}px;width:${wR}px;height:${zh}px`,
                 e: `left:${eff.left}px;top:${eff.top}px;width:${ew}px;height:${eh}px` };
-  if (D < 2) G.zoneCss.l = G.zoneCss.r = 'display:none';   // site: a single card (the sleeve) has nothing to flip to: no zones, no peek
+  G.zoneVert = false;
+  G.zoneCss = zoneCss(eff);
   if (ownsZones()) placeZones();
   G.peekPx = knobs.peekPx * KV;                              // the peek's emergence at this box (default PEEK_PX)
   if (capEl) capEl.style.width = Math.max(0, eff.left) + 'px';   // site: its caption's band, left of the pile (the .caption CSS)
+}
+/* site 2026-09-30: the zone CSS for a single card. The sleeve has nothing to flip to: no zones, no peek. The room print TURNS
+   (TURN): its zones are the turn's edge bands (TURN_BAND, turnHover's teaser bands), so the system's resize arrows show
+   there as on the flip pages (designer: "do the same for the single image flip"); a click on them routes to turnAt()
+   (zoneAt: the bands count as ON the print). For a take that lifts the top / bottom edge the bands are horizontal (.vert). */
+function zoneCss(eff) {
+  const z = G.zoneCss;
+  if (D >= 2) return z;
+  if (!TURN) return Object.assign({}, z, { l: 'display:none', r: 'display:none' });
+  const ew = eff.width, eh = eff.height, bi = TURN_BAND.in, bo = TURN_BAND.out;
+  G.zoneVert = TURN.take.axis === 'x';
+  if (G.zoneVert)                                                          // side +1 = the top band ('r'), −1 = the bottom band ('l'), as turnHover
+    return Object.assign({}, z, { l: `left:${eff.left - bo * ew}px;top:${eff.top + (1 - bi) * eh}px;width:${(1 + 2 * bo) * ew}px;height:${(bi + bo) * eh}px`,
+                                  r: `left:${eff.left - bo * ew}px;top:${eff.top - bo * eh}px;width:${(1 + 2 * bo) * ew}px;height:${(bi + bo) * eh}px` });
+  return Object.assign({}, z, { l: `left:${eff.left - bo * ew}px;top:${eff.top - bo * eh}px;width:${(bi + bo) * ew}px;height:${(1 + 2 * bo) * eh}px`,
+                                r: `left:${eff.left + (1 - bi) * ew}px;top:${eff.top - bo * eh}px;width:${(bi + bo) * ew}px;height:${(1 + 2 * bo) * eh}px` });
 }
 function layoutMeasure() {
   // measure (the only getBoundingClientRect calls outside the event handlers and the debug hooks), in the VIEWER's frame
@@ -1630,7 +1665,11 @@ function layoutMeasure() {
   render();
 }
 const ownsZones = () => activeStack ? activeStack === self : !!cfg.primary;
-function placeZones() { if (!G.zoneCss) return; zoneL.style.cssText = G.zoneCss.l; zoneR.style.cssText = G.zoneCss.r; effEl.style.cssText = G.zoneCss.e; }
+function placeZones() {
+  if (!G.zoneCss) return;
+  zoneL.style.cssText = G.zoneCss.l; zoneR.style.cssText = G.zoneCss.r; effEl.style.cssText = G.zoneCss.e;
+  zoneL.classList.toggle('vert', !!G.zoneVert); zoneR.classList.toggle('vert', !!G.zoneVert);                  // site 2026-09-30: the room's top / bottom bands
+}
 /* site: the home-row container's UNSCROLLED centre x (viewer px + the scroller's scrollLeft: the same in every state) and
    the row's scroll range. layout(), expand() and closeNow() (a row element before the stack — the polaroid — may have
    changed size since the last layout) */
@@ -2115,6 +2154,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
   state = 'zoom'; delta = 0;
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
+  if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: this stack takes the page (the zones, the fades), above the other stacks
   for (const s of stacks) if (s !== self) s.letGo();                                       // site: the other stacks let go of their hover (they fade with the row elements)
@@ -2192,6 +2232,7 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
   lockPage();                                                                              // to the top first, then locked until HOME (as expand())
   viewer.classList.remove('open');
   vHoverTo(0);                                                                             // the pointer left the zones: the peek returns
+  if (TURN) TURN.home();                                                                   // site 2026-09-30: TURN — a print on its back turns back to the front (T.home)
   // the pile returns to the table as it was left: the viewer's top N cards in pile order become the home deck (the same slot poses)
   const dk = order.slice(0, knobs.deck.length);
   knobs.deck = dk; knobs.front = dk[0];
@@ -2365,7 +2406,10 @@ function zoneAt(clientX, clientY) {         // −1 the left zone, +1 the right 
   if (pr && clientX >= pr.left && clientX <= pr.right && clientY >= pr.top && clientY <= pr.bottom) return 0;
   const r = viewer.getBoundingClientRect();
   const x = clientX - r.left + viewer.scrollLeft - e.left, y = clientY - r.top - e.top;   // the viewer's content frame (the zones' and the ghost's)
-  if (D < 2) return (x >= 0 && x <= e.width && y >= 0 && y <= e.height) ? 0 : null;   // site: a single card: on it nothing, outside it closes
+  if (D < 2) {                                                                          // site: a single card: on it nothing (TURN: turnAt), outside it closes
+    const o = TURN ? TURN_BAND.out : 0;                                                  // site 2026-09-30: the turn's bands reach 4 % out — a click there turns, not closes
+    return (x >= -o * e.width && x <= (1 + o) * e.width && y >= -o * e.height && y <= (1 + o) * e.height) ? 0 : null;
+  }
   const f = x / e.width, g = y / e.height, pad = FLIP.zonePad;                       // the padded zones first: they reach past the rect
   if (g >= -pad && g <= 1 + pad) {
     if (f >= -pad && f < FLIP.zoneL + pad) return -1;
@@ -2533,8 +2577,9 @@ const self = {                              // site: what the page sees of this 
     const e = G.eff, r = viewer.getBoundingClientRect();
     const f = (clientX - r.left + viewer.scrollLeft - e.left) / e.width, g = (clientY - r.top - e.top) / e.height;
     let side = 0;
-    if (TURN.take.axis === 'x') { if (f > -.04 && f < 1.04) side = g >= -.04 && g < .28 ? 1 : g > .72 && g <= 1.04 ? -1 : 0; }
-    else if (g > -.04 && g < 1.04) side = f > .72 && f <= 1.04 ? 1 : f >= -.04 && f < .28 ? -1 : 0;
+    const bi = TURN_BAND.in, bo = TURN_BAND.out;
+    if (TURN.take.axis === 'x') { if (f > -bo && f < 1 + bo) side = g >= -bo && g < bi ? 1 : g > 1 - bi && g <= 1 + bo ? -1 : 0; }
+    else if (g > -bo && g < 1 + bo) side = f > 1 - bi && f <= 1 + bo ? 1 : f >= -bo && f < bi ? -1 : 0;
     TURN.hover(side);
   },
 };
