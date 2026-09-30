@@ -22,6 +22,9 @@
   .curves .bar button { font: 500 12px/1 -apple-system, system-ui, sans-serif; padding: 6px 11px; border-radius: 8px; border: 1px solid #E5E5EA; background: #fff; color: #1d1d1f; cursor: pointer; }
   .curves .bar button.on { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
   .curves .bar .msg { color: #8e8e93; }
+  .curves .bar .hov { display: inline-flex; align-items: center; gap: 6px; color: #1d1d1f; margin-left: 6px; }
+  .curves .bar .hov input { width: 110px; }
+  .curves .bar .hov span { min-width: 2.6em; color: #8e8e93; font-variant-numeric: tabular-nums; }
   .ch { display: grid; grid-template-columns: 150px 1fr 330px; gap: 12px; align-items: center; padding: 3px 0; }
   .ch .name { color: #1d1d1f; font-weight: 500; }
   .ch .name small { display: block; color: #8e8e93; font-weight: 400; font-variant-numeric: tabular-nums; margin-top: 2px; }
@@ -50,6 +53,8 @@
   <div class="bar">
     <button id="cFlip">Flip</button><button id="cLoop">Loop</button><button id="cSlow">½ speed</button>
     <button id="cSave">Save to site</button><button id="cCopy">Copy values</button><button id="cDefaults">Defaults</button>
+    <label class="hov">hover lift <input type="range" id="hvLift" min="0" max="30" step="1"> <span id="hvLiftV"></span></label>
+    <label class="hov">hover speed <input type="range" id="hvSpeed" min="4" max="30" step=".5"> <span id="hvSpeedV"></span></label>
     <span class="msg" id="cMsg"></span>
   </div>
   <div id="chRows"></div>
@@ -279,7 +284,19 @@ function buildCurves() {
     plot.addEventListener('pointerup', () => { plot.onpointermove = null; });
   }
 }
-function syncSliders() { for (const inp of document.querySelectorAll('.ch input')) inp.syncFromK && inp.syncFromK(); }
+function syncSliders() {
+  for (const inp of document.querySelectorAll('.ch input')) inp.syncFromK && inp.syncFromK();
+  hvSync();
+}
+/* the HOVER TEASER's lift (designer: "lift on hover"): `hint` = how far the edge turns on hover (the rise comes with it),
+   `hintSpeed` = how quickly it gets there. Hover the print's right / left edge above to feel it. */
+const hvLift = document.getElementById('hvLift'), hvSpeed = document.getElementById('hvSpeed');
+function hvSync() {
+  hvLift.value = K.hint; document.getElementById('hvLiftV').textContent = K.hint + '°';
+  hvSpeed.value = K.hintSpeed; document.getElementById('hvSpeedV').textContent = K.hintSpeed;
+}
+hvLift.oninput = () => { K.hint = +hvLift.value; hvSync(); values(); if (hint.side) { hint.target = tHint(); if (!hintRaf) { hintLast = performance.now(); hintRaf = requestAnimationFrame(hintTick); } } };
+hvSpeed.oninput = () => { K.hintSpeed = +hvSpeed.value; hvSync(); values(); };
 function sized(cv) {
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
