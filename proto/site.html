@@ -1314,9 +1314,11 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
    side. The play button when you press the first time to play the video will fade out slowly. The most important thing here is to
    RELIABLY across devices and monitor sizes have a SEAMLESS transition between the laptop static image and video start. You can
    scale the image of the laptop opened").
-   THE FILM: brew/filmweb/filmweb.py → assets/macbook/film-{3200,1920}.mp4 (HEVC 10-bit, WebKit) / film-av1-{3200,1920}.mp4 (the
-   rest) + film.json (= FILM below). It is 'B final 4K60' from its first frame with the lid settled (the lid's own clips play the
-   opening) to its last before the black: 59.43 s, the audio on to its end.
+   THE FILM: brew/filmweb/filmweb.py → assets/macbook/film-{3200,1920}.mp4 (HEVC 10-bit, WebKit) / film-{3200,1920}.webm (the rest:
+   VP9 with an opaque alpha — the lid clips' own recipe, so the same decode and colour path as the laptop it takes over; measured in
+   Firefox 2026-09-30: .2 level off the lid clip, where opaque VP9 was +3…+5 and AV1 −4…−12) + film.json (= FILM below). It is
+   'B final 4K60' from its first frame with the lid settled (the lid's own clips play the opening) to its last before the black:
+   59.43 s, the audio on to its end.
    ONE FRAME, BY CONSTRUCTION. Every frame of it is placed by one matrix (filmWrite()) = the card's own (the item's zoom and the
    card's pose, render()) ∘ a film → card map measured off the master: at the start the settled open laptop (geom.open: the lid
    master × (sx, sy) + (tx, ty) in the film's 3840 × 2160 px — its laptop is .83 % flatter than the master's, so the film is shown
@@ -1344,9 +1346,9 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
 const FILM = {
   fps: 60, dur: 59.433333, land: [55.466667, 57.816667],           // s on the film's clock: the landing (the page's p follows the video)
   geom: { open: { sx: .566204, sy: .561466, tx: 832.84, ty: 455.94 }, end: { s: .3837, tx: 1181.9, ty: 850.9 }, W: 3840, H: 2160, row0: 1 },
-  sizes: [1920, 3200], pick: 2400,                                   // the 3200 file from a frame this many device px wide
-  src: { hevc: 'film-{w}.mp4', av1: 'film-av1-{w}.mp4' },
-  type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', av1: 'video/mp4; codecs="av01.0.12M.10"' },
+  sizes: [1920, 3200], pick: { hevc: 2400, vp9: 2880 },            // the 3200 file from a frame this many device px wide (VP9 + alpha: a software decode — retina-class frames only)
+  src: { hevc: 'film-{w}.mp4', vp9: 'film-{w}.webm' },
+  type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', vp9: 'video/webm; codecs="vp09.00.41.08, opus"' },
   fit: 1.15,                                                          // the frame: covers the viewport, at most 1.15 × its contain size
   inMs: 260, btnMs: 1200, stopMs: 550, backMs: 700, bMs: 800,        // the film's fade in over the card; the button's fade out; a stop's fade; the chrome's return; the B's fade
   push: .6,                                                           // the neighbours slide out by this × the viewport width
@@ -1726,7 +1728,7 @@ function filmCtl(F) {
   el.setAttribute('playsinline', ''); el.setAttribute('aria-hidden', 'true'); el.setAttribute('disableremoteplayback', '');
   row.appendChild(el);                                      // in the row's 3D context (the .film CSS), not a row element (RP.els skips it)
   const probe = document.createElement('video');
-  const kind = (/apple/i.test(navigator.vendor) ? ['hevc', 'av1'] : ['av1', 'hevc']).find(k => probe.canPlayType(FILM.type[k])) || null;   // WebKit: HEVC (its grade); the rest: AV1
+  const kind = (/apple/i.test(navigator.vendor) ? ['hevc', 'vp9'] : ['vp9', 'hevc']).find(k => probe.canPlayType(FILM.type[k])) || null;   // WebKit: HEVC (its grade, as the lid's); the rest: VP9 + alpha (as the lid's)
   const proxy = playBtn ? Object.assign(document.createElement('div'), { className: 'play proxy', innerHTML: PLAY_SVG }) : null;
   if (proxy) { proxy.setAttribute('aria-hidden', 'true'); row.appendChild(proxy); }
   let proxyOn = false;
@@ -1741,19 +1743,19 @@ function filmCtl(F) {
   function arm() {                          // the zoom in: the right file for this window, loading, its first frame decoded
     if (!kind) { if (playBtn) playBtn.style.display = 'none'; return; }
     const dpx = filmFrameW(viewer.clientWidth, viewer.clientHeight) * (devicePixelRatio || 1);
-    const w = dpx >= FILM.pick ? Math.max(...FILM.sizes) : Math.min(...FILM.sizes);   // never softer than the lid clip it replaces
+    const w = dpx >= FILM.pick[kind] ? Math.max(...FILM.sizes) : Math.min(...FILM.sizes);   // never softer than the lid clip it replaces
     const src = base + FILM.src[kind].replace('{w}', w);
     if (el.getAttribute('src') !== src) { el.src = src; el.preload = 'auto'; el.load(); }
     else if (fs === 'off' && el.currentTime > .001) { el.pause(); el.currentTime = 0; }
     armed = true; if (fs === 'off') { fput('v', 'visibility', 'visible'); fput('o', 'opacity', '0'); }
   }
   function disarm() { armed = false; if (fs === 'off') fput('v', 'visibility', 'hidden'); }
-  function play() {                         // the button (OPEN)
+  function play(muted = false) {            // the button (OPEN); muted: the ?film=auto debug start (no gesture)
     if (fs !== 'off' || state !== 'open' || !kind) return;
     arm();
     fs = 'start'; perfMark('film start');
     hide.tween(1, FILM.btnMs, ZOOM_EASE); fade.jump(0); proxyOn = true;
-    el.muted = false; el.volume = 1;
+    el.muted = muted; el.volume = 1;
     if (el.currentTime > .001) el.currentTime = 0;
     const go = () => { if (fs === 'start') swapIn(); };
     if (el.requestVideoFrameCallback) el.requestVideoFrameCallback(go);
@@ -3308,6 +3310,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   if (CAMERA) {                                                                               // the name: the camera, about its layer's centre
     const [ox, oy] = RP.hO || [0, 0], id = Math.abs(C.k - 1) < 1e-6 && Math.abs(C.x) < .005 && Math.abs(C.y) < .005;   // the name: the camera, about its layer's centre
     pput(hdr, 'hdrT', 'transform', id ? '' : `translate(${(C.k * ox + C.x - ox).toFixed(2)}px, ${(C.k * oy + C.y - oy).toFixed(2)}px) scale(${C.k.toFixed(5)})`);
+    pput(hdr, 'hdrO', 'opacity', fo ? String(Math.round((1 - fo) * 1000) / 1000) : '');   // site: FILM — the name leaves with the rest of the page (a tall window keeps it on screen in OPEN)
   }
 }
 /* PERF 2026-09-27 — PARKING (the close's stalls, 45–150 ms as each other row element came back on screen, worse the longer OPEN
@@ -3535,6 +3538,13 @@ for (const z of [nzL, nzR]) {                                                   
    the video"), and nothing else sees it (the viewer's close routing, the neighbour zones, a press's prime) — window capture, first.
    Esc / space too. During the landing and a stop's fade clicks are swallowed. */
 const filmGuard = () => stacks.find(s => s.film?.guards)?.film;
+if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(async () => {   // debug: open the MACBOOK and start its film muted (any browser, no gesture); ?filmat=SEC seeks there
+  const s = stacks.find(k => k.film); if (!s) return;
+  s.expand(); while (s.state !== 'open') await new Promise(r => setTimeout(r, 50));
+  await new Promise(r => setTimeout(r, parseFloat(pageQuery.get('filmdelay')) || 1500)); s.film.play(true);   // ?filmdelay=MS before the play
+  const at = parseFloat(pageQuery.get('filmat')), hold = pageQuery.has('filmhold');                     // ?filmhold: pause on the first frames (a colour check)
+  if (at > 0 || hold) { while (s.film.state !== 'play') await new Promise(r => setTimeout(r, 20)); if (hold) s.film.el.pause(); if (at > 0) s.film.el.currentTime = at; }
+}, 800));
 for (const t of ['pointerdown', 'pointerup', 'click']) addEventListener(t, e => {
   const f = filmGuard(); if (!f) return;
   e.stopImmediatePropagation(); if (t === 'click') { e.preventDefault(); f.stop(); }
