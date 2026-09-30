@@ -493,8 +493,15 @@
       if (stf !== f.st) { f.sheen.style.transform = stf; f.st = stf; }
       if (Math.abs(so - f.so) > .002 || (so === 0 && f.so !== 0)) { f.sheen.style.opacity = so.toFixed(4); f.so = so; }
     }
-    // the cut edges: thin rectangles through the thickness, lit by Lambert, shown only while they face the camera
+    // the cut edges: thin rectangles through the thickness. Shown only NEAR EDGE-ON (designer: "black stripped lines as an
+    // artifact on lift" — a slightly tilted print's edge is far thinner than a pixel and rasterised as dashes, and Lambert
+    // shaded it near black facing away from the light): its one job is to keep the print from vanishing at 90°. It fades in
+    // as the face turns within ~12° of edge-on, and stays paper-white (a shaded edge darkens at most 12 %).
     const th = k.thick / W, h2 = th / 2;
+    const vc = Math.hypot(toCam[0], toCam[1], toCam[2]) || 1;
+    const facing = Math.abs(dot(nF, toCam)) / vc;                   // 1 = the face looks at the camera, 0 = edge-on
+    const sm = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+    const edgeOn = st.rest ? 0 : 1 - sm((facing - .06) / .15);
     const sides = [
       { n: [1, 0, 0], B: [0, 0, .5, -a / 100, 0, a / 2, 0, -th / 100, h2] },    // right: ex along −y, ey through −z
       { n: [-1, 0, 0], B: [0, 0, -.5, a / 100, 0, -a / 2, 0, -th / 100, h2] },  // left
@@ -505,14 +512,14 @@
       const e = S.edges[i], sd = sides[i];
       const n = mvec(R, sd.n);
       const mid = mvec(R, [sd.B[2] + sd.B[0] * 50, sd.B[5] + sd.B[3] * 50, 0]);
-      const vis = !st.rest && dot(n, [cam[0] - P[0] - mid[0], cam[1] - P[1] - mid[1], cam[2] - P[2] - mid[2]]) > 0;
-      const o = vis ? 1 : 0;
+      const vis = edgeOn > .002 && dot(n, [cam[0] - P[0] - mid[0], cam[1] - P[1] - mid[1], cam[2] - P[2] - mid[2]]) > 0;
+      const o = vis ? Math.round(edgeOn * 100) / 100 : 0;
       if (vis) {
         const tf = css(faceA(R, P, sd.B), W, F, .03, S.origin);
         if (tf !== e.tf) { e.el.style.transform = tf; e.tf = tf; }
         const m = (k.ambient + (1 - k.ambient) * Math.max(0, dot(n, L))) / (k.ambient + (1 - k.ambient) * L[2]);
-        const g = Math.max(0, Math.min(255, Math.round(k.edge * Math.min(1.06, m))));
-        const c = 'rgb(' + g + ',' + g + ',' + Math.max(0, g - 4) + ')';
+        const g = Math.max(0, Math.min(255, Math.round(k.edge * Math.min(1.03, Math.max(.88, m)))));
+        const c = 'rgb(' + g + ',' + g + ',' + Math.max(0, g - 3) + ')';
         if (c !== e.c) { e.el.style.background = c; e.c = c; }
       }
       if (o !== e.o) { e.el.style.opacity = o; e.o = o; }
