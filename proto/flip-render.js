@@ -30,7 +30,7 @@
   'use strict';
 
   const KNOBS = {
-    lens: 5,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
+    lens: 8,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
     smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
     wobble: 1,          // the hand's SWAY (everything off the flip axis: the print turning in its own plane, rocking), kept
@@ -39,14 +39,14 @@
     wobbleCurve: 4,     // the curve drawn through the sway: control points of a cubic spline, flat at both rests (fewer = smoother)
     hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
-    lift: .15,          // × the phone's own lift (retargeted) — designer: "the image must raise lightly" (1 = as the hand did)
+    lift: .05,          // × the phone's own lift (retargeted) — designer: "raise lightly", then "lift not so much, more subtle"
     clear: 1,           // share of the lift a turn about its middle needs to clear the table (1 = physical: at 90° the centre
                         // rises half a print width). Below 1 the print dips through the table and the dipped half casts its
                         // shadow toward the light — keep 1; soften the rise with `lens` (a longer lens = less growth)
     travel: .5,         // × the phone's sideways travel (retargeted; it lands in place)
     thick: .5,          // the paper's edge, CSS px — designer: "a picture, so as thin as paper" (a hairline at edge-on)
     az: 135,            // light azimuth, degrees (135 = from the upper left, as the site's shadows)
-    el: 58,             // light elevation, degrees
+    el: 68,             // light elevation, degrees (higher = the lifted shadow slides out less)
     ambient: .5,        // the room's fill light (white walls): the share of light that doesn't depend on the face's angle
     shade: .45,         // how much a face darkens as it turns from the light (Lambert, relative to rest)
     lighten: .35,       // how much it brightens turning toward it
@@ -57,7 +57,7 @@
     edge: 248,          // the cut edge's grey at full light (near the paper's white: an edge, not a board)
     contact: .006,      // print widths: the rest shadow is a CONTACT line — gone once any edge is this far off the table
     sharpTo: .1,        // height (print widths) by which the near-sharp silhouette (σ .01) has become the soft one (σ .03)
-    shadowFade: 1.1,    // print widths of height over which the lifted shadow fades out
+    shadowFade: .7,     // print widths of height over which the lifted shadow fades out
     softMax: 1,         // the lifted shadow's strength (its texture: D .12 at the core, the measured warm colour)
     wideAt: .35,        // height (print widths) by which the soft penumbra has become the wide one
   };
