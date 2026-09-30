@@ -1909,7 +1909,10 @@ function peekDx(j, i, side, px = G.peekPx) {   // site: px = the emergence (the 
 function targetPose(j) {
   const i = order.indexOf(j), sl = slots[i];
   if (!sl) return { x: 0, d: 0, k: 0, y: 0, r: 0, s: 1 };                  // before the first arrange()
-  const side = vhover > 0 && i === 1 ? 1 : vhover < 0 && i === D - 1 ? -1 : 0, k = side ? peekDx(j, i, side) : 0;
+  const side = D < 2 ? 0 : vhover > 0 && i === 1 ? 1 : vhover < 0 && i === D - 1 ? -1 : 0, k = side ? peekDx(j, i, side) : 0;
+  // site 2026-09-30: a single card never peeks — the room print's zones are its TURN bands, and with D = 1 the left zone took the
+  // print itself for the page under it (i === D − 1) and slid it out left (designer: "the image now moves to the left if hovering
+  // over the left side"); the neighbour peek (protrude) calls peekDx itself
   return { x: sl.dx + k, d: sl.dx, k, y: sl.dy, r: sl.rot, s: sl.size };
 }
 const retarget = (s, v) => { if (s.target !== v || (s.done && s.value !== v)) s.set(v); };
