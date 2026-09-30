@@ -85,6 +85,7 @@ const PRINT = { front: { src: '../assets/photo/room-print.webp',
                         srcset: '../assets/flip/room-back-1000.webp 1000w, ../assets/flip/room-back-1400.webp 1400w, ../assets/flip/room-back-1800.webp 1800w, ../assets/flip/room-back.webp 2018w' },
                 aspect: 1083 / 2018,
                 floor: { src: '../assets/photo/room-floor.webp', fx: .03331, fy: .06207 },
+                floorCrisp: { src: '../assets/flip/room-floor-crisp.webp', fx: .01333, fy: .02484 },
                 floorSharp: { src: '../assets/flip/room-floor-sharp.webp', fx: .03333, fy: .06211 },
                 floorSoft: { src: '../assets/flip/room-floor-soft.webp', fx: .09667, fy: .18012 },
                 floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 } };
@@ -93,7 +94,7 @@ const DEFS = {
   kMotion: [['lens', 1.2, 14, .05], ['speed', .25, 2, .01], ['smooth', 0, 150, 1], ['hint', 0, 45, 1], ['hintSpeed', 3, 30, .5], ['thick', 0, 6, .1]],
   kLight: [['az', 0, 360, 1], ['el', 10, 89, 1], ['ambient', 0, 1, .01], ['shade', 0, 1.5, .01], ['lighten', 0, 1.5, .01], ['sheen', 0, 1.5, .01],
            ['gloss', 4, 400, 1], ['sheenW', .05, 1.2, .01], ['backSheen', 0, 1, .01], ['edge', 150, 255, 1]],
-  kShadow: [['contactFrom', 0, .02, .001], ['contactTo', .005, .1, .001], ['sharpTo', .02, .5, .01], ['wideAt', .05, 1.5, .01], ['shadowFade', .1, 4, .05], ['softMax', 0, 2, .01]],
+  kShadow: [['crispAt', .001, .05, .001], ['sharpAt', .005, .15, .001], ['softAt', .02, .5, .005], ['wideAt', .05, 1.5, .01], ['shadowFade', .1, 4, .05], ['softMax', 0, 2, .01]],
 };
 let TUNING = {};                                          // assets/flip/tuning.json — what "Save to site" wrote (the site reads it too)
 const urlKnobs = () => { for (const k of Object.keys(K)) { const v = parseFloat(Q.get(k)); if (Number.isFinite(v)) K[k] = v; } };

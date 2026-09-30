@@ -59,12 +59,11 @@
     sheenW: .45,        // the band's width, print widths
     backSheen: .12,     // the back is resin-coated paper: a faint, broad sheen
     edge: 248,          // the cut edge's grey at full light (near the paper's white: an edge, not a board)
-    contactFrom: .002,  // print widths: the REST shadow stays whole until the print's highest edge is this far up …
-    contactTo: .03,     // … and has handed over to the lifted shadow by this height; in between it slides with the light,
-                        // so a landing converges into the rest shadow (designer: "it settles and then it quick fades the
-                        // shadow out … supposed to be 1:1 like a physical photo settle") — at most ~.012 W of slide
-    sharpTo: .1,        // height (print widths) by which the near-sharp silhouette (σ .01) has become the soft one (σ .03)
-    shadowFade: .7,     // print widths of height over which the lifted shadow fades out
+    crispAt: .008,      // THE SHADOW'S SHARPNESS CHAIN by height (print widths; designer: "don't fade it … the closer it is to
+    sharpAt: .03,       // touch the table the shadow just gets crispier and then just shrinks completely"): at 0 the rest
+    softAt: .1,         // shadow, at crispAt σ .004, sharpAt σ .01, softAt σ .03, wideAt σ .09 — each height blends only its
+                        // two neighbours at a CONSTANT total, all sliding with the light (the offset ∝ height shrinks to 0)
+    shadowFade: .7,     // print widths: the shadow lightens only when the print is truly up (beyond sharpAt; ambient fill)
     softMax: 1,         // the lifted shadow's strength (its texture: D .12 at the core, the measured warm colour)
     wideAt: .35,        // height (print widths) by which the soft penumbra has become the wide one
   };
@@ -365,7 +364,7 @@
     const stage = document.createElement('div'); stage.className = 'fr-stage'; host.appendChild(stage);
     const mk = (cls, parent) => { const d = document.createElement('div'); d.className = cls; (parent || stage).appendChild(d); return d; };
     const floors = [];                                             // bottom → top: wide, soft, sharp (the lifted silhouette), rim (rest)
-    for (const f of [cfg.floorWide, cfg.floorSoft, cfg.floorSharp, cfg.floor]) {
+    for (const f of [cfg.floorWide, cfg.floorSoft, cfg.floorSharp, cfg.floorCrisp, cfg.floor]) {
       if (!f) { floors.push(null); continue; }
       const el = mk('fr-layer fr-floor');
       const img = document.createElement('img'); img.src = f.src; img.alt = ''; img.decoding = 'async'; el.appendChild(img);
@@ -551,24 +550,31 @@
     // the REST shadow is a contact line hugging the print's edge: it never travels with the light (a displaced sharp line
     // reads as a second print edge — designer: "it doubles the picture" just before it settled) — it stays on the print's
     // footprint and is gone once ANY edge is `contact` off the table. The filled silhouette takes over, its penumbra
-    // growing with height: sharp (σ .01) → soft (σ .03) by `sharpTo`, soft → wide (σ .09) by `wideAt`.
+    // growing with height (the sharpness chain below: rest → crisp → sharp → soft → wide).
     const hgt = Math.max(0, Ps[2]);
     let top = -Infinity;
     for (const [u, v] of [[-.5, a / 2], [.5, a / 2], [.5, -a / 2], [-.5, -a / 2]]) top = Math.max(top, R[6] * u + R[7] * v);
     const hTop = Math.max(0, Ps[2] + top);
-    const ss = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
-    const w = st.rest ? 0 : ss((hTop - k.contactFrom) / Math.max(1e-6, k.contactTo - k.contactFrom));   // 0 on the table → 1 lifted
-    const oRim = 1 - w;
-    const lifted = w * Math.exp(-hgt / k.shadowFade) * k.softMax;
-    const mSoft = ss(hgt / k.sharpTo), mWide = ss((hgt - k.sharpTo) / Math.max(1e-6, k.wideAt - k.sharpTo));
-    const ops = [lifted * mSoft * mWide, lifted * mSoft * (1 - mWide), lifted * (1 - mSoft), oRim];
-    // at rest the three lifted shadows are PARKED: opaque, shrunk to 45 % under the print's middle (covered by it), so Safari
+    // the sharpness chain: rest (h 0) → crisp → sharp → soft → wide by the print's height; at any height only the two
+    // neighbouring levels mix and their weights sum to 1 — the shadow never fades near the table, it gets crisper and its
+    // offset (∝ height, along the light) shrinks until only the contact shadow is left. It lightens only when truly up.
+    const hh = st.rest ? 0 : Math.max(0, (hgt + hTop) / 2);        // between the centre's height and the highest edge's
+    const at = [0, k.crispAt, k.sharpAt, k.softAt, k.wideAt];       // rim, crisp, sharp, soft, wide
+    const wts = [0, 0, 0, 0, 0];
+    if (hh >= at[4]) wts[4] = 1;
+    else for (let j = 0; j < 4; j++) if (hh >= at[j] && hh < at[j + 1]) {
+      const u = (hh - at[j]) / Math.max(1e-9, at[j + 1] - at[j]), sm = u * u * (3 - 2 * u);
+      wts[j] = 1 - sm; wts[j + 1] = sm;
+    }
+    const lighten = Math.exp(-Math.max(0, hh - k.sharpAt) / k.shadowFade) * (hh > k.sharpAt ? k.softMax : 1);
+    const ops = [wts[4] * lighten, wts[3] * lighten, wts[2] * lighten, wts[1] * lighten, wts[0]];   // DOM order: wide … rim
+    // at rest the four lifted shadows are PARKED: opaque, shrunk to 45 % under the print's middle (covered by it), so Safari
     // keeps their bitmaps — at opacity 0 it would drop them after ~1 s and redraw them in the flip's first frame
     const tuck = [.45 / W, 0, -.225, 0, -.45 / W, .225 * a, 0, 0, 0];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const fl = S.floors[i];
       if (!fl) continue;
-      const parked = st.rest && i < 3, rim = i === 3;
+      const parked = st.rest && i < 4;
       const tfs = css(parked ? tuck : Sh, W, F, st.rest ? 0 : -.5 + i * .01, parked ? S.origin : dOff);   // at rest z 0 (flat pixels), DOM order stacks them
       const o = parked ? 1 : ops[i];
       if (tfs !== fl.tf) { fl.el.style.transform = tfs; fl.tf = tfs; }
@@ -614,7 +620,7 @@
     for (const [name, el, img] of [['back', backEl, bimg], ['front', frontEl, cfg.img]])
       faces[name] = { el, img, tint: mk('fr-tint', el), sheen: mk('fr-sheen', el), tf: '', o: -1, so: -1, st: '', tc: '' };
     const edges = [0, 1, 2, 3].map(() => ({ el: mk('fr-layer fr-edge', card), tf: '', o: -1, c: '' }));
-    const floors = [null, null, null, null];
+    const floors = [null, null, null, null, null];
     if (cfg.fcast && cfg.rim) {
       const wrap = (f, img) => {
         const el = mk('fr-layer fr-in fr-sh', cfg.fcast, img || null);
@@ -623,12 +629,13 @@
         el.style.setProperty('--fx', f.fx); el.style.setProperty('--fy', f.fy);
         return { el, img, f, o: -1, tf: '', site: true };
       };
-      floors[3] = wrap({ fx: +getComputedStyle(cfg.fcast).getPropertyValue('--fx') || 0, fy: +getComputedStyle(cfg.fcast).getPropertyValue('--fy') || 0 }, cfg.rim);
+      floors[4] = wrap({ fx: +getComputedStyle(cfg.fcast).getPropertyValue('--fx') || 0, fy: +getComputedStyle(cfg.fcast).getPropertyValue('--fy') || 0 }, cfg.rim);
+      if (cfg.floorCrisp) floors[3] = wrap(cfg.floorCrisp);
       if (cfg.floorSharp) floors[2] = wrap(cfg.floorSharp);
       if (cfg.floorSoft) floors[1] = wrap(cfg.floorSoft);
       if (cfg.floorWide) floors[0] = wrap(cfg.floorWide);
-      let above = floors[3];                             // DOM order bottom → top: wide, soft, sharp, rim
-      for (let i = 2; i >= 0; i--) if (floors[i]) { cfg.fcast.insertBefore(floors[i].el, above.el); above = floors[i]; }
+      let above = floors[4];                             // DOM order bottom → top: wide, soft, sharp, crisp, rim
+      for (let i = 3; i >= 0; i--) if (floors[i]) { cfg.fcast.insertBefore(floors[i].el, above.el); above = floors[i]; }
     }
     const S = { faces, edges, floors, aspect: cfg.H / cfg.W, W: cfg.W, origin: [cfg.W / 2, cfg.H / 2], attached: true };
     S.resize = (W, H) => {
