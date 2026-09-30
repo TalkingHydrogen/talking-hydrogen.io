@@ -63,6 +63,17 @@
   .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; width: max-content; column-gap: 10.4em;
          transform-style: preserve-3d; }   /* PERF 2026-09-27: a 3D context — the OPEN cover and the parked elements are ordered by DEPTH (translate z), never by z-index (the .cover note) */   /* site: 13em × .8 (owner 2026-09-26: "reduce the space between the things a bit", with the row at uiScale .8) */
   .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }
+  /* site 2026-09-30: the SIGN-OFF at the row's end (owner: "add this text in the same style and scale to the end of the row … a love
+     letter to the people I worked with and things we made along"): the room print's back line, continued — the same setting
+     (brew/flipcap/printback.py: SF Width 85 / Medium / .18 em tracking, caps, the print's ink = its paper × .83 → #D4D4D4 on the
+     white page), at the on-screen scale of the line on the OPEN print (cap 1.21 % of the print's 680 px = 8.25 px at em 18:
+     .64em × SF's .72 cap), its baseline where the print line's is at HOME (4.5 % of the print's width above the row's floor:
+     .95em; line-height 1 puts the baseline .125em above the box's bottom). A row element (RP.els: it rides the row physics and
+     the CAMERA), neither a stack nor a tile (no hover); its own layer as the wraps. font-stretch: WebKit maps it to the
+     system font's Width axis (measured: 85 % narrows the line 9.2 %, as the bake's wdth 85). */
+  .sign { position: relative; z-index: 20; flex: none; will-change: transform; align-self: flex-end; padding-bottom: .825em;
+          font-size: .64em; line-height: 1; font-weight: 500; font-stretch: 85%; letter-spacing: .18em; text-transform: uppercase;
+          white-space: nowrap; color: #D4D4D4; pointer-events: none; }
   html.skip-wrapwc .wrap { will-change: auto; }   /* debug: ?skip=wrapwc */   /* PERF 2026-09-28: its own layer FOR GOOD (was `.row.parting .wrap:not(.active)`: will-change toggled on the four other stacks at the zoom's first frame and the close's last — layers created / destroyed mid-motion, a compositing-tree rebuild each time). Its children are layers already: this one holds no bitmap. */
   /* PERF 2026-09-27: the COVER — an opaque sheet over the whole viewport IN the row's 3D context at depth −1 px, coloured exactly as
      the backdrop is at that p (rowWrite()), so it is never seen: above the PARKED row elements (depth −2 px), under the active
@@ -306,6 +317,8 @@
   <div class="wrap" id="dandelion" data-size=".9"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
   </div></div>
+  <!-- site 2026-09-30: the SIGN-OFF, the row's last element (the .sign CSS): the print's back line continued, the owner's words as typed -->
+  <div class="sign" id="sign">a love letter to the people I worked with and things we made along</div>
   <div class="cover" id="cover" aria-hidden="true"><div></div></div>   <!-- PERF: OPEN's cover over the parked row elements (the .cover CSS; not a row element) -->
 </main>
 </div>
