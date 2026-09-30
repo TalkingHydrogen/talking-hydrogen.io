@@ -40,7 +40,8 @@
     rockAmt: 1,
     liftPts: 6,         // … through the LIFT (its size: `lift`, below)
     driftPts: 4,        // … through the DRIFT on the table (its size: `travel`)
-    hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
+    hint: 4,            // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
+                        // (designer 2026-09-30: 4°, was 14°)
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
     lift: .05,          // × the phone's own lift (retargeted) — designer: "raise lightly", then "lift not so much, more subtle"
     clear: 1,           // LIFT %: the whole rise (1 = physical: turning in place it just clears the table — at 90° its centre
