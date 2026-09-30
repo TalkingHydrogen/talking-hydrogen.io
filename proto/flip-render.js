@@ -32,17 +32,20 @@
   const KNOBS = {
     lens: 8,          // camera height, print widths (lower = a stronger trapezoid; physics couples it to the lift's growth)
     speed: 1,           // playback rate of the captured flip
-    smooth: 40,         // ms (Gaussian σ on the turn's angular velocity, zero-phase): hand tremor + sensor noise out, the gesture kept
-    wobble: 1,          // the hand's SWAY (everything off the flip axis: the print turning in its own plane, rocking), kept
-                        // at its size (designer: "don't rule it out … draw some curve on the input approximating and
-                        // smoothing lots of it"); 0 = a pure turn about the flip axis
-    wobbleCurve: 4,     // the curve drawn through the sway: control points of a cubic spline, flat at both rests (fewer = smoother)
+    smooth: 0,          // ms: a velocity-domain Gaussian BEFORE the channels (0 = none: the channel curves do the smoothing)
+    turnPts: 14,        // the curve through the TURN (points; 0 = as recorded; fewer = smoother) — keeps the hand's timing
+    leanPts: 4,         // … through the LEAN (the print turning in its own plane, "angled right and left")
+    leanAmt: 1,         // its size (1 = as the hand did; designer: "don't rule it out … smooth it to extremes")
+    rockPts: 4,         // … through the ROCK (about the other in-plane axis)
+    rockAmt: 1,
+    liftPts: 6,         // … through the LIFT (its size: `lift`, below)
+    driftPts: 4,        // … through the DRIFT on the table (its size: `travel`)
     hint: 14,           // degrees: hovering an edge plays the take's start up to this turn — it shows the print can be turned
     hintSpeed: 12,      // rad/s: the hover teaser's spring (critically damped; ~.4 s to settle)
     lift: .05,          // × the phone's own lift (retargeted) — designer: "raise lightly", then "lift not so much, more subtle"
-    clear: 1,           // share of the lift a turn about its middle needs to clear the table (1 = physical: at 90° the centre
-                        // rises half a print width). Below 1 the print dips through the table and the dipped half casts its
-                        // shadow toward the light — keep 1; soften the rise with `lens` (a longer lens = less growth)
+    clear: 1,           // LIFT %: the whole rise (1 = physical: turning in place it just clears the table — at 90° its centre
+                        // rises half a print width). Lower = it turns lower, dipping through the table unseen; its shadow is
+                        // the just-clearing pose's, re-attached to the edge on the table (it never falls toward the light)
     travel: .5,         // × the phone's sideways travel (retargeted; it lands in place)
     thick: .5,          // the paper's edge, CSS px — designer: "a picture, so as thin as paper" (a hairline at edge-on)
     az: 135,            // light azimuth, degrees (135 = from the upper left, as the site's shadows)
@@ -111,12 +114,9 @@
      start rest; the small end error is spread in proportion to the turn so it lands exactly on the end rest. The travel gets
      the same Gaussian with exact ends. Measured on the first real takes: σ 40 ms removes ~90 % of the > 4 Hz speed wiggle
      (14–17 → ~1.7 °/s rms), jerk ÷ ~100, the turn's shape within 3°, the lift peak within 1 %. */
-  const smKey = k => k.smooth + '|' + k.wobble + '|' + k.wobbleCurve;
-  function smoothTake(take, kk) {
-    const k = typeof kk === 'number' ? Object.assign({}, KNOBS, { smooth: kk }) : Object.assign({}, KNOBS, kk);
-    const ms = k.smooth, n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
-    take._sm = smKey(k);
-    if (!(sig > .3)) { take.q = take.qRaw.slice(); take.p = take.pRaw.slice(); return sway(take, k); }
+  function prefilter(take, ms) {                      // the velocity-domain Gaussian (below): denoise before the channels
+    const n = take.n, fps = (n - 1) / take.dur, sig = ms / 1000 * fps;
+    if (!(sig > .3)) { take.q = take.qRaw.slice(); take.p = take.pRaw.slice(); return take; }
     const R = Math.ceil(4 * sig), ker = [];
     let ks = 0;
     for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); ker.push(v); ks += v; }
@@ -148,14 +148,23 @@
       for (let c = 0; c < 3; c++) p[i * 3 + c] = ps[i][c] - ps[0][c] * (1 - u) - ps[n - 1][c] * u;   // exact ends (0 at both)
     }
     take.q = q; take.p = p;
-    return sway(take, k);
+    return take;
   }
-  /* the SWAY (designer: "the flat image rotating angled right and left … it wobbles cuz my hands are shaky", then "don't
-     rule it out … draw some curve on the input approximating and smoothing lots of it"): each frame is split into the turn
-     about the flip axis (twist, kept as recorded) and the rest (swing: the print turning in its own plane, rocking),
-     q = swing ⊗ twist. A least-squares cubic B-spline with `wobbleCurve` free control points is drawn through the swing's
-     rotation vector — its value and slope pinned to 0 at both rests — and replaces it (× `wobble`): the hand's slow lean at
-     its real size, none of its shake. take-002 sways up to 5.4° in-plane and 2.4° rocking. */
+  /* CHANNELS (designer 2026-09-30: "I can feel the shakiness on some of the values … a tool … each reading as a curve …
+     where I can try smoothing each value. Also the lift %"). After an optional denoise (`smooth`, ms: the velocity-domain
+     Gaussian below), the take is split into six readings over time:
+       turn    the rotation about the flip axis, degrees (0 → ±180)
+       lean    the print turning in its own plane (about the view axis) — "angled right and left", degrees
+       rock    rocking about the other in-plane axis, degrees
+       lift    the height of the phone's centre, mm            (its amount: `lift`, in pose())
+       driftX, driftY   its travel on the table, mm            (their amount: `travel`, in pose())
+     Each is replaced by a least-squares clamped cubic B-spline with `<ch>Pts` free control points (0 = the reading as it
+     is; fewer = smoother), both ends pinned (the rests: value exact, slope 0). The pose is rebuilt about the flip axis a:
+     q = exp(lean·leanAmt·ẑ + rock·rockAmt·r̂) ⊗ R(a, turn), p = (driftX, driftY, lift). take.ch = the readings, take.fit =
+     the curves (turn.html's curve tool draws both). */
+  const CH = ['turn', 'lean', 'rock', 'lift', 'driftX', 'driftY'];
+  const PTS = { turn: 'turnPts', lean: 'leanPts', rock: 'rockPts', lift: 'liftPts', driftX: 'driftPts', driftY: 'driftPts' };
+  const smKey = k => [k.smooth, k.turnPts, k.leanPts, k.leanAmt, k.rockPts, k.rockAmt, k.liftPts, k.driftPts].join('|');
   function bsplineBasis(m, u) {                         // clamped uniform cubic basis, m + 1 control points, at u ∈ [0, 1]
     const kn = [0, 0, 0, 0];
     for (let i = 1; i < m - 2; i++) kn.push(i / (m - 2));
@@ -172,47 +181,79 @@
     }
     return N;                                          // m + 1 values
   }
-  function sway(take, k) {
-    const a = take.axis === 'x' ? [1, 0, 0] : take.axis === 'y' ? [0, 1, 0] : null;
-    if (!a || (k.wobble === 1 && !(k.wobbleCurve > 0))) return take;
-    const n = take.n;
-    const tw = [], sv = [];
+  function fitCurve(y, N, v0, v1) {                    // the curve through y (uniform samples): N free points, ends pinned flat at v0 / v1
+    const n = y.length;
+    N = Math.round(N);
+    if (!(N > 0) || n < 8) return y.slice();
+    const m = N + 3, B = [];
+    for (let i = 0; i < n; i++) B.push(bsplineBasis(m, i / (n - 1)));
+    const fixed = B.map(b => v0 * (b[0] + b[1]) + v1 * (b[m - 1] + b[m]));
+    const A = Array.from({ length: N }, () => new Array(N).fill(0)), r = new Array(N).fill(0);
+    for (let i = 0; i < n; i++) for (let a = 0; a < N; a++) {
+      const ba = B[i][a + 2];
+      if (!ba) continue;
+      r[a] += ba * (y[i] - fixed[i]);
+      for (let c = 0; c < N; c++) A[a][c] += ba * B[i][c + 2];
+    }
+    for (let a = 0; a < N; a++) A[a][a] += 1e-9;
+    const X = A.map((row, i) => [...row, r[i]]);          // Gauss–Jordan
+    for (let c = 0; c < N; c++) {
+      let p = c; for (let q = c + 1; q < N; q++) if (Math.abs(X[q][c]) > Math.abs(X[p][c])) p = q;
+      [X[c], X[p]] = [X[p], X[c]];
+      for (let q = 0; q < N; q++) if (q !== c) { const f = X[q][c] / X[c][c]; for (let j = c; j <= N; j++) X[q][j] -= f * X[c][j]; }
+    }
+    const C = X.map((row, i) => row[N] / row[i]);
+    return B.map((b, i) => fixed[i] + C.reduce((acc, c, j) => acc + c * b[j + 2], 0));
+  }
+  function decompose(take) {                          // the readings from take.q / take.p (after the denoise)
+    const n = take.n, a = take.axis === 'x' ? [1, 0, 0] : take.axis === 'y' ? [0, 1, 0] : null;
+    const ch = { turn: [], lean: [], rock: [], lift: [], driftX: [], driftY: [] }, D = 180 / Math.PI;
+    const r = a ? [a[1], -a[0], 0] : null;              // r̂ = a × ẑ
+    let prev = 0;
     for (let i = 0; i < n; i++) {
+      ch.driftX.push(take.p[i * 3]); ch.driftY.push(take.p[i * 3 + 1]); ch.lift.push(take.p[i * 3 + 2]);
+      if (!a) { ch.turn.push(0); ch.lean.push(0); ch.rock.push(0); continue; }
       const q = [take.q[i * 4], take.q[i * 4 + 1], take.q[i * 4 + 2], take.q[i * 4 + 3]];
       const d = q[1] * a[0] + q[2] * a[1] + q[3] * a[2];
+      let th = 2 * Math.atan2(d, q[0]);
+      while (th - prev > Math.PI) th -= 2 * Math.PI;
+      while (th - prev < -Math.PI) th += 2 * Math.PI;
+      prev = th;
       const t = qn([q[0], d * a[0], d * a[1], d * a[2]]);
-      tw.push(t); sv.push(qlog(qm(q, qc(t))));
+      const s = qlog(qm(q, qc(t)));
+      ch.turn.push(th * D); ch.lean.push(s[2] * D); ch.rock.push((s[0] * r[0] + s[1] * r[1]) * D);
     }
-    // the curve: free control points c2 … c(m−2) of an (m + 1)-point clamped spline (c0 = c1 = c(m−1) = cm = 0: flat rests)
-    const K = Math.max(1, Math.round(k.wobbleCurve || 4)), m = K + 3;
-    const B = [];
-    for (let i = 0; i < n; i++) B.push(bsplineBasis(m, i / (n - 1)).slice(2, m - 1));
-    const A = Array.from({ length: K }, () => new Array(K).fill(0)), rhs = [0, 1, 2].map(() => new Array(K).fill(0));
-    for (let i = 0; i < n; i++) for (let r = 0; r < K; r++) {
-      for (let c = 0; c < K; c++) A[r][c] += B[i][r] * B[i][c];
-      for (let d = 0; d < 3; d++) rhs[d][r] += B[i][r] * sv[i][d];
+    take.ch = ch; take.axisV = a; take.rockV = r;
+    return ch;
+  }
+  function processTake(take, k) {
+    take._sm = smKey(k);
+    prefilter(take, k.smooth || 0);
+    const ch = decompose(take), n = take.n, fit = {};
+    for (const c of CH) {
+      const v1 = c === 'turn' ? ch.turn[n - 1] : 0;
+      fit[c] = fitCurve(ch[c], k[PTS[c]], c === 'turn' ? 0 : 0, v1);
     }
-    for (let r = 0; r < K; r++) A[r][r] += 1e-9;
-    const solve = (M, v) => {                         // Gauss–Jordan, K ≤ ~12
-      const X = M.map((row, i) => [...row, v[i]]);
-      for (let c = 0; c < K; c++) {
-        let p = c; for (let r = c + 1; r < K; r++) if (Math.abs(X[r][c]) > Math.abs(X[p][c])) p = r;
-        [X[c], X[p]] = [X[p], X[c]];
-        for (let r = 0; r < K; r++) if (r !== c) { const f = X[r][c] / X[c][c]; for (let j = c; j <= K; j++) X[r][j] -= f * X[c][j]; }
+    if (take.axisV) {
+      const end = (take.axis === 'x' ? 1 : 1) * Math.round(ch.turn[n - 1] / 180) * 180;   // the exact end turn (±180)
+      fit.turn[n - 1] = end;
+      const a = take.axisV, r = take.rockV, R = Math.PI / 180, q = new Float64Array(n * 4);
+      for (let i = 0; i < n; i++) {
+        const th = fit.turn[i] * R, ln = fit.lean[i] * R * k.leanAmt, rk = fit.rock[i] * R * k.rockAmt;
+        const tw = [Math.cos(th / 2), a[0] * Math.sin(th / 2), a[1] * Math.sin(th / 2), a[2] * Math.sin(th / 2)];
+        let v = qn(qm(qexp([rk * r[0], rk * r[1], ln]), tw));
+        if (i && q[(i - 1) * 4] * v[0] + q[(i - 1) * 4 + 1] * v[1] + q[(i - 1) * 4 + 2] * v[2] + q[(i - 1) * 4 + 3] * v[3] < 0) v = v.map(x => -x);
+        q.set(v, i * 4);
       }
-      return X.map((row, i) => row[K] / row[i]);
-    };
-    const C = [0, 1, 2].map(d => solve(A, rhs[d]));
-    const sm = B.map(b => [0, 1, 2].map(d => b.reduce((acc, v, j) => acc + v * C[d][j], 0)));
-    const q2 = new Float64Array(n * 4);
-    for (let i = 0; i < n; i++) {
-      const v = [sm[i][0] * k.wobble, sm[i][1] * k.wobble, sm[i][2] * k.wobble];
-      let r = qn(qm(qexp(v), tw[i]));
-      if (i && q2[(i - 1) * 4] * r[0] + q2[(i - 1) * 4 + 1] * r[1] + q2[(i - 1) * 4 + 2] * r[2] + q2[(i - 1) * 4 + 3] * r[3] < 0) r = [-r[0], -r[1], -r[2], -r[3]];
-      q2.set(r, i * 4);
+      take.q = q;
     }
-    take.q = q2;
+    const p = new Float64Array(n * 3);
+    for (let i = 0; i < n; i++) { p[i * 3] = fit.driftX[i]; p[i * 3 + 1] = fit.driftY[i]; p[i * 3 + 2] = fit.lift[i]; }
+    take.p = p; take.fit = fit;
     return take;
+  }
+  function smoothTake(take, kk) {                     // (the old name) process with the knobs kk
+    return processTake(take, typeof kk === 'number' ? Object.assign({}, KNOBS, { smooth: kk }) : Object.assign({}, KNOBS, kk));
   }
 
   // ---- takes -----------------------------------------------------------------------------------------------------
@@ -267,9 +308,9 @@
     let lo = Infinity;
     for (const [u, v] of [[-.5, aspect / 2], [.5, aspect / 2], [.5, -aspect / 2], [-.5, -aspect / 2]])
       lo = Math.min(lo, R[6] * u + R[7] * v);
-    const need = Math.max(0, -lo + th / 2 * (Math.abs(R[8]) - 1)) * k.clear;
+    const need = Math.max(0, -lo + th / 2 * (Math.abs(R[8]) - 1));
     const e = .004;
-    P[2] = Math.max(0, smax(P[2], need, e) - e / 2);
+    P[2] = Math.max(0, smax(P[2], need, e) - e / 2) * k.clear;       // `clear` = LIFT %: the whole rise (100 % = it just clears the table)
     return { R, P, u: s.u, face: (flip.from === 'back') ? 'back' : 'front', rest: false, done: false };
   }
 
@@ -476,7 +517,24 @@
     // (the back's map once the light sees the back, so the texture is upright at both rests); contact → soft with height
     const lightSeesFront = dot(nF, L) > 0;
     const Bs = lightSeesFront ? Bf : Bb;
-    const A = faceA(R, P, Bs);
+    // a print turned LOWER than it could physically (lift % < 100) dips through the table; the dipped part would cast its
+    // shadow toward the light. The shadow is cast by the pose that just clears (Ps: the same R, lifted to touch) and moved
+    // by δ so its contact line sits under the edge as drawn (δ = how far perspective moves the dipped contact edge)
+    let Ps = P, dOff = S.origin;
+    if (!st.rest) {
+      const cs = [[-.5, a / 2], [.5, a / 2], [.5, -a / 2], [-.5, -a / 2]].map(([u, v]) => ({ u, v, z: R[6] * u + R[7] * v }));
+      cs.sort((p, q) => p.z - q.z);
+      const lowZ = P[2] + cs[0].z;
+      if (lowZ < 0) {
+        Ps = [P[0], P[1], P[2] - lowZ];
+        const c = [(cs[0].u + cs[1].u) / 2, (cs[0].v + cs[1].v) / 2];        // the contact edge's middle (the two lowest corners)
+        const X = [R[0] * c[0] + R[1] * c[1] + P[0], R[3] * c[0] + R[4] * c[1] + P[1], R[6] * c[0] + R[7] * c[1] + P[2]];
+        const sc = F / (F - X[2]) - 1;
+        const o = S.origin || [0, 0];
+        dOff = [o[0] + X[0] * sc * W, o[1] - X[1] * sc * W];
+      }
+    }
+    const A = faceA(R, Ps, Bs);
     const Sh = [A[0] - L[0] / L[2] * A[6], A[1] - L[0] / L[2] * A[7], A[2] - L[0] / L[2] * A[8],
                 A[3] - L[1] / L[2] * A[6], A[4] - L[1] / L[2] * A[7], A[5] - L[1] / L[2] * A[8], 0, 0, 0];
     // the REST shadow is a contact line hugging the print's edge: it never travels with the light (a displaced sharp line
@@ -484,10 +542,10 @@
     // footprint and is gone once ANY edge is `contact` off the table. The filled silhouette takes over, its penumbra
     // growing with height: sharp (σ .01) → soft (σ .03) by `sharpTo`, soft → wide (σ .09) by `wideAt`.
     const Foot = [A[0], A[1], A[2], A[3], A[4], A[5], 0, 0, 0];
-    const hgt = Math.max(0, P[2]);
+    const hgt = Math.max(0, Ps[2]);
     let top = -Infinity;
     for (const [u, v] of [[-.5, a / 2], [.5, a / 2], [.5, -a / 2], [-.5, -a / 2]]) top = Math.max(top, R[6] * u + R[7] * v);
-    const hTop = Math.max(0, P[2] + top);
+    const hTop = Math.max(0, Ps[2] + top);
     const ss = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
     const oRim = st.rest ? 1 : Math.exp(-hTop / k.contact);
     const lifted = st.rest ? 0 : (1 - oRim) * Math.exp(-hgt / k.shadowFade) * k.softMax;
@@ -500,7 +558,7 @@
       const fl = S.floors[i];
       if (!fl) continue;
       const parked = st.rest && i < 3, rim = i === 3;
-      const tfs = css(parked ? tuck : rim ? Foot : Sh, W, F, st.rest ? 0 : -.5 + i * .01, S.origin);   // at rest z 0 (flat pixels), DOM order stacks them
+      const tfs = css(parked ? tuck : rim ? Foot : Sh, W, F, st.rest ? 0 : -.5 + i * .01, parked ? S.origin : dOff);   // at rest z 0 (flat pixels), DOM order stacks them
       const o = parked ? 1 : ops[i];
       if (tfs !== fl.tf) { fl.el.style.transform = tfs; fl.tf = tfs; }
       if (Math.abs(o - fl.o) > .002 || (o === 0 && fl.o !== 0) || (o === 1 && fl.o !== 1)) {

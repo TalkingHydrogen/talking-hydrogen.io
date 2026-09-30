@@ -1492,10 +1492,11 @@ if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site
    (the viewer's click routing: turnAt()) — the side clicked lifts first; it stays turned over, like a photo put down. */
 let TURN = null;
 const turnActive = () => !!TURN && (TURN.playing || TURN.hinting());
-if (cfg.turn && D === 1) cfg.turn.ready.then(({ FR, take }) => { TURN = makeTurn(FR, take); kick(); })
+if (cfg.turn && D === 1) cfg.turn.ready.then(({ FR, take, tuning }) => { TURN = makeTurn(FR, take, tuning); kick(); })
   .catch(err => console.warn('[turn]', err));
-function makeTurn(FR, take) {
+function makeTurn(FR, take, tuning) {
   const c = cards[0], k = Object.assign({}, FR.KNOBS);
+  for (const key of Object.keys(tuning || {})) if (key in k && typeof tuning[key] === 'number') k[key] = tuning[key];   // assets/flip/tuning.json
   for (const key of Object.keys(k)) { const v = parseFloat(pageQuery.get('t' + key)); if (Number.isFinite(v)) k[key] = v; }   // ?tlens= ?tspeed= … (turn.html's knobs, t-prefixed)
   const W = c.w || estB(), H = c.h || W * c.pic.h / c.pic.w;
   const S = FR.attach({ card: c.el, img: c.img, fcast: c.fl, rim: c.fl && c.fl.querySelector('img'),
@@ -3325,7 +3326,8 @@ const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
         const id = pageQuery.get('turntake') || idx.default, meta = idx.takes.find(t => t.id === id) || idx.takes[0];
         const take = window.FlipRender.loadTake(await (await fetch('../assets/flip/takes/' + meta.file, { cache: 'no-store' })).json());
         take.name = meta.id;
-        resolve({ FR: window.FlipRender, take });
+        const tuning = await fetch('../assets/flip/tuning.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));   // turn.html's "Save to site"
+        resolve({ FR: window.FlipRender, take, tuning });
       } catch (err) { reject(err); }
     };
     document.head.appendChild(sc);

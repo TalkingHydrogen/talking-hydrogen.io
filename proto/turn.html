@@ -13,7 +13,23 @@
   html, body { margin: 0; }
   body { background: #FCFCFC; color: #8e8e93; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
          -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none; }
-  .viewer { position: relative; height: 100vh; overflow: hidden; cursor: pointer; }
+  .viewer { position: relative; height: 55vh; overflow: hidden; cursor: pointer; }   /* the curve tool below it: both in view */
+  /* the CURVE TOOL (designer 2026-09-30): every reading of the take as a curve — grey = as recorded, colour = what plays —
+     with its own smoothing (the curve's points: fewer = smoother) and amount. Click / drag a curve to scrub. */
+  .curves { box-sizing: border-box; padding: 10px 16px 14px; background: #fff; border-top: 1px solid #EFEFF4;
+            font: 12px/1.3 -apple-system, system-ui, sans-serif; color: #8e8e93; }
+  .curves .bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 8px; }
+  .curves .bar button { font: 500 12px/1 -apple-system, system-ui, sans-serif; padding: 6px 11px; border-radius: 8px; border: 1px solid #E5E5EA; background: #fff; color: #1d1d1f; cursor: pointer; }
+  .curves .bar button.on { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+  .curves .bar .msg { color: #8e8e93; }
+  .ch { display: grid; grid-template-columns: 150px 1fr 330px; gap: 12px; align-items: center; padding: 3px 0; }
+  .ch .name { color: #1d1d1f; font-weight: 500; }
+  .ch .name small { display: block; color: #8e8e93; font-weight: 400; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .ch .plot { position: relative; height: 54px; cursor: ew-resize; }
+  .ch canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ch .ctl { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 8px; align-items: center; }
+  .ch .ctl input[type=range] { width: 100%; margin: 0; }
+  .ch .ctl span.v { min-width: 3.2em; text-align: right; color: #1d1d1f; font-variant-numeric: tabular-nums; }
   .hit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   svg.debug { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .knobs { box-sizing: border-box; padding: 22px 16px 40px; background: #fff; font: 12px/1.4 -apple-system, system-ui, sans-serif; }
@@ -30,6 +46,14 @@
 </head>
 <body>
 <div class="viewer" id="viewer"><div class="hit" id="hit"></div></div>
+<div class="curves" id="curves">
+  <div class="bar">
+    <button id="cFlip">Flip</button><button id="cLoop">Loop</button><button id="cSlow">½ speed</button>
+    <button id="cSave">Save to site</button><button id="cCopy">Copy values</button><button id="cDefaults">Defaults</button>
+    <span class="msg" id="cMsg"></span>
+  </div>
+  <div id="chRows"></div>
+</div>
 <div class="knobs" id="knobs">
   <div class="row">
     <label>take <select id="takeSel"></select></label>
@@ -61,12 +85,14 @@ const PRINT = { front: { src: '../assets/photo/room-print.webp',
                 floorWide: { src: '../assets/flip/room-floor-wide.webp', fx: .29, fy: .54037 } };
 const K = Object.assign({}, FR.KNOBS);
 const DEFS = {
-  kMotion: [['lens', 1.2, 8, .05], ['speed', .25, 2, .01], ['smooth', 0, 150, 1], ['wobble', 0, 1.5, .01], ['wobbleCurve', 1, 12, 1], ['hint', 0, 45, 1], ['hintSpeed', 3, 30, .5], ['lift', 0, 2, .01], ['clear', 0, 1, .01], ['travel', 0, 2, .01], ['thick', 0, 6, .1]],
+  kMotion: [['lens', 1.2, 14, .05], ['speed', .25, 2, .01], ['smooth', 0, 150, 1], ['hint', 0, 45, 1], ['hintSpeed', 3, 30, .5], ['thick', 0, 6, .1]],
   kLight: [['az', 0, 360, 1], ['el', 10, 89, 1], ['ambient', 0, 1, .01], ['shade', 0, 1.5, .01], ['lighten', 0, 1.5, .01], ['sheen', 0, 1.5, .01],
            ['gloss', 4, 400, 1], ['sheenW', .05, 1.2, .01], ['backSheen', 0, 1, .01], ['edge', 150, 255, 1]],
   kShadow: [['contact', .001, .05, .001], ['sharpTo', .02, .5, .01], ['wideAt', .05, 1.5, .01], ['shadowFade', .1, 4, .05], ['softMax', 0, 2, .01]],
 };
-for (const k of Object.keys(K)) { const v = parseFloat(Q.get(k)); if (Number.isFinite(v)) K[k] = v; }
+let TUNING = {};                                          // assets/flip/tuning.json — what "Save to site" wrote (the site reads it too)
+const urlKnobs = () => { for (const k of Object.keys(K)) { const v = parseFloat(Q.get(k)); if (Number.isFinite(v)) K[k] = v; } };
+urlKnobs();
 
 const viewer = document.getElementById('viewer'), hit = document.getElementById('hit');
 let scene = null, take = null, takes = [];
@@ -91,7 +117,7 @@ function hintTick(now) {
 }
 const frozen = Q.has('t') ? parseFloat(Q.get('t')) : null;
 
-function widthPx() { return Math.round(Math.min(innerWidth * .64, innerHeight * .84)); }
+function widthPx() { return Math.round(Math.min(innerWidth * .64, viewer.clientHeight * .84)); }
 function build() {
   if (scene) scene.destroy();
   scene = FR.makeScene(viewer, Object.assign({ widthPx: widthPx() }, PRINT));
@@ -118,6 +144,7 @@ async function pickTake(id) {
   if (frozen !== null) state.t = frozen;
   showInfo();
   draw();
+  drawCurves();
 }
 function showInfo() {
   const r = take.report || {};
@@ -138,6 +165,7 @@ function draw() {
   sc.value = take.dur ? Math.min(1, state.t / take.dur) : 0;
   document.getElementById('scrubV').textContent = state.t.toFixed(3);
   if (Q.has('debug')) debugOutline(st);
+  drawHeads(teased ? hint.t : state.t);
   window.__turn = { st, t: state.t, from: state.from, side: state.side, W: scene.W, outline: FR.outline(scene, st, K) };
 }
 function debugOutline(st) {
@@ -165,6 +193,7 @@ function tick(now) {
     state.t = take.dur; draw();
     state.playing = false; state.from = state.from === 'front' ? 'back' : 'front'; state.t = 0;
     draw();
+    if (looping) loopT = setTimeout(() => { if (looping) flip(state.side); }, 900);
     return;
   }
   draw();
@@ -200,7 +229,7 @@ function knobRow(id) {
     const lab = document.createElement('label');
     lab.innerHTML = `${key} <input type="range" min="${min}" max="${max}" step="${step}" value="${K[key]}"> <span class="val">${K[key]}</span>`;
     const inp = lab.querySelector('input'), val = lab.querySelector('.val');
-    inp.oninput = () => { K[key] = +inp.value; val.textContent = inp.value; values(); draw(); };
+    inp.oninput = () => { K[key] = +inp.value; val.textContent = inp.value; values(); draw(); drawCurves(); };
     row.appendChild(lab);
   }
 }
@@ -212,8 +241,140 @@ function values() {
 Object.keys(DEFS).forEach(knobRow);
 document.getElementById('copyBtn').onclick = () => { const t = document.getElementById('vals'); t.select(); navigator.clipboard && navigator.clipboard.writeText(t.value).catch(() => {}); };
 
+// ---- the CURVE TOOL ------------------------------------------------------------------------------------------------
+const CHS = [
+  { id: 'turn',  name: 'Turn',  unit: '°',  color: '#007AFF', pts: 'turnPts',  max: 40, sub: 'the flip itself' },
+  { id: 'lean',  name: 'Lean',  unit: '°',  color: '#FF9500', pts: 'leanPts',  max: 24, amt: 'leanAmt', amtMax: 150, sub: 'angled left / right' },
+  { id: 'rock',  name: 'Rock',  unit: '°',  color: '#AF52DE', pts: 'rockPts',  max: 24, amt: 'rockAmt', amtMax: 150, sub: 'tilting over its side' },
+  { id: 'lift',  name: 'Lift',  unit: '%',  color: '#34C759', pts: 'liftPts',  max: 24, amt: 'clear', amtMax: 100, amt2: 'lift', amt2Max: 40, sub: 'height, % of its width' },
+  { id: 'drift', name: 'Drift', unit: 'mm', color: '#FF2D55', pts: 'driftPts', max: 24, amt: 'travel', amtMax: 150, sub: 'sliding on the table' },
+];
+const rows = {};
+function buildCurves() {
+  const box = document.getElementById('chRows');
+  for (const c of CHS) {
+    const row = document.createElement('div'); row.className = 'ch';
+    row.innerHTML = `<div class="name">${c.name}<small id="rd-${c.id}">${c.sub}</small></div>
+      <div class="plot"><canvas class="base"></canvas><canvas class="head"></canvas></div>
+      <div class="ctl"><span>smooth</span><input type="range" min="0" max="${c.max}" step="1" data-k="${c.pts}"><span class="v"></span>
+      ${c.amt ? `<span>${c.id === 'lift' ? 'lift %' : 'amount %'}</span><input type="range" min="0" max="${c.amtMax}" step="1" data-k="${c.amt}"><span class="v"></span>` : ''}
+      ${c.amt2 ? `<span>hand %</span><input type="range" min="0" max="${c.amt2Max}" step="1" data-k="${c.amt2}"><span class="v"></span>` : ''}</div>`;
+    box.appendChild(row);
+    const [base, head] = row.querySelectorAll('canvas'), plot = row.querySelector('.plot');
+    rows[c.id] = { base, head, plot, row };
+    for (const inp of row.querySelectorAll('input')) {
+      const k = inp.dataset.k, pct = k !== c.pts;
+      const show = () => { inp.nextElementSibling.textContent = pct ? Math.round(K[k] * 100) + '%' : (K[k] ? K[k] + ' pts' : 'raw'); };
+      inp.value = pct ? Math.round(K[k] * 100) : K[k];
+      show();
+      inp.oninput = () => { K[k] = pct ? +inp.value / 100 : +inp.value; show(); values(); draw(); drawCurves(); };
+      inp.syncFromK = () => { inp.value = pct ? Math.round(K[k] * 100) : K[k]; show(); };
+    }
+    const scrub = e => {                                         // click / drag on a curve: scrub to that moment
+      if (!take) return;
+      const r = plot.getBoundingClientRect(), u = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      stopLoop(); state.playing = false; state.t = u * take.dur; hint.t = 0; draw();
+    };
+    plot.addEventListener('pointerdown', e => { plot.setPointerCapture(e.pointerId); scrub(e); plot.onpointermove = scrub; });
+    plot.addEventListener('pointerup', () => { plot.onpointermove = null; });
+  }
+}
+function syncSliders() { for (const inp of document.querySelectorAll('.ch input')) inp.syncFromK && inp.syncFromK(); }
+function sized(cv) {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); return [g, r.width, r.height];
+}
+function series(c) {                                              // [{data, color, width, dash}] in the channel's units
+  const ch = take.ch, fit = take.fit, n = take.n;
+  if (c.id === 'drift') {
+    const a = K.travel;
+    return [{ d: ch.driftX, color: '#D1D1D6', w: 1.25 }, { d: ch.driftY, color: '#E5E5EA', w: 1.25 },
+            { d: fit.driftX.map(v => v * a), color: c.color, w: 2 }, { d: fit.driftY.map(v => v * a), color: '#5AC8FA', w: 2 }];
+  }
+  if (c.id === 'lift') {                                          // % of the print's width: the hand's lift × lift %, the
+    const geo = { aspect: scene.aspect, W: scene.W };             // clearance the turn needs (dashed), the height used (bold)
+    const kk = take.axis === 'x' ? scene.aspect / (take.phoneExt || [take.phone.w, take.phone.h])[1] : 1 / (take.phoneExt || [take.phone.w, take.phone.h])[0];
+    const raw = ch.lift.map(v => v * kk * K.lift * K.clear * 100), hand = fit.lift.map(v => v * kk * K.lift * K.clear * 100);
+    const used = [], need = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1) * take.dur, st = FR.pose(take, t, K, { side: take.side, from: 'front' }, geo);
+      used.push(st.P[2] * 100);
+      const R = st.R; let lo = Infinity;
+      for (const [u, v] of [[-.5, scene.aspect / 2], [.5, scene.aspect / 2], [.5, -scene.aspect / 2], [-.5, -scene.aspect / 2]]) lo = Math.min(lo, R[6] * u + R[7] * v);
+      need.push(Math.max(0, -lo) * 100);                           // what turning in place needs (100 %)
+    }
+    return [{ d: raw, color: '#D1D1D6', w: 1.25 }, { d: need, color: '#AEAEB2', w: 1.25, dash: [4, 3] }, { d: hand, color: c.color, w: 1.5, alpha: .55 }, { d: used, color: c.color, w: 2.25 }];
+  }
+  const amt = c.amt ? K[c.amt] : 1;
+  return [{ d: ch[c.id], color: '#D1D1D6', w: 1.25 }, { d: fit[c.id].map(v => v * amt), color: c.color, w: 2 }];
+}
+function drawCurves() {
+  if (!take || !take.fit) { if (take) FR.smoothTake(take, K); else return; }
+  if (take._smk !== JSON.stringify([K.turnPts, K.leanPts, K.leanAmt, K.rockPts, K.rockAmt, K.liftPts, K.driftPts, K.smooth])) { FR.smoothTake(take, K); take._smk = JSON.stringify([K.turnPts, K.leanPts, K.leanAmt, K.rockPts, K.rockAmt, K.liftPts, K.driftPts, K.smooth]); }
+  for (const c of CHS) {
+    const [g, W, H] = sized(rows[c.id].base), S = series(c);
+    g.clearRect(0, 0, W, H);
+    let lo = 0, hi = 0;
+    for (const s of S) for (const v of s.d) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (c.id !== 'turn' && c.id !== 'lift') { const m = Math.max(Math.abs(lo), Math.abs(hi), .5); lo = -m; hi = m; }
+    if (hi - lo < 1e-6) hi = lo + 1;
+    const pad = 5, y = v => pad + (1 - (v - lo) / (hi - lo)) * (H - 2 * pad);
+    g.strokeStyle = '#F2F2F7'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, y(0)); g.lineTo(W, y(0)); g.stroke();
+    for (const s of S) {
+      g.save(); g.globalAlpha = s.alpha || 1; g.strokeStyle = s.color; g.lineWidth = s.w; g.setLineDash(s.dash || []);
+      g.beginPath(); s.d.forEach((v, i) => { const x = i / (s.d.length - 1) * W; i ? g.lineTo(x, y(v)) : g.moveTo(x, y(v)); }); g.stroke(); g.restore();
+    }
+    rows[c.id].scale = { lo, hi, S };
+  }
+  drawHeads(state.playing ? state.t : hint.t > 0 ? hint.t : state.t);
+}
+function drawHeads(t) {
+  if (!take || !take.fit) return;
+  const u = Math.min(1, Math.max(0, t / take.dur)), i = Math.round(u * (take.n - 1));
+  for (const c of CHS) {
+    const r = rows[c.id]; if (!r || !r.scale) continue;
+    const [g, W, H] = sized(r.head);
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = '#1d1d1f'; g.fillRect(Math.round(u * (W - 1)), 0, 1.5, H);
+    const S = r.scale.S, rawv = S[0].d[i], used = S[S.length - 1].d[i];
+    const f = v => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1)) + (c.unit === '%' ? '%' : c.unit === '°' ? '°' : ' mm');
+    document.getElementById('rd-' + c.id).textContent = c.id === 'lift' ? `height ${f(used)} of its width` : c.id === 'drift' ? `${f(S[2].d[i])} ↔  ${f(S[3].d[i])} ↕` : `${f(rawv)} → ${f(used)}`;
+  }
+}
+let looping = false, loopT = 0;
+function stopLoop() { looping = false; clearTimeout(loopT); document.getElementById('cLoop').classList.remove('on'); }
+document.getElementById('cFlip').onclick = () => flip(state.side);
+document.getElementById('cLoop').onclick = () => { looping = !looping; document.getElementById('cLoop').classList.toggle('on', looping); if (looping && !state.playing) flip(state.side); if (!looping) clearTimeout(loopT); };
+document.getElementById('cSlow').onclick = e => { K.speed = K.speed === .5 ? 1 : .5; e.target.classList.toggle('on', K.speed === .5); values(); };
+const TUNED = ['turnPts', 'leanPts', 'leanAmt', 'rockPts', 'rockAmt', 'liftPts', 'lift', 'driftPts', 'travel', 'smooth', 'lens', 'clear', 'hint', 'hintSpeed', 'thick', 'speed'];
+function tuned() { const o = {}; for (const k of TUNED) if (K[k] !== FR.KNOBS[k]) o[k] = K[k]; return o; }
+const msg = s => { document.getElementById('cMsg').textContent = s; };
+document.getElementById('cSave').onclick = async () => {
+  const body = JSON.stringify(Object.assign({ _saved: new Date().toISOString(), _take: take && take.name }, tuned()));
+  try {
+    const r = await fetch('http://127.0.0.1:8444/api/tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    msg('Saved — reload the site to see it (' + Object.keys(tuned()).length + ' values).');
+  } catch (err) {
+    document.getElementById('vals').value = body;
+    msg('Couldn’t save (is brew/flipcap/server.py running?). The values are in the box at the bottom — copy them to Claude.');
+  }
+};
+document.getElementById('cCopy').onclick = () => { const s = JSON.stringify(tuned()); navigator.clipboard && navigator.clipboard.writeText(s).then(() => msg('Copied.'), () => msg(s)); };
+document.getElementById('cDefaults').onclick = () => { for (const k of TUNED) K[k] = FR.KNOBS[k]; syncSliders(); values(); draw(); drawCurves(); msg('Defaults (not saved).'); };
+addEventListener('resize', () => drawCurves());
+
 build();
-loadTakes().then(values).catch(e => { document.getElementById('info').textContent = 'no takes: ' + e; });
+buildCurves();
+fetch('../assets/flip/tuning.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(tu => {
+  TUNING = tu || {};
+  for (const k of Object.keys(TUNING)) if (k in K && typeof TUNING[k] === 'number') K[k] = TUNING[k];
+  urlKnobs();                                                     // the URL still wins
+  syncSliders();
+  if (TUNING._saved) msg('Loaded the site’s tuning (saved ' + TUNING._saved.slice(0, 16).replace('T', ' ') + ').');
+  return loadTakes();
+}).then(values).catch(e => { document.getElementById('info').textContent = 'no takes: ' + e; });
 </script>
 </body>
 </html>
