@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="stylesheet" href="https://use.typekit.net/tej7glo.css">   <!-- site 2026-10-01: Myriad Pro (the owner's Adobe Fonts kit): the name + the caption -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>viktor dune</title>
@@ -49,7 +50,7 @@
      centre of the content box. */
   .hdr-root { position: absolute; pointer-events: none; }
   .hdr { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: opacity, transform; }
-  .hdr .name { font-size: .8em; line-height: 1.2; font-weight: 500; font-stretch: 85%; letter-spacing: .18em; text-transform: uppercase; color: #D4D4D4; }   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of its own 1em. Before, 2026-09-28: "viktor dune in the same style" as the caption — weight 450 with it ("do it like 450 for all to see"; 400 = SF Regular, 510 = SF Medium; was 500), its gray #DCDCDE (was #C7C7CC 2026-09-27, #8e8e93 before); size / leading / tracking / font already the caption's */
+  .hdr .name { font-size: .8em; line-height: 1.2; font-family: "myriad-pro-semi-condensed", "Myriad Pro", -apple-system, sans-serif; font-weight: 300; letter-spacing: 0; color: #000; }   /* owner 2026-10-01: "Myriad Pro Light SemiCondensed for the viktor dune and the thing description on the left, not caps, in black" (the kit tej7glo, weight 300 = Light; the tracking was the caps' — none in lower case). Before, 2026-09-30: */   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of its own 1em. Before, 2026-09-28: "viktor dune in the same style" as the caption — weight 450 with it ("do it like 450 for all to see"; 400 = SF Regular, 510 = SF Medium; was 500), its gray #DCDCDE (was #C7C7CC 2026-09-27, #8e8e93 before); size / leading / tracking / font already the caption's */
 
   /* site: the home row's horizontal scroller (zoom.html's body scroller, as an element: the header, the backdrop, the
      ghost and the zones are outside it, so they never scroll). The whole viewer. Its scroll is the page's own (ROW
@@ -271,7 +272,7 @@
      again, the 2026-09-28 map (CAP_RIDE; ?capride=0 = the pinned fade). */
   .caption { position: absolute; left: 0; top: 0; height: 0; translate: 0 0 -.5px; transform-origin: 0 0; display: flex; align-items: center;
              pointer-events: none; opacity: 0; visibility: hidden; will-change: opacity; white-space: nowrap;
-             font-size: calc(var(--em) * .8); line-height: 1.2; font-weight: 500; font-stretch: 85%; letter-spacing: .18em; text-transform: uppercase; color: #D4D4D4; }   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of the caption's own size, its leading. Before, 2026-09-28: weight 450 (between SF Regular 400 and SF Medium 510; Safari maps it straight to the wght axis). The type lab (site.html?type=1): rgb(220, 220, 222) — position / size / weight / tracking kept (their values = the live layout within 0.3 px). Was #C7C7CC (2026-09-27); the play button's #E6E7E8 was tried then: too faint on the backdrop; before that the page's #8e8e93 */
+             font-size: calc(var(--em) * .8); line-height: 1.2; font-family: "myriad-pro-semi-condensed", "Myriad Pro", -apple-system, sans-serif; font-weight: 300; letter-spacing: 0; color: #000; }   /* owner 2026-10-01: Myriad Pro Light SemiCondensed, not caps, black (the .hdr .name's). Before: SF 500, stretch 85 %, tracking .18em, uppercase, #D4D4D4 — */   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of the caption's own size, its leading. Before, 2026-09-28: weight 450 (between SF Regular 400 and SF Medium 510; Safari maps it straight to the wght axis). The type lab (site.html?type=1): rgb(220, 220, 222) — position / size / weight / tracking kept (their values = the live layout within 0.3 px). Was #C7C7CC (2026-09-27); the play button's #E6E7E8 was tried then: too faint on the backdrop; before that the page's #8e8e93 */
   .caption::before { content: ''; flex: .45 1 0; }
   .caption::after  { content: ''; flex: .55 1 0; }
   .caption p { margin: 0; }
@@ -344,7 +345,7 @@
 </div>
 <!-- the header: AFTER the scroller (above the row) since 2026-09-28 — the CAMERA carries the name out with the row, so the OPEN cover
      is one full sheet (no hole round the name's corner) -->
-<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">viktor dune</div></div></div>
+<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">Viktor Dune</div></div></div>
 
 <div class="ghost" id="ghost" aria-hidden="true"></div>   <!-- the viewer box, measured by layout() -->
 
