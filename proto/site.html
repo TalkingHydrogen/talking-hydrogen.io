@@ -1358,7 +1358,7 @@ const FILM = {
   type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', vp9: 'video/webm; codecs="vp09.00.41.08, opus"' },
   fit: 1.15,                                                          // the frame: covers the viewport, at most 1.15 × its contain size
   inMs: 260, btnMs: 1200, stopMs: 550, backMs: 700, bMs: 800,        // the film's fade in over the card; the button's fade out; a stop's fade; the chrome's return; the B's fade
-  curMs: 300,                                                         // the play-button cursor's fade in / out (filmCursor)
+  curMs: 300, grabMs: 260,                                            // the play-button cursor's fade out; the pressed button's offset easing onto the pointer (filmCursor)
   push: .6,                                                           // the neighbours slide out by this × the viewport width
 };
 const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * Math.min(W / 16, H / 9));   // css px
@@ -1426,7 +1426,7 @@ function songWrite() {                      // render() and the fade: the volume
   const v = clamp(p.value, 0, 1);
   if (audio) { const vol = Math.round(v * songG * 1000) / 1000; if (audio.volume !== vol) audio.volume = vol; }   // site: the song rises with the zoom, falls with the close
   if (playBtn) {                            // site: its button — the header's fade, mirrored
-    const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * songG * (film ? 1 - film.hideV : 1) * 1000) / 1000;   // site: FILM — its button fades out while the film plays
+    const o = film?.btnOff ? 0 : Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * songG * (film ? 1 - film.hideV : 1) * 1000) / 1000;   // site: FILM — its button rides the cursor while the film plays (a touch: it fades out)
     const px = film?.proxyOn;                                                               // site: FILM — its stand-in over the film shows it meanwhile
     put(playBtn, 'pbO', 'opacity', px ? '0' : String(o)); put(playBtn, 'pbV', 'visibility', !px && o > 0 ? 'visible' : 'hidden');
     if (film?.proxy) { put(film.proxy, 'pxO', 'opacity', px ? String(o) : '0'); put(film.proxy, 'pxV', 'visibility', px && o > 0 ? 'visible' : 'hidden'); }
@@ -1739,7 +1739,7 @@ function filmCtl(F) {
   const kind = (/apple/i.test(navigator.vendor) ? ['hevc', 'vp9'] : ['vp9', 'hevc']).find(k => probe.canPlayType(FILM.type[k])) || null;   // WebKit: HEVC (its grade, as the lid's); the rest: VP9 + alpha (as the lid's)
   const proxy = playBtn ? Object.assign(document.createElement('div'), { className: 'play proxy', innerHTML: PLAY_SVG }) : null;
   if (proxy) { proxy.setAttribute('aria-hidden', 'true'); row.appendChild(proxy); }
-  let proxyOn = false;
+  let proxyOn = false, btnOff = false;    // btnOff: the button rides the cursor (filmCursor) — not shown in place
   const hide = new Motion({ ...ZOOM.spring, value: 0 });   // the chrome: 0 the open page … 1 the film's (the button gone, the neighbours out)
   const fade = new Motion({ ...ZOOM.spring, value: 1 });   // the film's opacity once it shows (the stop, the B)
   springs.push(hide, fade);
@@ -1763,7 +1763,7 @@ function filmCtl(F) {
     arm();
     fs = 'start'; perfMark('film start');
     hide.tween(1, FILM.btnMs, ZOOM_EASE); fade.jump(0); proxyOn = true;
-    filmCursor.show(parseFloat(playBtn?.style.width) || 42);                          // the cursor becomes the play button (pause glyph)
+    btnOff = !!playBtn && filmCursor.show(parseFloat(playBtn.style.width) || 42, playBtn.getBoundingClientRect());   // the button sticks to the cursor (⏸) — gone from its place at once
     el.muted = muted; el.volume = 1;
     if (el.currentTime > .001) el.currentTime = 0;
     const go = () => { if (fs === 'start') swapIn(); };
@@ -1799,7 +1799,7 @@ function filmCtl(F) {
   function stop() {                         // a click while it plays: the film fades out over the open laptop
     if (fs === 'start') { off(); hide.tween(0, FILM.backMs, ZOOM_EASE); kick(); return; }
     if (fs !== 'play' && fs !== 'in') return;
-    filmCursor.hide(true);                                                            // the click's answer: ▶, then the native cursor
+    filmCursor.hide(true); btnOff = false;                                            // the click's answer: ▶, then the native cursor; the button fades back to its place
     const wasIn = fs === 'in';
     fs = 'stop'; perfMark('film stop'); clearTimeout(wake);
     el.classList.add('up'); cardEl().style.visibility = '';
@@ -1812,7 +1812,7 @@ function filmCtl(F) {
     if (fs === 'outro') { fs = 'stop'; fade.tween(0, 150, EASES.quadOut); kick(); }
   }
   function off() {
-    fs = 'off'; perfMark('film off'); clearTimeout(wake); filmCursor.hide(true);
+    fs = 'off'; perfMark('film off'); clearTimeout(wake); filmCursor.hide(true); btnOff = false;
     el.pause(); if (el.currentTime > .001) el.currentTime = 0;
     el.classList.remove('up'); el.style.clipPath = ''; fade.jump(1); proxyOn = false;
     fput('o', 'opacity', '0'); fput('v', 'visibility', armed && state !== 'home' ? 'visible' : 'hidden');
@@ -1860,7 +1860,7 @@ function filmCtl(F) {
     get guards() { return fs === 'start' || fs === 'in' || fs === 'play' || fs === 'land' || fs === 'stop'; },   // the page's clicks are the film's
     get busy() { return fs === 'start' || fs === 'in' || fs === 'land' || fs === 'outro' || fs === 'stop' || (fs === 'play' && tau() >= FILM.land[0] - .35); },
     get hideV() { return hide.value; },
-    get proxyOn() { return proxyOn; }, proxy,
+    get proxyOn() { return proxyOn; }, get btnOff() { return btnOff; }, proxy,
   };
 }
 
@@ -3550,8 +3550,10 @@ for (const z of [nzL, nzR]) {                                                   
    Esc / space too. During the landing and a stop's fade clicks are swallowed. */
 /* site 2026-10-01: FILM — the CURSOR is the play button for the film's duration (owner: "turn a mouse into a play and pause button for
    the duration of the video"; chosen: "the play button itself", and its click stays the stop): the button's grey disc and white
-   glyph at the button's size, centred on the pointer — ⏸ while it plays. It fades in as the button fades out (the button becomes the
-   cursor), turns ▶ on the stop's click (or Esc) and fades with the film, and leaves at the landing (clicks do nothing there).
+   glyph at the button's size, centred on the pointer — ⏸ while it plays. 2026-10-01 (owner: "dont fade the play button. just stick it
+   to the cursor lol since i click the button anyway"): the pressed BUTTON goes with the cursor — gone from its place in the click's
+   frame, the disc shown at once exactly where it was, its offset from the pointer eased out over grabMs; it turns ▶ on the stop's
+   click (or Esc) and fades with the film while the button fades back to its place, and leaves at the landing (clicks do nothing there).
    .filmcap hides the native cursor meanwhile. Pointers that hover only (a mouse, a trackpad, a pen): a touch has no cursor. */
 const filmCap = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'filmcap' }));
 const filmCur = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'filmcur' }));
@@ -3559,8 +3561,16 @@ const filmCurBtn = filmCur.appendChild(Object.assign(document.createElement('div
 filmCap.setAttribute('aria-hidden', 'true'); filmCur.setAttribute('aria-hidden', 'true');
 filmCur.style.transition = `opacity ${FILM.curMs}ms ease-out`;
 const fcHover = matchMedia('(hover: hover) and (pointer: fine)');
-let fcOn = false, fcIn = true, fcT = 0, fcPT = 'mouse';
-const fcMove = (x, y) => { filmCur.style.transform = `translate3d(${x}px, ${y}px, 0)`; };
+let fcOn = false, fcIn = true, fcT = 0, fcPT = 'mouse', fcX = 0, fcY = 0, fcOff = null, fcRaf = 0;
+/* the button as it was pressed: the disc starts exactly on it (the press is rarely its centre), its offset from the pointer then
+   eases out (FILM.grabMs, ease-out cubic) so the disc ends centred on the pointer — it never jumps */
+const fcWrite = () => { const k = fcOff ? fcOff.k : 0; filmCur.style.transform = `translate3d(${(fcX + (fcOff ? fcOff.dx * k : 0)).toFixed(2)}px, ${(fcY + (fcOff ? fcOff.dy * k : 0)).toFixed(2)}px, 0)`; };
+const fcMove = (x, y) => { fcX = x; fcY = y; fcWrite(); };
+function fcStep(t) {
+  fcRaf = 0; if (!fcOff) return;
+  const u = Math.min(1, (t - fcOff.t0) / FILM.grabMs); fcOff.k = Math.pow(1 - u, 3);
+  fcWrite(); if (u < 1) fcRaf = requestAnimationFrame(fcStep); else fcOff = null;
+}
 const fcShow = () => { filmCur.style.opacity = fcOn && fcIn ? '1' : '0'; };
 addEventListener('pointermove', e => { fcPT = e.pointerType; if (fcOn) fcMove(e.clientX, e.clientY); }, { passive: true, capture: true });
 addEventListener('pointerdown', e => { fcPT = e.pointerType; if (fcOn) filmCur.classList.add('down'); }, true);
@@ -3568,13 +3578,18 @@ addEventListener('pointerup', () => filmCur.classList.remove('down'), true);
 document.documentElement.addEventListener('mouseleave', () => { fcIn = false; fcShow(); });   // off the window: no disc parked at the edge
 document.documentElement.addEventListener('mouseenter', () => { fcIn = true; fcShow(); });
 const filmCursor = {
-  show(d) {
-    if (fcPT === 'touch' || !fcHover.matches) return;
+  show(d, from) {                          // from: the button's rect at the press (the disc starts on it); true when shown
+    if (fcPT === 'touch' || !fcHover.matches) return false;
     clearTimeout(fcT); fcOn = true;
     filmCurBtn.style.width = filmCurBtn.style.height = d + 'px';
     filmCurBtn.classList.add('playing');
-    if (lastX >= 0) fcMove(lastX, lastY);
+    if (lastX >= 0) { fcX = lastX; fcY = lastY; }
+    fcOff = from && lastX >= 0 ? { dx: from.left + from.width / 2 - lastX, dy: from.top + from.height / 2 - lastY, k: 1, t0: performance.now() } : null;
+    fcWrite(); if (fcOff && !fcRaf) fcRaf = requestAnimationFrame(fcStep);
+    filmCur.style.transition = 'none'; filmCur.style.opacity = '1'; void filmCur.offsetWidth;   // at once: it IS the button (no fade in)
+    filmCur.style.transition = `opacity ${FILM.curMs}ms ease-out`;
     filmCap.style.pointerEvents = 'auto'; fcShow();
+    return true;
   },
   hide(stopped) {                           // stopped: the glyph answers the click (▶) as it fades
     if (!fcOn) return;
