@@ -3764,17 +3764,26 @@ stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, dec
    desert (136, the widest: it peeks past both sides) behind; 108 and 66 are pages in OPEN. Since the owner's "add 115 copy too as the
    front image": deck [5, 1, 4] — the poster in front, 84 and 136 behind; 69 joins 108 and 66 as pages. */
 const DIGITAL = [
-  { id: 'untitled-108', src: '../assets/digital/untitled-108.png', w: 2000, h: 2000 },
-  { id: 'untitled-84',  src: '../assets/digital/untitled-84.png',  w: 1490, h: 2000 },
-  { id: 'untitled-69',  src: '../assets/digital/untitled-69.png',  w: 1906, h: 2000 },
-  { id: 'untitled-66',  src: '../assets/digital/untitled-66.png',  w: 1156, h: 1156 },
-  { id: 'untitled-136', src: '../assets/digital/untitled-136.png', w: 2000, h: 902, eff: 0 },
+  { id: 'untitled-108', src: '../assets/digital/untitled-108.png', w: 2000, h: 2000, floor: { src: '../assets/digital/untitled-108-floor.webp', fx: .03331, fy: .03331 } },
+  { id: 'untitled-84',  src: '../assets/digital/untitled-84.png',  w: 1490, h: 2000, floor: { src: '../assets/digital/untitled-84-floor.webp', fx: .04473, fy: .03333 } },
+  { id: 'untitled-69',  src: '../assets/digital/untitled-69.png',  w: 1906, h: 2000, floor: { src: '../assets/digital/untitled-69-floor.webp', fx: .03497, fy: .03333 } },
+  { id: 'untitled-66',  src: '../assets/digital/untitled-66.png',  w: 1156, h: 1156, floor: { src: '../assets/digital/untitled-66-floor.webp', fx: .03331, fy: .03331 } },
+  { id: 'untitled-136', src: '../assets/digital/untitled-136.png', w: 2000, h: 902, eff: 0, floor: { src: '../assets/digital/untitled-136-floor.webp', fx: .03331, fy: .07389 } },
   /* owner 2026-10-01: "add 115 copy too as the front image" — the Animayo 2021 poster (Untitled 115 copy, 1701 × 2551, the pile's
      one colour piece): lossless RGB PNG (1.0 MB at 2000 px, the 1400 candidate 588 KB; JPEG q95 4:4:4 would be 424 KB / 47 dB).
      Its flatten has a Color Dodge and an Overlay layer (artstudio.py BLEND, fitted: max 4 levels vs the layers) */
-  { id: 'untitled-115-copy', src: '../assets/digital/untitled-115-copy.png', w: 1334, h: 2000 },
+  { id: 'untitled-115-copy', src: '../assets/digital/untitled-115-copy.png', w: 1334, h: 2000, floor: { src: '../assets/digital/untitled-115-copy-floor.webp', fx: .04994, fy: .03331 } },
 ];
-stacks.push(makeStack($('digital'), { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [5, 1, 4] }));   // 115 copy in front, then 84, 136
+/* site 2026-10-01 (owner: "try applying the same shadow as on the single pic there to the new image stack"): the ROOM print's
+   treatment — POL_KNOBS (square corners, the measured shadows at alpha 1, home and viewer), castOnly, and a TABLE shadow per card:
+   pic.floor = floorshadow's measured SX-70 model at the polaroids' on-screen σ for its own aspect (brew/artstudio/artstudio.py
+   --floors → polaroid/photoprint.card_floor, the room floor's recipe). Print on print: the polaroids' contact line at the same
+   on-screen σ — POL_CONTACT .004 × their card width (.9 × .8225 of the long side) = .00296 × the long side here (sigmaLong:
+   mixed aspects). DIG_FLOOR is only the stack's default (every pic has its own). */
+const DIG_CONTACT = { sigmaLong: .00296, color: POL_CONTACT.color };
+const DIG_FLOOR = DIGITAL[0].floor;
+stacks.push(makeStack($('digital'), { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [5, 1, 4],   // 115 copy in front, then 84, 136
+                                      knobs: POL_KNOBS, castOnly: true, floor: DIG_FLOOR, contact: DIG_CONTACT }));
 stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: IMAGES, assets: ASSETS, deck: DEFAULT_DECK, nudge: DEFAULT_NUDGE }));
 /* site: the DANDELION demo OST (the markup's comment): the sealed record as a pile of one — the drawings' zoom, no flip (a
    single card has no zones: a click on it does nothing, outside it closes). DAN_KNOBS: no radius / border / shadow (the
