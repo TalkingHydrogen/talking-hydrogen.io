@@ -3757,5 +3757,7 @@ window.__stacks = stacks;                   // site: every stack's page-facing o
 </script>
 <script>/* site 2026-09-28: the polaroid caption's TYPE LAB (typelab.js: drag / scale the blocks, fonts, colour, the panel under the page), ?type only */
 if (new URLSearchParams(location.search).has('type')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'typelab.js?v=' + Date.now() })); }</script>   <!-- the lab's panel sits under the page: the root scrolls in ?type only -->
+<script>/* site 2026-10-01: the polaroids' COLOUR lab (colorlab.js: R / G / B gain per channel, the panel under the page), ?color only */
+if (new URLSearchParams(location.search).has('color')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'colorlab.js?v=' + Date.now() })); }</script>
 </body>
 </html>
