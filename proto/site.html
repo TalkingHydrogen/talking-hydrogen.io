@@ -411,8 +411,8 @@
  * ============================== ONE PILE, HOME = OPEN × S ("no things teleport") ==============================
  * One .card per image (cards[j], j = IMAGES index), each laid out at its contain-fit size in B (longer side = B). Two orders:
  *   knobs.deck  the home pile, front first (N = its length, 3 by default) — WHICH images the preview shows
- *   order       the page sequence (all D = 8 images, current first) = the home deck followed by the remaining images in
- *               canonical order: deck [5,7,0] → [5,7,0,1,2,3,4,6]. Rebuilt from the deck whenever the deck changes at
+ *   order       the page sequence (all D = 13 images, current first) = the home deck followed by the remaining images in
+ *               canonical order: deck [5,7,0] → [5,7,0,1,2,3,4,6,8,9,10,11,12]. Rebuilt from the deck whenever the deck changes at
  *               HOME (setDeck / setKnob('front')); flips rotate it; it is KEPT across a close (the pile as left).
  * SLOT POSES (arrangeHome() → `slots`, one per SLOT index 0 … D−1, item px at B — per slot, never per card): order[i] sits
  * in slot i, in EVERY state (HOME, the zoom and OPEN read the one table):
@@ -573,6 +573,17 @@ const IMAGES = [
   { id: 'drawing-06',  w: 1339, h: 2000 },
   { id: 'drawing-09',  w: 2000, h: 1332 },
   { id: 'painting-18', w: 2000, h: 1411 },
+  /* owner 2026-10-01: "on icloud there are artstudio files … for untitled: 108 84 69 66 136 … put them in the stack like other
+     drawings paintings" — the Artstudio Pro paintings (2020–21), grayscale lossless PNG (brew/artstudio/artstudio.py: the app's
+     own flatten, verified against the layers; masters in website/2020 digital paintings). Pages after the eight; the home deck is
+     unchanged. 66 is its full canvas (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a
+     flat gray, a hard edge at row 1127). eff: 0 = left out of the stack's effective aspect (its 2.2 : 1 would move the median
+     landscape ratio 1.417 → 1.458: the zones and the peek the owner tuned) */
+  { id: 'untitled-108', src: ASSETS + 'untitled-108.png', w: 2000, h: 2000 },
+  { id: 'untitled-84',  src: ASSETS + 'untitled-84.png',  w: 1490, h: 2000 },
+  { id: 'untitled-69',  src: ASSETS + 'untitled-69.png',  w: 1906, h: 2000 },
+  { id: 'untitled-66',  src: ASSETS + 'untitled-66.png',  w: 1156, h: 1156 },
+  { id: 'untitled-136', src: ASSETS + 'untitled-136.png', w: 2000, h: 902, eff: 0 },
 ];
 const D = IMAGES.length;                                    // cards built (one per image) = the viewer's page count
 const DEFAULT_DECK = [5, 7, 0];                             // IMAGES indices, front first: drawing-06, painting-18, painting-17 (owner values 2026-09-25)
@@ -675,7 +686,7 @@ const FLIP = {
    card of the median landscape aspect, rotated to peekDeg on the pivot arc (x = pivot·sin rot), stands this far beyond the
    current card's edge (its rotated bbox against the current card's). ≈ 71.7 px; × KV = G.peekPx. */
 function peekPxOf(images) {                 // site: per stack, from its effective aspect (effAspect); the drawings' = PEEK_PX
-  const r = effAspect(images.map(m => m.w / m.h));
+  const r = effAspect(effRatios(images));
   const w = r >= 1 ? FLIP.refBox : FLIP.refBox * r, h = r >= 1 ? FLIP.refBox / r : FLIP.refBox, a = FLIP.peekDeg(h, w) * Math.PI / 180;
   const pivot = FLIP.slotPx / Math.sin(FLIP.slotDeg * Math.PI / 180);
   return pivot * Math.sin(a) + (w * Math.cos(a) + h * Math.sin(a)) / 2 - w / 2;
@@ -879,6 +890,7 @@ function medianLandscape(ratios) {
 }
 /* site: a stack's EFFECTIVE aspect — the median landscape ratio when it has landscape images (the drawings: unchanged), else
    the median of all its ratios (a portrait-only pile: the polaroids), so its effective rect / zones / peek hug its cards */
+function effRatios(pics) { return pics.filter(m => m.eff !== 0).map(m => m.w / m.h); }   // site: the pics that set it (pic.eff 0: not — the drawings' 136); hoisted: PEEK_PX runs above
 function effAspect(ratios) {
   if (ratios.some(r => r > 1)) return medianLandscape(ratios);
   const a = ratios.slice().sort((x, y) => x - y), n = a.length;
@@ -1884,7 +1896,7 @@ function layoutSize() {
   // on the box centre; the zones are its left / right 30 %, full height. Viewer px (the viewer's content frame, as the
   // ghost). site: the zone nodes are the page's: written by the stack that owns them (placeZones: the active one; the
   // primary at rest)
-  const ea = effAspect(cards.map(c => c.pic.w / c.pic.h)), ew = ea >= 1 ? B : B * ea, eh = ea >= 1 ? B / ea : B;
+  const ea = effAspect(effRatios(cards.map(c => c.pic))), ew = ea >= 1 ? B : B * ea, eh = ea >= 1 ? B / ea : B;
   const eff = G.eff = { left: (W - ew) / 2 + OPEN_DX * W, top: (H - eh) / 2, width: ew, height: eh, aspect: ea };   // site: OPEN_DX
   const px = ew * FLIP.zonePad, py = eh * FLIP.zonePad;                                        // the hitbox padding (FLIP.zonePad each way)
   const wL = ew * FLIP.zoneL + 2 * px, wR = ew * (1 - FLIP.zoneR) + 2 * px, zt = eff.top - py, zh = eh + 2 * py;
@@ -2166,7 +2178,7 @@ function setFront(v) {                      // rotate the deck so IMAGES[v] is i
 }
 
 /* ============================================================
-   THE VIEWER MODEL (over `order`: D = 8 pages; every card's
+   THE VIEWER MODEL (over `order`: D = 13 pages; every card's
    seat is its slot's pose — see the header)
    ============================================================ */
 const zOf = i => D - i;                                                    // a pile: current > next > next+1 > … > prev
