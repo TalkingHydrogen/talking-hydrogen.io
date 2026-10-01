@@ -1868,6 +1868,10 @@ function filmCtl(F) {
    site: the page's part (the viewer / content / row geometry, the header, the row elements, the ghost) is pageLayout();
    layoutAll() runs it, then every stack's layoutSize() (the row's positions depend on every box), then every stack's
    layoutMeasure(). */
+/* site 2026-10-01 — OPEN_DX (cfg.openDx, a fraction of the viewer width; owner: "move the stack of the polaroids just a bit to
+   the right so it optically gives more space to the font"): the open pile's centre sits this far right of the viewer's centre —
+   its effective rect, zones and caption band (eff.left) move with it */
+const OPEN_DX = cfg.openDx || 0;
 function layoutSize() {
   Object.assign(G, PG);                                      // the page geometry (pageLayout())
   if (cfg.openB) { G.B = cfg.openB(G.W, G.H); G.K = G.B / STACK.refBox; G.KV = G.B / FLIP.refBox; }   // site 2026-09-30: its own open box (the MACBOOK: the FILM's frame)
@@ -1881,7 +1885,7 @@ function layoutSize() {
   // ghost). site: the zone nodes are the page's: written by the stack that owns them (placeZones: the active one; the
   // primary at rest)
   const ea = effAspect(cards.map(c => c.pic.w / c.pic.h)), ew = ea >= 1 ? B : B * ea, eh = ea >= 1 ? B / ea : B;
-  const eff = G.eff = { left: (W - ew) / 2, top: (H - eh) / 2, width: ew, height: eh, aspect: ea };
+  const eff = G.eff = { left: (W - ew) / 2 + OPEN_DX * W, top: (H - eh) / 2, width: ew, height: eh, aspect: ea };   // site: OPEN_DX
   const px = ew * FLIP.zonePad, py = eh * FLIP.zonePad;                                        // the hitbox padding (FLIP.zonePad each way)
   const wL = ew * FLIP.zoneL + 2 * px, wR = ew * (1 - FLIP.zoneR) + 2 * px, zt = eff.top - py, zh = eh + 2 * py;
   G.zoneCss = { l: `left:${eff.left - px}px;top:${zt}px;width:${wL}px;height:${zh}px`,
@@ -1916,7 +1920,7 @@ function layoutMeasure() {
   const vr = viewer.getBoundingClientRect(), br = measureBox(vr);
   const gr = cfg.openB ? { left: vr.left + (G.W - G.B) / 2, width: G.B, height: G.B, bottom: vr.top + (G.H + G.B) / 2 } : ghost.getBoundingClientRect();   // site: its own open box, centred as the ghost
   G.boxB = br.bottom - vr.top;                             // site: FILM — the box's bottom (viewer px), the item's transform origin at HOME
-  G.gcx = gr.left - vr.left + gr.width / 2;                // the viewer box centre x (viewer px; flip.html's cx)
+  G.gcx = gr.left - vr.left + gr.width / 2 + OPEN_DX * G.W;   // the viewer box centre x (viewer px; flip.html's cx), site: + OPEN_DX
   G.S  = gr.height / br.height;                            // = B / bRest
   G.iy = gr.bottom - br.bottom;                            // > 0 here: the viewer box ends below the content bottom (no y ≤ 0 clamp)
   targets();
@@ -3709,7 +3713,7 @@ const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],   // 
    trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
-stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
+stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .035, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
