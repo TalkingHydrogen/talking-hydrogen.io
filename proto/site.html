@@ -1959,6 +1959,14 @@ function placePlay() {
 /* THE SLOT POSES (per SLOT, no DOM), the one table of every state: slots 0 … N−1 = stack.html's arrange() (the seeded rest
    pose + nudge, and the hover ramp), slots N … D−1 = the tuck (centred, rotation 0, knobs.vshrink, no ramp). Everything in
    the expanded frame (item px at B): offsets are scaled by the box. */
+/* site 2026-10-01 — FAN (cfg.fan; owner: "max 3 cards, and make it look like you hold an unrolled stack of cards in your hand,
+   aka rotation diff and offset"): every preview card is the front card turned by rot[i]° (clockwise +) about ONE pivot — where
+   the thumb holds the pile — pivot = [x, y] from the front card's centre in box units (B = the card's long side), so card i's
+   centre is C0 + v − R(θ)·v; jitter[i] = [dx, dy] (× B) on top (a held pile never lines up exactly); open = degrees per slot the
+   hover fans it further, about the same pivot (the arc's chord: render() blends the shift linearly in the hover weight). */
+const FAN = cfg.fan || null;
+const fanX = t => FAN.pivot[0] - (FAN.pivot[0] * Math.cos(t) - FAN.pivot[1] * Math.sin(t));
+const fanY = t => FAN.pivot[1] - (FAN.pivot[0] * Math.sin(t) + FAN.pivot[1] * Math.cos(t));
 function arrangeHome() {
   const B = G.B, KB = G.K, k = knobs;
   const N = k.deck.length, pivot = Math.min(k.pivot, N - 1);   // N = cards shown; the ramp spans slots 0 … N−1, pivot clamped into it
@@ -1985,6 +1993,12 @@ function arrangeHome() {
     s.sx   = k.spreadX * B * s.ramp; s.sy = k.spreadY * B * s.ramp; s.srot = k.spreadRot * s.ramp;
     s.dx += k.restSpread * s.sx; s.dy += k.restSpread * s.sy; s.rot += k.restSpread * s.srot;   // rest spread: the fan is part of the pose itself
     s.sx *= k.hoverSpread; s.sy *= k.hoverSpread; s.srot *= k.hoverSpread;                        // what hover still adds on top
+    if (FAN) {                                               // site: a HAND-HELD fan (cfg.fan) replaces the seeded pose and the ramp
+      const th = (FAN.rot[i] ?? FAN.rot[FAN.rot.length - 1]) * Math.PI / 180, jt = FAN.jitter?.[i] || [0, 0];
+      const t2 = th + (FAN.open || 0) * i * Math.PI / 180;             // hover: the fan opens about the same pivot, open° per slot
+      s.size = 1; s.rot = th * 180 / Math.PI; s.dx = (fanX(th) + jt[0]) * B; s.dy = (fanY(th) + jt[1]) * B;
+      s.sx = (fanX(t2) - fanX(th)) * B; s.sy = (fanY(t2) - fanY(th)) * B; s.srot = (t2 - th) * 180 / Math.PI;
+    }
     s.tuck = false;
     slots.push(s);
   }
@@ -3687,13 +3701,14 @@ const POL_KNOBS = { radius: 0, border: 0, vradius: 0, vborder: 0, shadow: 1, vsh
    height). The old one-blur cast (σ .01 W, black .2, 2026-09-26 morning) is gone. */
 const POL_FLOOR = { src: '../assets/neo/pol-floor.webp', fx: .045, fy: .03701 };
 const POL_CONTACT = { sigma: .004, color: 'rgba(100, 60, 23, .675)' };
-/* the home deck [figure, NEO, trees, dancers] (owner 2026-09-28: the full-body robot — the figure print — in front); the slot
-   nudges below were tuned with [NEO, trees, figure, dancers] in those slots */
-const POL_NUDGE = [[0, 0, 0], [-.02, -.01, -2], [.02, -.015, 3], [-.025, .012, 3]];   // slot 1 (trees) a little left + up, 2° counter-clockwise; slot 2 (figure) right + up, 3° further clockwise; slot 3 (dancers) left + down, 3° clockwise   // slot 1 (the back print): a little right and up, 3° further clockwise (6.75° total) — its photo edge shows past the front card
 /* its caption in OPEN (the .caption CSS; owner 2026-09-27: their copy, title case as in the reference, Børnich's ø) */
 const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],   // NEO on its own line (owner 2026-09-27)
                       credits: ['Bernt Børnich', 'Dar Sleeper', 'Christoph Kohstall', 'Eric Jang', 'Chris Tan', 'Viktor Dune'] };
-stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1, 3], nudge: POL_NUDGE, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
+/* site 2026-10-01 (owner: "max 3 cards … like you hold an unrolled stack of cards in your hand"): the pile shows 3 (figure, NEO,
+   trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
+   card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
+const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
+stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
