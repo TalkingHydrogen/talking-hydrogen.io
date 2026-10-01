@@ -3782,7 +3782,10 @@ const DIGITAL = [
    mixed aspects). DIG_FLOOR is only the stack's default (every pic has its own). */
 const DIG_CONTACT = { sigmaLong: .00296, color: POL_CONTACT.color };
 const DIG_FLOOR = DIGITAL[0].floor;
-stacks.push(makeStack($('digital'), { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [5, 1, 4],   // 115 copy in front, then 84, 136
+/* site 2026-10-01 (owner: "apply the same angled stuff as in the other painting drawing stack, just copy whats there"): the
+   drawings' nudge (slot 1 left −.03, the back card turned +5.4° → +4.04° clockwise) on the same seeded fan (seed / rotVar /
+   posVar / sizeVar are the knob defaults both piles share) */
+stacks.push(makeStack($('digital'), { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [5, 1, 4], nudge: DEFAULT_NUDGE,   // 115 copy in front, then 84, 136
                                       knobs: POL_KNOBS, castOnly: true, floor: DIG_FLOOR, contact: DIG_CONTACT }));
 stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: IMAGES, assets: ASSETS, deck: DEFAULT_DECK, nudge: DEFAULT_NUDGE }));
 /* site: the DANDELION demo OST (the markup's comment): the sealed record as a pile of one — the drawings' zoom, no flip (a
