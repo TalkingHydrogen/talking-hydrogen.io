@@ -123,7 +123,7 @@ panel.append(h('div', { class: 'cl-top' },
 // gains
 const gains = h('div', { class: 'cl-card' }, h('h3', {}, 'Channel gain'), h('div', { class: 'cl-head' }, h('b', {}, 'gain %'), h('b', {}, 'paper')));
 for (const [c, k] of CH.entries()) {
-  const range = h('input', { type: 'range', min: 80, max: 120, step: .5 });
+  const range = h('input', { type: 'range', min: 80, max: 120, step: .1 });
   const num = h('input', { type: 'number', min: 50, max: 150, step: .5, title: 'gain, %' });
   const pap = h('input', { type: 'number', min: 0, max: 255, step: 1, title: 'the paper value after the gain (0–255): type one to set the gain from it' });
   range.oninput = () => set(k, +range.value);
@@ -164,6 +164,24 @@ neutralBtn.onclick = () => {
   const p = paperBefore(); if (!p) return note('No paper sample yet.');
   const L = (p[0] + p[1] + p[2]) / 3; CH.forEach((k, c) => (S[k] = r1(100 * L / p[c]))); apply(); syncPanel(); save(); note('Paper set to neutral grey.');
 };
+/* the PHOTO PRINT's paper (owner 2026-10-01: "can you do it the same color as that single pic there"): the room print's white
+   border, median of a strip inside its left edge (past the cut-edge hairline), the gains that bring the polaroids' paper to it */
+function printPaper() {
+  const im = document.querySelector('#room .card .fr-front img') || document.querySelector('#room .card > img'); if (!im || !im.complete || !im.naturalWidth) return null;
+  const w = 1000, hh = Math.round(w * 1083 / 2018), cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  try { cx.drawImage(im, 0, 0, w, hh); } catch { return null; }
+  let d; try { d = cx.getImageData(5, Math.round(hh * .25), 8, Math.round(hh * .5)).data; } catch { return null; }
+  const ch = [[], [], []]; for (let i = 0; i < d.length; i += 4) for (let c = 0; c < 3; c++) ch[c].push(d[i + c]);
+  return ch.map(a => { a.sort((x, y) => x - y); return a[a.length >> 1]; });
+}
+function matchPrint() {
+  const p = paperBefore(), t = printPaper(); if (!p || !t) { note('No paper sample yet.'); return null; }
+  CH.forEach((k, c) => (S[k] = r1(clamp(100 * t[c] / p[c], 50, 150)))); apply(); syncPanel(); save();
+  note(`Paper set to the photo print's: ${t.join(' ')}.`); return t;
+}
+const matchBtn = h('button', { class: 'cl-btn', type: 'button', textContent: 'Match photo print', title: "gains that bring the paper to the room print's white" });
+matchBtn.onclick = matchPrint;
 const resetBtn = h('button', { class: 'cl-btn', type: 'button', textContent: 'Reset' });
 resetBtn.onclick = () => { S = { ...DEF }; apply(); syncPanel(); save(); note('Back to the prints as baked.'); };
 const copyBtn = h('button', { class: 'cl-btn pri', type: 'button', textContent: 'Copy values' });
@@ -174,11 +192,11 @@ copyBtn.onclick = async () => {
 };
 const paperCard = h('div', { class: 'cl-card' }, h('h3', {}, 'Paper (bottom band, median)'),
   h('div', { class: 'cl-paper' }, swA, numA, h('span', { class: 'arr' }, '→'), swB, numB),
-  h('div', { class: 'cl-btns' }, cmpBtn, neutralBtn, resetBtn, copyBtn), msg, vals);
+  h('div', { class: 'cl-btns' }, cmpBtn, matchBtn, neutralBtn, resetBtn, copyBtn), msg, vals);
 panel.append(h('div', { class: 'cl-body' }, gains, paperCard));
 
 /* ---------- boot ---------- */
 apply(); sampleAll(); syncPanel();
 new MutationObserver(() => { apply(); sampleAll(); syncPanel(); }).observe(pol.wrap, { subtree: true, attributes: true, attributeFilter: ['src'] });   // a lazily loaded card gets the filter + its sample
-window.__colorlab = { get state() { return { ...S }; }, set, paper: paperBefore, json };
+window.__colorlab = { get state() { return { ...S }; }, set, paper: paperBefore, printPaper, matchPrint, json };
 })();
