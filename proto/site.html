@@ -140,6 +140,13 @@
   /* its play button's stand-in over the film (the button itself is in the card's plane, under the film): the same disc, a row
      node above everything in the row, placed and faded with it (filmWrite(), songWrite()) */
   .play.proxy { left: 0; top: 0; translate: 0 0 .7px; transform-origin: 0 0; transition: none; pointer-events: none; }
+  /* site 2026-10-01: while the film plays the CURSOR is its play button (the filmCursor note): .filmcap hides the native cursor
+     (a page-wide node over everything, hit-testable only meanwhile — no computed-cursor change on the cards: PERF), .filmcur is the
+     button's disc on the pointer (its press: the button's own .92) */
+  .filmcap { position: fixed; inset: 0; z-index: 999; pointer-events: none; cursor: none; }
+  .filmcur { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 1001; pointer-events: none; opacity: 0; will-change: transform, opacity; }
+  .filmcur .play { left: 0; top: 0; translate: -50% -50%; visibility: visible; opacity: 1; pointer-events: none; }
+  .filmcur.down .play { transform: scale(.92); }
   .card::before { content: ''; display: none; position: absolute; inset: 0; z-index: 1; background: #fff; clip-path: var(--paper, none); }
   .card.print::before { display: block; }
   /* site: a card whose image carries its own shadow (pic.bleed: the Dandelion sleeve): the card box is the PRINT (pic w / h), the
@@ -1351,6 +1358,7 @@ const FILM = {
   type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', vp9: 'video/webm; codecs="vp09.00.41.08, opus"' },
   fit: 1.15,                                                          // the frame: covers the viewport, at most 1.15 × its contain size
   inMs: 260, btnMs: 1200, stopMs: 550, backMs: 700, bMs: 800,        // the film's fade in over the card; the button's fade out; a stop's fade; the chrome's return; the B's fade
+  curMs: 300,                                                         // the play-button cursor's fade in / out (filmCursor)
   push: .6,                                                           // the neighbours slide out by this × the viewport width
 };
 const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * Math.min(W / 16, H / 9));   // css px
@@ -1755,6 +1763,7 @@ function filmCtl(F) {
     arm();
     fs = 'start'; perfMark('film start');
     hide.tween(1, FILM.btnMs, ZOOM_EASE); fade.jump(0); proxyOn = true;
+    filmCursor.show(parseFloat(playBtn?.style.width) || 42);                          // the cursor becomes the play button (pause glyph)
     el.muted = muted; el.volume = 1;
     if (el.currentTime > .001) el.currentTime = 0;
     const go = () => { if (fs === 'start') swapIn(); };
@@ -1774,6 +1783,7 @@ function filmCtl(F) {
   }
   function land() {                         // the stack closes on the video's clock
     fs = 'land'; perfMark('film land');
+    filmCursor.hide(false);                                                           // clicks do nothing from here: the native cursor
     closeNow();
     p.follow(() => pOf(tau()), 0);
   }
@@ -1789,6 +1799,7 @@ function filmCtl(F) {
   function stop() {                         // a click while it plays: the film fades out over the open laptop
     if (fs === 'start') { off(); hide.tween(0, FILM.backMs, ZOOM_EASE); kick(); return; }
     if (fs !== 'play' && fs !== 'in') return;
+    filmCursor.hide(true);                                                            // the click's answer: ▶, then the native cursor
     const wasIn = fs === 'in';
     fs = 'stop'; perfMark('film stop'); clearTimeout(wake);
     el.classList.add('up'); cardEl().style.visibility = '';
@@ -1801,7 +1812,7 @@ function filmCtl(F) {
     if (fs === 'outro') { fs = 'stop'; fade.tween(0, 150, EASES.quadOut); kick(); }
   }
   function off() {
-    fs = 'off'; perfMark('film off'); clearTimeout(wake);
+    fs = 'off'; perfMark('film off'); clearTimeout(wake); filmCursor.hide(true);
     el.pause(); if (el.currentTime > .001) el.currentTime = 0;
     el.classList.remove('up'); el.style.clipPath = ''; fade.jump(1); proxyOn = false;
     fput('o', 'opacity', '0'); fput('v', 'visibility', armed && state !== 'home' ? 'visible' : 'hidden');
@@ -3537,6 +3548,41 @@ for (const z of [nzL, nzR]) {                                                   
 /* site 2026-09-30: FILM — while the film plays every click / tap on the page is the film's: it stops it (owner: "any click will stop
    the video"), and nothing else sees it (the viewer's close routing, the neighbour zones, a press's prime) — window capture, first.
    Esc / space too. During the landing and a stop's fade clicks are swallowed. */
+/* site 2026-10-01: FILM — the CURSOR is the play button for the film's duration (owner: "turn a mouse into a play and pause button for
+   the duration of the video"; chosen: "the play button itself", and its click stays the stop): the button's grey disc and white
+   glyph at the button's size, centred on the pointer — ⏸ while it plays. It fades in as the button fades out (the button becomes the
+   cursor), turns ▶ on the stop's click (or Esc) and fades with the film, and leaves at the landing (clicks do nothing there).
+   .filmcap hides the native cursor meanwhile. Pointers that hover only (a mouse, a trackpad, a pen): a touch has no cursor. */
+const filmCap = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'filmcap' }));
+const filmCur = document.body.appendChild(Object.assign(document.createElement('div'), { className: 'filmcur' }));
+const filmCurBtn = filmCur.appendChild(Object.assign(document.createElement('div'), { className: 'play playing', innerHTML: PLAY_SVG }));
+filmCap.setAttribute('aria-hidden', 'true'); filmCur.setAttribute('aria-hidden', 'true');
+filmCur.style.transition = `opacity ${FILM.curMs}ms ease-out`;
+const fcHover = matchMedia('(hover: hover) and (pointer: fine)');
+let fcOn = false, fcIn = true, fcT = 0, fcPT = 'mouse';
+const fcMove = (x, y) => { filmCur.style.transform = `translate3d(${x}px, ${y}px, 0)`; };
+const fcShow = () => { filmCur.style.opacity = fcOn && fcIn ? '1' : '0'; };
+addEventListener('pointermove', e => { fcPT = e.pointerType; if (fcOn) fcMove(e.clientX, e.clientY); }, { passive: true, capture: true });
+addEventListener('pointerdown', e => { fcPT = e.pointerType; if (fcOn) filmCur.classList.add('down'); }, true);
+addEventListener('pointerup', () => filmCur.classList.remove('down'), true);
+document.documentElement.addEventListener('mouseleave', () => { fcIn = false; fcShow(); });   // off the window: no disc parked at the edge
+document.documentElement.addEventListener('mouseenter', () => { fcIn = true; fcShow(); });
+const filmCursor = {
+  show(d) {
+    if (fcPT === 'touch' || !fcHover.matches) return;
+    clearTimeout(fcT); fcOn = true;
+    filmCurBtn.style.width = filmCurBtn.style.height = d + 'px';
+    filmCurBtn.classList.add('playing');
+    if (lastX >= 0) fcMove(lastX, lastY);
+    filmCap.style.pointerEvents = 'auto'; fcShow();
+  },
+  hide(stopped) {                           // stopped: the glyph answers the click (▶) as it fades
+    if (!fcOn) return;
+    if (stopped) filmCurBtn.classList.remove('playing');
+    fcOn = false; fcShow();
+    clearTimeout(fcT); fcT = setTimeout(() => { filmCap.style.pointerEvents = ''; }, FILM.curMs);   // the native cursor once the disc is gone
+  },
+};
 const filmGuard = () => stacks.find(s => s.film?.guards)?.film;
 if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(async () => {   // debug: open the MACBOOK and start its film muted (any browser, no gesture); ?filmat=SEC seeks there
   const s = stacks.find(k => k.film); if (!s) return;
