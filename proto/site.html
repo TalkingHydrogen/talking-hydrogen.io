@@ -315,13 +315,6 @@
   <div class="wrap" id="room" data-size="1"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print) is built by the script: ROOM in BOOT -->
   </div></div>
-  <div class="wrap" id="drawings"><div class="box" id="box">
-    <div class="item" id="item">
-      <div class="hover" id="hover">
-        <div class="cards" id="cards"></div>            <!-- the eight .card elements (one per image) are built by the script -->
-      </div>
-    </div>
-  </div></div>
   <!-- the DANDELION demo OST (2021 Dandelion/Dandelion Demo OST Art.png) as a sealed 12" record, exported by the designer from
        brew/sleeve/sleeve-lab.html 2026-09-26 (protrusion 1.3 mm, the designer's light untouched; brew/sleeve/final/dandelion-sleeve-lab-1.3mm.png): shrink
        film as a sessile pillow, the two-panel white box of the black-iPhone shot mirrored in it. The press-shot ground shadow
@@ -336,6 +329,21 @@
        ONE pile — the CD in front, the sleeve behind it: DANDELION in BOOT -->
   <div class="wrap" id="dandelion" data-size=".9"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
+  </div></div>
+  <!-- site 2026-10-01: the DIGITAL PAINTINGS (owner: "put them as a separate stack left from paintings drawings one … and move disk on
+       the left from that stack"): the five Artstudio Pro paintings (2020–21, iCloud Untitled 108 / 84 / 69 / 66 / 136) as their own pile —
+       brew/artstudio/artstudio.py (the app's flatten, verified against the layers; lossless gray PNG; masters in website/2020 digital
+       paintings). DIGITAL in BOOT; the drawings' card treatment and zoom, data-size 1 as the drawings. The CD + sleeve pile (#dandelion)
+       moved from after the drawings to the left of this one -->
+  <div class="wrap" id="digital"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its five .cards are built by the script: DIGITAL in BOOT -->
+  </div></div>
+  <div class="wrap" id="drawings"><div class="box" id="box">
+    <div class="item" id="item">
+      <div class="hover" id="hover">
+        <div class="cards" id="cards"></div>            <!-- the eight .card elements (one per image) are built by the script -->
+      </div>
+    </div>
   </div></div>
   <!-- site 2026-09-30: the SIGN-OFF, the row's last element (the .sign CSS): the print's back line continued, the owner's words as typed -->
   <div class="sign" id="sign">a love letter to the people I worked with and things we made along</div>
@@ -411,8 +419,8 @@
  * ============================== ONE PILE, HOME = OPEN × S ("no things teleport") ==============================
  * One .card per image (cards[j], j = IMAGES index), each laid out at its contain-fit size in B (longer side = B). Two orders:
  *   knobs.deck  the home pile, front first (N = its length, 3 by default) — WHICH images the preview shows
- *   order       the page sequence (all D = 13 images, current first) = the home deck followed by the remaining images in
- *               canonical order: deck [5,7,0] → [5,7,0,1,2,3,4,6,8,9,10,11,12]. Rebuilt from the deck whenever the deck changes at
+ *   order       the page sequence (all D = 8 images, current first) = the home deck followed by the remaining images in
+ *               canonical order: deck [5,7,0] → [5,7,0,1,2,3,4,6]. Rebuilt from the deck whenever the deck changes at
  *               HOME (setDeck / setKnob('front')); flips rotate it; it is KEPT across a close (the pile as left).
  * SLOT POSES (arrangeHome() → `slots`, one per SLOT index 0 … D−1, item px at B — per slot, never per card): order[i] sits
  * in slot i, in EVERY state (HOME, the zoom and OPEN read the one table):
@@ -573,17 +581,6 @@ const IMAGES = [
   { id: 'drawing-06',  w: 1339, h: 2000 },
   { id: 'drawing-09',  w: 2000, h: 1332 },
   { id: 'painting-18', w: 2000, h: 1411 },
-  /* owner 2026-10-01: "on icloud there are artstudio files … for untitled: 108 84 69 66 136 … put them in the stack like other
-     drawings paintings" — the Artstudio Pro paintings (2020–21), grayscale lossless PNG (brew/artstudio/artstudio.py: the app's
-     own flatten, verified against the layers; masters in website/2020 digital paintings). Pages after the eight; the home deck is
-     unchanged. 66 is its full canvas (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a
-     flat gray, a hard edge at row 1127). eff: 0 = left out of the stack's effective aspect (its 2.2 : 1 would move the median
-     landscape ratio 1.417 → 1.458: the zones and the peek the owner tuned) */
-  { id: 'untitled-108', src: ASSETS + 'untitled-108.png', w: 2000, h: 2000 },
-  { id: 'untitled-84',  src: ASSETS + 'untitled-84.png',  w: 1490, h: 2000 },
-  { id: 'untitled-69',  src: ASSETS + 'untitled-69.png',  w: 1906, h: 2000 },
-  { id: 'untitled-66',  src: ASSETS + 'untitled-66.png',  w: 1156, h: 1156 },
-  { id: 'untitled-136', src: ASSETS + 'untitled-136.png', w: 2000, h: 902, eff: 0 },
 ];
 const D = IMAGES.length;                                    // cards built (one per image) = the viewer's page count
 const DEFAULT_DECK = [5, 7, 0];                             // IMAGES indices, front first: drawing-06, painting-18, painting-17 (owner values 2026-09-25)
@@ -890,7 +887,7 @@ function medianLandscape(ratios) {
 }
 /* site: a stack's EFFECTIVE aspect — the median landscape ratio when it has landscape images (the drawings: unchanged), else
    the median of all its ratios (a portrait-only pile: the polaroids), so its effective rect / zones / peek hug its cards */
-function effRatios(pics) { return pics.filter(m => m.eff !== 0).map(m => m.w / m.h); }   // site: the pics that set it (pic.eff 0: not — the drawings' 136); hoisted: PEEK_PX runs above
+function effRatios(pics) { return pics.filter(m => m.eff !== 0).map(m => m.w / m.h); }   // site: the pics that set it (pic.eff 0: not — the digital pile's 136); hoisted: PEEK_PX runs above
 function effAspect(ratios) {
   if (ratios.some(r => r > 1)) return medianLandscape(ratios);
   const a = ratios.slice().sort((x, y) => x - y), n = a.length;
@@ -2178,7 +2175,7 @@ function setFront(v) {                      // rotate the deck so IMAGES[v] is i
 }
 
 /* ============================================================
-   THE VIEWER MODEL (over `order`: D = 13 pages; every card's
+   THE VIEWER MODEL (over `order`: D = 8 pages; every card's
    seat is its slot's pose — see the header)
    ============================================================ */
 const zOf = i => D - i;                                                    // a pile: current > next > next+1 > … > prev
@@ -3760,6 +3757,19 @@ const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
 } : null;
 stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR, turn: ROOM_TURN,
                                    rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2 } }));
+/* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
+   (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
+   eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
+   without it the rect hugs the others (median of all, ≈ .98). deck: the hooded figure (84) in front, the creature (69) and the
+   desert (136, the widest: it peeks past both sides) behind; 108 and 66 are pages in OPEN. */
+const DIGITAL = [
+  { id: 'untitled-108', src: '../assets/digital/untitled-108.png', w: 2000, h: 2000 },
+  { id: 'untitled-84',  src: '../assets/digital/untitled-84.png',  w: 1490, h: 2000 },
+  { id: 'untitled-69',  src: '../assets/digital/untitled-69.png',  w: 1906, h: 2000 },
+  { id: 'untitled-66',  src: '../assets/digital/untitled-66.png',  w: 1156, h: 1156 },
+  { id: 'untitled-136', src: '../assets/digital/untitled-136.png', w: 2000, h: 902, eff: 0 },
+];
+stacks.push(makeStack($('digital'), { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [1, 2, 4] }));
 stacks.push(makeStack($('drawings'), { name: 'drawings', primary: true, images: IMAGES, assets: ASSETS, deck: DEFAULT_DECK, nudge: DEFAULT_NUDGE }));
 /* site: the DANDELION demo OST (the markup's comment): the sealed record as a pile of one — the drawings' zoom, no flip (a
    single card has no zones: a click on it does nothing, outside it closes). DAN_KNOBS: no radius / border / shadow (the
