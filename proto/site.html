@@ -3665,9 +3665,11 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
    brew/polaroid scan renders, 2400 × 2918 → 1645 × 2000 webp). POL_KNOBS: no radius / border at home or in the viewer (square
    corners, the prints carry their own edge); the measured shadows at home and in the viewer (POL_FLOOR / POL_CONTACT, below); pivot .5: with a pile of two the
    back card takes the hover ramp (at the default 1.5, clamped to N − 1 = 1, neither card would fan). */
-/* 2026-10-01 (owner: 'can you do it the same color as that single pic there' … 'bake it in, remove those dirt spots from the top right angle'):
-   the cards' paper = the photo print's white (colorlab.js 'Match photo print': gain r 1.063 g 1.081 b 1.099, baked into the webps + variants)
-   and no corner smudge / rust dots (brew/polaroid --set wear_smudge=0 --set wear_rust=0, out/polaroid-*-clean.png; everything else bit-identical) */
+/* 2026-10-01 (owner: 'copy ts' — the Designed by Apple book's page white; 'remove those dirt spots from the top right angle';
+   'we dont need squircles on the image inside'; the writing 'looks a bit too fake … with a marker'): the cards' paper = the book's
+   page (band 238 239 243: gain r 1.0 g 1.0214 b 1.0519, baked into the webps + variants), square photo window (r_in 0), no corner
+   smudge / rust dots (wear_smudge / wear_rust 0) — brew/polaroid out/polaroid-*-sq.png — and the figure's inscription a felt-tip
+   marker (ballpen.py --variant marker, measured off the Jobs SX-70 signature: ref-jobs/marker-steve-jobs.png) */
 const POLAROIDS = [
   { id: 'neo',   src: '../assets/neo/neo-card.webp',   w: 1645, h: 2000 },    // no inscription since 2026-09-28 (owner: "rm love from text from the pic with a head"; inked = neo-card-inked-old.webp)
   { id: 'trees', src: '../assets/neo/trees-card.webp', w: 1645, h: 2000 },
