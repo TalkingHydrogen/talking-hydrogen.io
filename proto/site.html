@@ -282,11 +282,14 @@
        ?ma=2  Mike Matas's own hierarchy (mikematas.com, measured): the title semibold near-black, the role lines near-black, the credits black 40 %
        ?ma=3  one quiet gray: everything #86868B — the hierarchy is the space alone
        ?ma=4  ?ma=1 with apple.com's small-text secondary #6E6E73 (5.1 : 1, APCA Lc 75: passes WCAG AA + APCA at this size; #86868B is 3.6 : 1, Lc 64)
+       ?ma=5  one ink: everything #1D1D1F, the hierarchy is the intervals alone (the printed Japanese work uses no gray — Hara, Tanaka, Hisamatsu's 'black ink')
+       &align=hug  the caption ranged right, its right edge three lines (3.6em) from the print — attached to the object at a measured interval instead of
+         floating at the band's 45 / 55
        ?anchor=top|bottom|split  the caption locked to the FRONT PRINT's edges (placeCaption()): top = the first cap height on its top edge,
          bottom = the last baseline on its bottom edge, split = the lines on the top edge, the credits on the bottom edge (the void between
          them is the interval); top / bottom set the groups one empty line apart (a whole line: the baselines stay on one grid)
        ?masize=0.9  scales the type of both (one size for the page) */
-  html[data-ma] .hdr .name { color: var(--ma-1); }
+  html[data-ma] .hdr .name { color: var(--ma-1); margin-left: .2em; }   /* the V's top on the laptop's left edge (measured: it sat 4.5 px left of it at 1440; the PNG's own margin), 0.8 px overshoot for the diagonal */
   html[data-ma] .caption { color: var(--ma-2); }
   html[data-ma] .caption .ma-title { color: var(--ma-1); font-weight: var(--ma-tw, 400); }
   html[data-ma="1"] { --ma-1: #1D1D1F; --ma-2: #86868B; }
@@ -294,6 +297,10 @@
   html[data-ma="2"] .caption .credits { color: rgba(0, 0, 0, .4); }
   html[data-ma="3"] { --ma-1: #86868B; --ma-2: #86868B; }
   html[data-ma="4"] { --ma-1: #1D1D1F; --ma-2: #6E6E73; }
+  html[data-ma="5"] { --ma-1: #1D1D1F; --ma-2: #1D1D1F; }
+  html[data-align="hug"] .caption > div { text-align: right; }
+  html[data-align="hug"] .caption::before { flex: 1 1 0; }
+  html[data-align="hug"] .caption::after { flex: 0 0 3.6em; }   /* three line heights (1.2em each) from the print */
   html[data-masize] .hdr .name { font-size: calc(1.03em * var(--ma-size)); }
   html[data-masize] .caption { font-size: calc(var(--em) * 1.03 * var(--ma-size)); }
   html[data-anchor] .caption { align-items: stretch; }
@@ -1176,8 +1183,9 @@ const pageQuery = new URLSearchParams(location.search);    // site: the URL knob
 const CAMERA = pageQuery.get('zoom') !== 'part';
 /* site 2026-10-05, TYPE · MA (the html[data-ma] CSS): URL-only variants of the name + the caption; none = the page as it is */
 const MA = { tone: pageQuery.get('ma'), anchor: pageQuery.get('anchor'), size: parseFloat(pageQuery.get('masize')) };
-if (['1', '2', '3', '4'].includes(MA.tone)) document.documentElement.dataset.ma = MA.tone;
+if (['1', '2', '3', '4', '5'].includes(MA.tone)) document.documentElement.dataset.ma = MA.tone;
 if (['top', 'bottom', 'split'].includes(MA.anchor)) document.documentElement.dataset.anchor = MA.anchor; else MA.anchor = null;
+if (pageQuery.get('align') === 'hug') document.documentElement.dataset.align = 'hug';
 if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.documentElement.style.setProperty('--ma-size', String(MA.size)); }
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
