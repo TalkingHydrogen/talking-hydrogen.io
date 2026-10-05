@@ -1391,6 +1391,37 @@ const CONTACT = cfg.contact || null;                           // site: CAST as 
 const SH = cfg.shadow || STACK.shadow;                        // site: this stack's shadow geometry, 340-box px: { x, y, sigma } (the drawings: STACK.shadow)
 const query = cfg.primary ? pageQuery : new URLSearchParams('');
 const REST = cfg.rest || null;                              // site: the HOME-only pose (the sleeve: the tile's old tilt / raise), × (1 − p) in render()
+/* site 2026-10-05, LIFT (cfg.lift — a pile of one; the room print. Owner: "imagine you picking the physical photo off the table
+   looking top down, you lift it first by putting the fingers under the photo with your hand from the left, and then you lift it
+   up, with the right side delaying and being physically further away from you when lifting"): the HOME hover as a print picked
+   up by its left edge. Each side has its own lift: the right side's is the hover's own spring DELAYED by `lag` s, and the left
+   (the hand's) side is always the higher of the two — first up on the hover, last down on the leave (the far side lands first).
+   A side's lift is the hover scale's height (a pinhole camera looking down: scale s at height F(1 − 1/s)), so the print is a
+   rigid plane tilted between its two sides — ONE homography of the card (matrix3d, the w row only: no depth, as flip-render.js),
+   the low side smaller = further away. The .hover scale (the print and its table shadow) rides the LOW side, so the print only
+   ever grows past its shadow (a lifted edge's shadow slides under it: the light is from the upper left); the in-plane hover
+   turn rides the mean. At rest, and once both sides have arrived, the card is exactly as without it.
+   ?liftlag= (s; 0 = off), ?lifttilt= (× the two sides' height difference on the pick-up; 1 = physical). */
+const liftQ = k => { const x = parseFloat(pageQuery.get(k)); return Number.isFinite(x) ? x : null; };
+const LIFT = cfg.lift && D === 1 ? { lag: Math.max(0, liftQ('liftlag') ?? cfg.lift.lag), tilt: liftQ('lifttilt') ?? cfg.lift.tilt ?? 1 } : null;
+const lift = { t: 0, hist: [[0, 0]], moved: -Infinity };     // its clock (ms, frames only), the hover's recent values [t, h], the last change
+function liftStep(dt) {                                      // each frame, after the springs (step())
+  if (!LIFT) return;
+  const h = lift.hist, hv = hover.value;
+  lift.t += dt;
+  if (hv !== h[h.length - 1][1]) lift.moved = lift.t;
+  h.push([lift.t, hv]);
+  const cut = lift.t - LIFT.lag * 1000;
+  while (h.length > 2 && h[1][0] <= cut) h.shift();          // one sample at or before the window's start stays (the interpolation's left end)
+}
+function liftLagged() {                                      // the hover's value `lag` s ago (linear between the frames)
+  const h = lift.hist, at = lift.t - LIFT.lag * 1000;
+  if (at <= h[0][0]) return h[0][1];
+  for (let i = 1; i < h.length; i++) if (h[i][0] >= at) { const [t0, v0] = h[i - 1], [t1, v1] = h[i]; return v0 + (v1 - v0) * (at - t0) / (t1 - t0); }
+  return h[h.length - 1][1];
+}
+const liftBusy = () => !!LIFT && LIFT.lag > 0 && lift.t - lift.moved <= LIFT.lag * 1000;   // the far side still on its way
+const n10 = x => +x.toPrecision(10);
 const audio = cfg.audio ? new Audio() : null;               // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it
 if (audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
 function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { audio.preload = 'auto'; audio.load(); } }
@@ -2590,12 +2621,13 @@ function advance(dt) {                      // one step of dt ms: the master / h
   stepFlip(dt); settleFlip();
   checkState();
 }
-const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy;   // site: FILM   // PERF: the untuck runs the loop to its end
+const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy || liftBusy();   // site: FILM   // PERF: the untuck runs the loop to its end
 /* site: ONE frame loop for the page (frame() / kick(), after makeStack): each frame it steps every stack — advance + render,
    and the ?auto / ?autohover measurements */
 function step(dt, now) {
   film?.step();                                                            // site: FILM (the landing's p follows the video)
   advance(dt);
+  liftStep(dt);                                                            // site: LIFT
   untuckStep();
   if (TURN) TURN.step(dt);                                                 // site: TURN
   render();
@@ -2627,12 +2659,21 @@ const wr = {};                              // last written inline values of thi
 const put = (el, k, prop, v) => { if (wr[k] !== v) { wr[k] = v; el.style[prop] = v; } };
 function render() {
   const v = p.value, hv = hover.value, hw = hv * (1 - v);                                  // the hover weight: h at HOME, carried out by p in the zoom (see the header)
+  // site: LIFT — the two sides' weights (the hand's = the higher), the hover scale per side, the card's homography between them
+  let hLo = hw, hMid = hw, lh = '';
+  if (LIFT && LIFT.lag > 0) {
+    const hd = liftLagged() * (1 - v), hHi = Math.max(hw, hd); hLo = Math.min(hw, hd); hMid = (hLo + hHi) / 2;
+    const sc = h => 1 + (knobs.hoverScale - 1) * h, w = cards[0].w;
+    const r = 1 + (hw > hd ? LIFT.tilt : 1) * (sc(hHi) / sc(hLo) - 1);   // tilt only on the pick-up (the hand lifts its edge higher first); the put-down is
+                                                                          // physical (the far side lands first, the hand's never rises) — the switch is at hw = hd, r = 1: no jump
+    if (r > 1 + 1e-7 && w > 0) lh = ` matrix3d(1,0,0,${n10((1 - 1 / r) / w)},0,1,0,0,0,0,1,0,0,0,0,${n10((1 + 1 / r) / 2)})`;   // w = 1/r at the left edge (× r), 1 at the right (× 1)
+  }
   // the item: stack.html's zoom transform (y unclamped — see G.iy)
   const x = (G.ix + delta) * v;
   const y = G.iy * v;
   const s = 1 / G.S + (1 - 1 / G.S) * v;
   put(item, 'item', 'transform', `translate3d(${x}px, ${y}px, 0) scale(${s})`);
-  put(hoverEl, 'hover', 'transform', `scale(${1 + (knobs.hoverScale - 1) * hw})`);        // stack.html's hover scale (× (1 − p): 1 at p = 1, no snap)
+  put(hoverEl, 'hover', 'transform', `scale(${1 + (knobs.hoverScale - 1) * hLo})`);       // stack.html's hover scale (× (1 − p): 1 at p = 1, no snap); site: LIFT — the low side's
   const alpha = c => clamp(mix(kc(c, 'shadow'), kc(c, 'vshadow'), v), 0, 1);              // a preview card's shadow alpha, linear in p (a compositor-only change while promoted: shadeLayers)
   for (let i = 0; i < D; i++) {
     const c = cards[order[i]], sl = slots[i];
@@ -2643,10 +2684,10 @@ function render() {
     // site: the HOME-only pose (cfg.rest), squared up by the zoom: raised by `up` of the card's height, turned `rot`, and the
     // hover turn further into that tilt (the row elements' --hover-rot: ± spreadRot × the hover weight), or the way rest.hover
     // says (±1: the room print, owner 2026-10-05: "let the photo rotate left not right on hover")
-    if (REST) { Y -= REST.up * c.h * (1 - v); R += REST.rot * (1 - v) + (REST.hover ?? Math.sign(REST.rot)) * knobs.spreadRot * hw; }
+    if (REST) { Y -= REST.up * c.h * (1 - v); R += REST.rot * (1 - v) + (REST.hover ?? Math.sign(REST.rot)) * knobs.spreadRot * hMid; }   // site: LIFT — the turn rides the mean (hMid = hw without it)
     const z = zOf(zOrder.indexOf(c.j)); c.z = z;                                           // the pile order: its DEPTH in the .cards 3D context (PERF: never a z-index)
     const away = c.away ? AWAY : '';                                                         // PERF: a tucked card is off the table at rest (setLayout())
-    const tf = `${away}translate(${X}px, ${Y}px) rotate(${R}deg) scale(${SC})`, tfz = `translateZ(${z}px) ${tf}`;
+    const tf = `${away}translate(${X}px, ${Y}px) rotate(${R}deg) scale(${SC})`, tfz = `translateZ(${z}px) ${tf}${lh}`;   // site: LIFT — the homography on the card only (its table shadow stays flat)
     if (tfz !== c.tf) { c.tf = tfz; c.el.style.transform = tfz; if (c.fl) c.fl.style.transform = tf; }   // site: FLOOR follows its card (flat, under every card)
     c.pose = { X, Y, R, SC };                                                               // site: CAST reads every card's pose (below)
     // shadows: rest / lifted cross-faded by the lift (flip.html, 1/50 steps: fewer repaints), both × the alpha — p-blended for
@@ -3758,7 +3799,8 @@ const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
   }),
 } : null;
 stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR, turn: ROOM_TURN,
-                                   rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2, hover: -1 } }));   // hover: −1 = the hover turn goes counter-clockwise (owner 2026-10-05: "rotate left not right"), +1.5° → ≈ level
+                                   rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2, hover: -1 },
+                                   lift: { lag: .18, tilt: 2 } }));   // LIFT (owner 2026-10-05, "just for lolz"): picked up by its left edge, the right side .18 s behind; tilt 2: the left edge lifts twice the physical difference (at 1 the peak keystone, ~2.5 %, barely reads)   // hover: −1 = the hover turn goes counter-clockwise (owner 2026-10-05: "rotate left not right"), +1.5° → ≈ level
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
