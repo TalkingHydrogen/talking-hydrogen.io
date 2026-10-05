@@ -276,6 +276,30 @@
   .caption::after  { content: ''; flex: .55 1 0; }
   .caption p { margin: 0; }
   .caption .credits { margin-top: 1.8em; }                  /* the gap between the title lines and the credits */
+  /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
+     caption only). URL-only variants: without ?ma / ?anchor / ?masize the page is untouched. Research: brew/design-guide/typography-ma-notes.md.
+       ?ma=1  two tones: the name + the title in Apple's text near-black #1D1D1F, every other line Apple's secondary gray #86868B
+       ?ma=2  Mike Matas's own hierarchy (mikematas.com, measured): the title semibold near-black, the role lines near-black, the credits black 40 %
+       ?ma=3  one quiet gray: everything #86868B — the hierarchy is the space alone
+       ?anchor=top|bottom|split  the caption locked to the FRONT PRINT's edges (placeCaption()): top = the first cap height on its top edge,
+         bottom = the last baseline on its bottom edge, split = the lines on the top edge, the credits on the bottom edge (the void between
+         them is the interval); top / bottom set the groups one empty line apart (a whole line: the baselines stay on one grid)
+       ?masize=0.9  scales the type of both (one size for the page) */
+  html[data-ma] .hdr .name { color: var(--ma-1); }
+  html[data-ma] .caption { color: var(--ma-2); }
+  html[data-ma] .caption .ma-title { color: var(--ma-1); font-weight: var(--ma-tw, 400); }
+  html[data-ma="1"] { --ma-1: #1D1D1F; --ma-2: #86868B; }
+  html[data-ma="2"] { --ma-1: #1D1D1F; --ma-2: #1D1D1F; --ma-tw: 600; }
+  html[data-ma="2"] .caption .credits { color: rgba(0, 0, 0, .4); }
+  html[data-ma="3"] { --ma-1: #86868B; --ma-2: #86868B; }
+  html[data-masize] .hdr .name { font-size: calc(1.03em * var(--ma-size)); }
+  html[data-masize] .caption { font-size: calc(var(--em) * 1.03 * var(--ma-size)); }
+  html[data-anchor] .caption { align-items: stretch; }
+  html[data-anchor] .caption > div { display: flex; flex-direction: column; box-sizing: border-box; padding: var(--cap-pt, 0px) 0 var(--cap-pb, 0px); }
+  html[data-anchor="top"] .caption > div { justify-content: flex-start; }
+  html[data-anchor="bottom"] .caption > div { justify-content: flex-end; }
+  html[data-anchor="split"] .caption > div { justify-content: space-between; }
+  html[data-anchor] .caption .credits { margin-top: 1.2em; }   /* one empty line (the leading is 1.2) */
 </style>
 </head>
 <body>
@@ -1148,6 +1172,11 @@ const pageQuery = new URLSearchParams(location.search);    // site: the URL knob
    master spring): they grow and slide out as the page would, and whatever still frames the pile at p = 1 stays in view. ?zoom=part
    = the previous PARTING (the others slide out on x without scaling, the name fades), for A/B. See ROW PHYSICS. */
 const CAMERA = pageQuery.get('zoom') !== 'part';
+/* site 2026-10-05, TYPE · MA (the html[data-ma] CSS): URL-only variants of the name + the caption; none = the page as it is */
+const MA = { tone: pageQuery.get('ma'), anchor: pageQuery.get('anchor'), size: parseFloat(pageQuery.get('masize')) };
+if (['1', '2', '3'].includes(MA.tone)) document.documentElement.dataset.ma = MA.tone;
+if (['top', 'bottom', 'split'].includes(MA.anchor)) document.documentElement.dataset.anchor = MA.anchor; else MA.anchor = null;
+if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.documentElement.style.setProperty('--ma-size', String(MA.size)); }
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
 const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
@@ -1440,7 +1469,26 @@ if (capEl) {
   const block = (cls, lines) => { const d = document.createElement('div'); if (cls) d.className = cls;
     for (const t of lines) { const p = document.createElement('p'); p.textContent = t; d.appendChild(p); } inner.appendChild(d); };
   block('', cfg.caption.lines); if (cfg.caption.credits?.length) block('credits', cfg.caption.credits);
+  inner.querySelector('p')?.classList.add('ma-title');      // site 2026-10-05: the title line (TYPE · MA's ?ma; no style without it)
   row.appendChild(capEl);                                   // in the row's 3D context (the .caption CSS), not a row element (RP.els skips it)
+}
+/* site 2026-10-05, TYPE · MA ?anchor (the html[data-anchor] CSS): the caption's paddings put its type on the front print's edges —
+   the first cap height on the print's top edge, the last baseline on its bottom edge. Measured off the live type in an
+   untransformed probe (the caption itself rides the camera): the baseline = a zero-size inline-block's top, the cap height = a
+   canvas 'H' in the same font. */
+function placeCaption(eff, H) {
+  const p = capEl.querySelector('p'); if (!p) return;
+  const cs = getComputedStyle(p);
+  const probe = document.createElement('p');
+  probe.style.cssText = `position:absolute;left:0;top:0;margin:0;visibility:hidden;white-space:nowrap;font:${cs.fontWeight} ${cs.fontSize}/${cs.lineHeight} ${cs.fontFamily}`;
+  probe.textContent = 'H'; const mk = document.createElement('span'); mk.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+  probe.appendChild(mk); document.body.appendChild(probe);
+  const pr = probe.getBoundingClientRect(), base = mk.getBoundingClientRect().top - pr.top, lh = pr.height; probe.remove();   // lh: the line box as laid out (WebKit rounds it: 22.25 → 22 px)
+  const ctx = (placeCaption.cv ||= document.createElement('canvas')).getContext('2d');
+  ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const cap = ctx.measureText('H').actualBoundingBoxAscent;
+  capEl.style.setProperty('--cap-pt', Math.max(0, eff.top - base + cap) + 'px');
+  capEl.style.setProperty('--cap-pb', Math.max(0, H - (eff.top + eff.height) - (lh - base)) + 'px');
 }
 if (playBtn) {
   playBtn.className = 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();
@@ -1937,6 +1985,7 @@ function layoutSize() {
   if (ownsZones()) placeZones();
   G.peekPx = knobs.peekPx * KV;                              // the peek's emergence at this box (default PEEK_PX)
   if (capEl) capEl.style.width = Math.max(0, eff.left) + 'px';   // site: its caption's band, left of the pile (the .caption CSS)
+  if (capEl && MA.anchor) placeCaption(eff, H);              // site 2026-10-05: TYPE · MA ?anchor
 }
 /* site 2026-09-30: the zone CSS for a single card. The sleeve has nothing to flip to: no zones, no peek. The room print TURNS
    (TURN): its zones are the turn's edge bands (TURN_BAND, turnHover's teaser bands), so the system's resize arrows show
