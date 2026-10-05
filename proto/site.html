@@ -2641,8 +2641,9 @@ function render() {
     const X = c.px.value + c.pk.value + c.ex.value + hw * sl.sx, SC = c.ps.value * c.sc.value;
     let Y = c.py.value + c.ey.value + hw * sl.sy, R = c.pr.value + c.tl.value + c.sp.value + hw * sl.srot;
     // site: the HOME-only pose (cfg.rest), squared up by the zoom: raised by `up` of the card's height, turned `rot`, and the
-    // hover turn further into that tilt (the row elements' --hover-rot: ± spreadRot × the hover weight)
-    if (REST) { Y -= REST.up * c.h * (1 - v); R += REST.rot * (1 - v) + Math.sign(REST.rot) * knobs.spreadRot * hw; }
+    // hover turn further into that tilt (the row elements' --hover-rot: ± spreadRot × the hover weight), or the way rest.hover
+    // says (±1: the room print, owner 2026-10-05: "let the photo rotate left not right on hover")
+    if (REST) { Y -= REST.up * c.h * (1 - v); R += REST.rot * (1 - v) + (REST.hover ?? Math.sign(REST.rot)) * knobs.spreadRot * hw; }
     const z = zOf(zOrder.indexOf(c.j)); c.z = z;                                           // the pile order: its DEPTH in the .cards 3D context (PERF: never a z-index)
     const away = c.away ? AWAY : '';                                                         // PERF: a tucked card is off the table at rest (setLayout())
     const tf = `${away}translate(${X}px, ${Y}px) rotate(${R}deg) scale(${SC})`, tfz = `translateZ(${z}px) ${tf}`;
@@ -3757,7 +3758,7 @@ const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
   }),
 } : null;
 stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR, turn: ROOM_TURN,
-                                   rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2 } }));
+                                   rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2, hover: -1 } }));   // hover: −1 = the hover turn goes counter-clockwise (owner 2026-10-05: "rotate left not right"), +1.5° → ≈ level
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
