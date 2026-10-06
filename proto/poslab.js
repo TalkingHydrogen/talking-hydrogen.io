@@ -73,7 +73,10 @@ function applyType() {                                       // ALIGN + TONE: cl
   root.classList.toggle('pl-al-right', S.al === 'right'); root.classList.toggle('pl-al-left', S.al !== 'right');
   if (S.tone === 'site') { if ('ma' in root.dataset) delete root.dataset.ma; } else if (root.dataset.ma !== S.tone) root.dataset.ma = S.tone;
   const [gk, gs] = (S.grp || 'none').split(':');                                  // GROUPING: which title lines get space above them, how much
-  for (const k of ['three', 'neo', '1x']) root.classList.toggle('pl-g-' + k, gk === k);
+  const ps = [...capEl.querySelectorAll(':scope > div > div:not(.credits) > p')], x1 = ps.findIndex((q, i) => i > 0 && q.textContent.trim() === '1X');
+  const gapAt = new Set(gk === 'three' ? [1, x1] : gk === 'neo' ? [1] : gk === '1x' ? [x1] : []);   // the lines with space above them
+  ps.forEach((q, i) => q.classList.toggle('pl-linegap', i > 0 && gapAt.has(i)));   // (not .pl-gap: the HUD's strip numbers)
+  for (const o of grpSel.options) o.disabled = x1 < 0 && /^(three|1x)/.test(o.value);           // no 1X line: only 'NEO apart' makes sense
   root.style.setProperty('--pl-gs', (1.2 * (+gs || 1)) + 'em');                  // in lines of the caption (its leading 1.2)
 }
 function frame() {
@@ -114,9 +117,7 @@ css.textContent = `
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
   html.pl-al-left .caption > div { text-align: left !important; }
   html.pl-al-right .caption > div { text-align: right !important; }
-  html.pl-g-three .caption > div > div:not(.credits) > p:nth-child(2), html.pl-g-three .caption > div > div:not(.credits) > p:last-child:not(:nth-child(2)),
-  html.pl-g-neo .caption > div > div:not(.credits) > p:nth-child(2),
-  html.pl-g-1x .caption > div > div:not(.credits) > p:last-child:not(:first-child) { margin-top: var(--pl-gs, 1.2em) !important; }
+  html.pl .caption p.pl-linegap { margin-top: var(--pl-gs, 1.2em) !important; }
   .pl-seg { display: inline-flex; padding: 2px; border-radius: 7px; background: #F2F2F7; gap: 2px; }
   .pl-seg button { font: inherit; border: 0; border-radius: 5px; padding: 2px 8px; background: transparent; color: #6E6E73; cursor: pointer; }
   .pl-seg button.on { background: #fff; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
