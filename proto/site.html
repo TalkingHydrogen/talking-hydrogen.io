@@ -1222,7 +1222,12 @@ if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.docume
    `at` to 1, so it lands with the zoom, on its last frame. at .94 = the zoom's last ~150 ms (iOS 7 curve, 540 ms), the last ~75 px of the
    pan at 1440: half opacity with ~37 px to go, 93 % with ~12 px (it was half with ~124 px and visible from ~350 px before). OUT: 150 ms
    from the close's click, the text leaving with the table as the objects do. ?capat= ?capout= (ms). */
-const CAP_FADE = { at: +(pageQuery.get('capat') || .94),
+/* 2026-10-06 later still (owner: "fade in of the text make it not so drastic now it basically pops in"): the in no longer rides the zoom's clock — squeezed
+   into its last ~150 ms it read as a pop. Now it STARTS as the camera lands (p ≥ at = .98: the last ~20 px of the pan at 1440, ~80 ms) and runs
+   600 ms ease-in-out on the compositor, so it ends ~0.5 s after the table stops; while the table still moves the text is under ~5 % (the law above
+   holds: it is never seen moving). OUT unchanged. ?capat= ?capin= ?capout= (ms). */
+const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
+                   in: `opacity ${+(pageQuery.get('capin') || 600)}ms cubic-bezier(.42, 0, .58, 1)`,
                    out: `opacity ${+(pageQuery.get('capout') || 150)}ms cubic-bezier(.25, .1, .25, 1)` };
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
@@ -2783,9 +2788,9 @@ function render() {
   if (audio || playBtn) songWrite();                                                      // site: the song's volume and its button's fade (× songG: only while its card is in front)
   film?.write(v);                                                                          // site: FILM — the film rides the card
   if (capEl) {                                                                            // site: its caption — seen only while the camera is still (CAP_FADE)
-    const into = state === 'zoom' || state === 'open', u = clamp((v - CAP_FADE.at) / (1 - CAP_FADE.at), 0, 1);
-    put(capEl, 'cpT', 'transition', into ? 'none' : CAP_FADE.out);                         // in: the zoom's clock, frame by frame; out: closeNow()'s transition
-    put(capEl, 'cpO', 'opacity', into ? String(Math.round(u * u * (3 - 2 * u) * 1000) / 1000) : '0');
+    const into = state === 'zoom' || state === 'open', on = into && v >= CAP_FADE.at;      // in: from the camera's landing, CAP_FADE.in on the compositor; out: closeNow()'s transition
+    put(capEl, 'cpT', 'transition', on ? CAP_FADE.in : into ? 'none' : CAP_FADE.out);
+    put(capEl, 'cpO', 'opacity', on ? '1' : '0');
     put(capEl, 'cpV', 'visibility', state !== 'home' ? 'visible' : 'hidden');
   }
   renderPage();                                                                           // site: the header, the row elements, the other stacks, the backdrop, the cursor
