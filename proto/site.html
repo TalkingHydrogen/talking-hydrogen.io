@@ -51,10 +51,11 @@
   .hdr { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: opacity, transform; }
   /* site 2026-10-06: the AGE after the name (owner: "add a number next to the viktor dune representing my age, with an appropriate gap"):
      the age the work at the name's x was made at (the AGE note in the script). One em after the name — the em space, the classic field
-     gap: ~4 of the name's word spaces, so it reads as its own field and still with the name (?agegap= in em). The caption's quiet gray
-     (the name's secondary, Apple's two-tone label). Tabular figures: every digit one advance, so a roll never moves its neighbour. Each
+     gap: ~4 of the name's word spaces, so it reads as its own field and still with the name (?agegap= in em). The name's ink: no colour
+     of its own, it inherits .name's (owner 2026-10-06: "put it in ink black same as viktor dune" — was the caption's quiet gray #868689),
+     so every ?ma variant tints it as the name. Tabular figures: every digit one advance, so a roll never moves its neighbour. Each
      digit is a .slot: an invisible .strut holds its width and baseline, the glyphs (.g, a pool) sit over it and roll (ageWrite()). */
-  .hdr .age { position: relative; display: inline-block; margin-left: var(--age-gap, 1em); color: #868689; font-variant-numeric: tabular-nums; }
+  .hdr .age { position: relative; display: inline-block; margin-left: var(--age-gap, 1em); font-variant-numeric: tabular-nums; }
   .age .slot { position: relative; display: inline-block; }
   .age .strut { visibility: hidden; }
   .age .g { position: absolute; left: 0; top: 0; will-change: transform, opacity, filter; }   /* each glyph its own layer FOR GOOD: WebKit paints a filtered text node soft — blur(0.001em) looked like ~1.5 px in a real composite — while a layer's blur is CoreAnimation's, at device pixels, so the roll's tail stays crisp (verified 2026-10-06, wkcap) */
@@ -301,7 +302,6 @@
        ?masize=0.9  scales the type of both (one size for the page) */
   html[data-ma] .hdr .name { color: var(--ma-1); }   /* its .2em alignment to the laptop is the default since 2026-10-06 (.hdr .name) */
   html[data-ma] .caption { color: var(--ma-2); }
-  html[data-ma] .hdr .age { color: var(--ma-2); }   /* the age is the name's secondary: the variant's second tone */
   html[data-ma] .caption .ma-title { color: var(--ma-1); font-weight: var(--ma-tw, 400); }
   html[data-ma="1"] { --ma-1: #1D1D1F; --ma-2: #868689; }   /* the page's quiet gray (2026-10-06: Apple's #86868B with blue +3 instead of +5) */
   html[data-ma="2"] { --ma-1: #1D1D1F; --ma-2: #1D1D1F; --ma-tw: 600; }
