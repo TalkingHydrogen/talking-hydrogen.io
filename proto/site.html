@@ -3913,10 +3913,13 @@ const POL_CONTACT = { sigma: .004, color: 'rgba(100, 60, 23, .675)' };
 /* its caption in OPEN (the .caption CSS; owner 2026-09-27: their copy, title case as in the reference, Børnich's ø) */
 /* site 2026-10-06: the polaroid caption's VARIANTS, URL-only — site.html?var=N (the POSITION lab starts from it: ?pos=1&var=N). Each: the pile's
    openDx, the band's split (margin : gap), the tone (TYPE · MA ?ma, unless the URL sets one), the TEXT ('' = half a line of space). */
+const POL_V1 = { openDx: .0511, split: [646, 354],            // owner 2026-10-06: "this is var 1 … just remove the three spaces at the bottom" — at 1440 × 820:
+                 text: 'NEO\n\nHead & Body\nAI Companion\n\n1X\n\n\n\nBernt Børnich\nDar Sleeper\nChristoph Kohstall\nEric Jang\nChris Tan\nViktor Dune' };   // 259 · text 138 · 142 (7 lines) · fan → edge 264; the groups ½ line apart, 1.5 lines before the names
 const POL_VARS = {
-  1: { openDx: .0511, split: [646, 354], tone: '5',          // owner 2026-10-06: "this is var 1 … just remove the three spaces at the bottom" — one ink, the groups
-       text: 'NEO\n\nHead & Body\nAI Companion\n\n1X\n\n\n\nBernt Børnich\nDar Sleeper\nChristoph Kohstall\nEric Jang\nChris Tan\nViktor Dune' },   // ½ line apart, 1.5 lines before the names; at 1440 × 820: 259 · text 138 · 142 (7 lines) · fan → edge 264
+  1: { ...POL_V1, tone: '5' },                              // one ink (TYPE · MA ?ma=5)
+  2: { ...POL_V1 },                                         // owner 2026-10-06: "the second version would be to have neo written in ink and other in gray (not strict one)" — two tones, the site's (?ma=1)
 };
+window.__polVars = POL_VARS;                                 // the SWAP page (site.html?swap=1: poslab.js) switches between them live
 const POL_VAR = POL_VARS[pageQuery.get('var')] || null;
 if (POL_VAR?.tone && !MA.tone) document.documentElement.dataset.ma = POL_VAR.tone;
 const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion'],   // NEO on its own line (owner 2026-09-27). '1X' (the last line) OFF for a look
@@ -4029,6 +4032,6 @@ if (new URLSearchParams(location.search).has('type')) { document.documentElement
 <script>/* site 2026-10-01: the polaroids' COLOUR lab (colorlab.js: R / G / B gain per channel, the panel under the page), ?color only */
 if (new URLSearchParams(location.search).has('color')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'colorlab.js?v=' + Date.now() })); }</script>
 <script>/* site 2026-10-06: the polaroids' POSITION lab (poslab.js: drag the open pile and its caption on x, copy the values), ?pos only */
-if (new URLSearchParams(location.search).has('pos')) document.body.appendChild(Object.assign(document.createElement('script'), { src: 'poslab.js?v=' + Date.now() }));</script>
+{ const q = new URLSearchParams(location.search); if (q.has('pos') || q.has('swap')) document.body.appendChild(Object.assign(document.createElement('script'), { src: 'poslab.js?v=' + Date.now() })); }</script>   <!-- ?swap: the bare SWAP page (poslab.js) -->
 </body>
 </html>

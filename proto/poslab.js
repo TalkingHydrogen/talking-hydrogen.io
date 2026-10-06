@@ -16,6 +16,10 @@
    and type in place — Enter starts a new line, ⇧Enter adds HALF A LINE of space (press it again for more: 2 = one line, 3 = the 1.5 lines the
    site keeps before the names), Backspace at a line's start / Delete at its end removes one, Esc or a click outside finishes. The first line
    takes the title's tone, the lines after the last space the names' (the tones' hooks). Stored as text, a blank line = half a line of space.
+   SWAP (site.html?swap=1; owner 2026-10-06: "remove all else ui, just I can swap between two, still edit it via text box by typing and entering and
+   swap between two with arrows"): no bar, no rulers, no dragging — ← → swap the caption VARIANTS (the site's POL_VARS: 1 one ink, 2 two tones),
+   a click on the text types in it (as TEXT), C copies the values. The text is SHARED by the variants (the swap compares the tone), stored
+   under 'site.swaplab.v1'; each variant's place is its own split (recomputed after an edit and on resize, as the site lays it out).
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -25,7 +29,8 @@ const pol = (window.__stacks || []).find(s => s.name === 'polaroids');
 if (!pol?.capEl || !window.__row?.layoutAll || !('openDx' in pol)) return;
 const viewer = document.getElementById('viewer'), capEl = pol.capEl, root = document.documentElement;
 const VAR = new URLSearchParams(location.search).get('var');
-const KEY = 'site.poslab.v1' + (VAR ? ':var' + VAR : '');   // a variant (?var=N) keeps its own lab state
+const BARE = new URLSearchParams(location.search).has('swap');   // the SWAP page: no UI but the text and the arrows
+const KEY = BARE ? 'site.swaplab.v1' : 'site.poslab.v1' + (VAR ? ':var' + VAR : '');   // a variant (?var=N) keeps its own lab state
 const vrect = () => viewer.getBoundingClientRect();
 const block = () => capEl.firstElementChild;                 // the caption's type: the lines, then the credits
 const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // one caption line (px): the unit of every interval
@@ -132,7 +137,9 @@ function endEdit() {
   if (!editing) return;
   const inner = block();
   editing = false; root.classList.remove('pl-edit'); inner.contentEditable = 'false'; inner.blur(); getSelection().removeAllRanges();
-  S.copy = readCopy(); delete inner.dataset.pl; renderCopy(); commit(); apply();
+  S.copy = readCopy(); delete inner.dataset.pl; renderCopy();
+  if (BARE) { shared = S.copy; bareSave(); Object.assign(S, varState(VLIST[cur])); }      // SWAP: one text for both; the place follows its split
+  commit(); apply();
 }
 const lineOf = () => { const s = getSelection(); if (!s.rangeCount) return null; let n = s.getRangeAt(0).startContainer; while (n && n.parentNode !== block()) n = n.parentNode; return n; };   // the box's child holding the caret
 const caretTo = (q, end) => { const r = document.createRange(); r.selectNodeContents(q); r.collapse(!end); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
@@ -219,6 +226,10 @@ css.textContent = `
   html.pl .caption::after  { flex: 1 1 0 !important; }
   html.pl-live #zoneL, html.pl-live #zoneR, html.pl-live .nzone { pointer-events: none !important; }
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
+  html.pl-ibeam, html.pl-ibeam * { cursor: text !important; }
+  .pl-tag { position: fixed; left: 50%; top: 18px; translate: -50% 0; z-index: 2147483001; padding: 4px 11px; border-radius: 8px; background: rgba(29, 29, 31, .8);
+            color: #fff; font: 500 12px/16px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
+  .pl-tag.on { opacity: 1; transition: opacity .12s; }
   html.pl-al-left .caption > div { text-align: left !important; }
   html.pl-al-right .caption > div { text-align: right !important; }
   html.pl .caption .pl-sp { height: .6em; }
@@ -279,7 +290,7 @@ function setBox(el, r, show, on) {
   el.classList.toggle('on', on);
 }
 function draw(g) {
-  const v = vrect(), on = !!g && (pinned || !!drag || !!hov || performance.now() < nudgeUntil);
+  const v = vrect(), on = !BARE && !!g && (pinned || !!drag || !!hov || performance.now() < nudgeUntil);
   const ox = v.left, oy = v.top;                             // viewer px → the overlay (the window)
   const sh = r => g && { l: r.l + ox, r: r.r + ox, t: r.t + oy, b: r.b + oy };
   const y = g ? g.line + oy : 0;
@@ -288,8 +299,8 @@ function draw(g) {
   setRuler(rul.gap, g ? g.text.r + ox : 0, g ? g.print.l + ox : 0, y, on, lh);
   setRuler(rul.edge, g ? g.pile.r + ox : 0, ox + (g ? g.W : 0), y, on, lh);
   const both = !!drag?.both, cur = drag?.id || hov;
-  setBox(box.text, sh(g?.text || {}), !!g && (cur === 'text' || both), !!drag);
-  setBox(box.pile, sh(g?.pile || {}), !!g && (cur === 'pile' || both), !!drag);
+  setBox(box.text, sh(g?.text || {}), !BARE && !!g && (cur === 'text' || both), !!drag);
+  setBox(box.pile, sh(g?.pile || {}), !BARE && !!g && (cur === 'pile' || both), !!drag);
 }
 function centrePair() {                                     // the text + the pile (to the fan's edge) centred as one block; both move, the gap kept
   if (!live()) return;
@@ -341,6 +352,7 @@ const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, 
 const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line · S snap · C centre · A align · T tone · double-click the text: Enter line, ⇧Enter space, click a space to remove · ⌘Z · G rulers · H' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
 document.body.appendChild(hud);
+if (BARE) hud.hidden = true;
 function syncHud(g) {
   const on = !!g;
   for (const b of liveBits) b.style.display = on ? '' : 'none';
@@ -369,7 +381,7 @@ function fmt() {
 /* ---------- input: presses in the open page are the lab's (window capture: before the page's own routing) ---------- */
 const inViewer = e => e.target instanceof Node && viewer.contains(e.target);
 const local = e => { const v = vrect(); return [e.clientX - v.left, e.clientY - v.top]; };
-function syncCursor() { root.classList.toggle('pl-ew', !!(drag || hov)); }
+function syncCursor() { root.classList.toggle('pl-ew', !BARE && !!(drag || hov)); root.classList.toggle('pl-ibeam', BARE && hov === 'text' && !editing); }
 addEventListener('pointerdown', e => {
   swallow = false;
   if (editing && e.button === 0 && !hud.contains(e.target)) {                              // TEXT: a press in the text places the caret (native), anywhere else finishes
@@ -383,6 +395,7 @@ addEventListener('pointerdown', e => {
   e.stopPropagation(); swallow = true;                      // no flip, no close, no camera move: the open page is the lab's
   const hit = hitAt(...local(e)); if (!hit) return;
   e.preventDefault();
+  if (BARE) { if (hit === 'text') startEdit(e.clientX, e.clientY); return; }            // SWAP: one click types, nothing drags
   const now = performance.now();                                                           // a double press on the text: type in it
   if (hit === 'text' && now - lastDown.t < 400 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6) { lastDown.t = 0; startEdit(e.clientX, e.clientY); return; }
   lastDown = { t: now, x: e.clientX, y: e.clientY };
@@ -427,6 +440,11 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ((e.metaKey || e.ctrlKey) && k === 'z') { e.preventDefault(); e.stopPropagation(); if (e.shiftKey) redoIt(); else undo(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (BARE) {                                                                              // SWAP: ← → the variants, C copies; nothing else
+    const d = { arrowleft: -1, arrowright: 1 }[k];
+    if (d) { e.preventDefault(); e.stopPropagation(); setVar(cur + d); } else if (k === 'c') copyBare();
+    return;
+  }
   if (k === 'escape') { if (live()) { e.stopPropagation(); pol.collapse(); } return; }
   if (k === 'g') { pinned = rulersBox.checked = !pinned; apply(); return; }
   if (k === 'h') { hud.hidden = !hud.hidden; return; }
@@ -446,12 +464,38 @@ addEventListener('keydown', e => {
   clearTimeout(keyT); keyT = setTimeout(commit, 400);
 }, true);
 let resizeT = 0, wasLive = null;
-addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(apply, 90); });   // after the page's own layoutAll (50 ms)
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (BARE && S && !editing) Object.assign(S, varState(VLIST[cur])); apply(); }, 90); });   // after the page's own layoutAll (50 ms)
 setInterval(() => {                                          // the pile's state: the HUD, the zones' pointer events, the rulers
   const on = live(); if (on === wasLive) return; wasLive = on;
   root.classList.toggle('pl-live', on); if (!on) { hov = drag = null; syncCursor(); }
   apply();
 }, 150);
+
+/* ---------- SWAP: the variants, the shared text, the tag ---------- */
+const VARS = window.__polVars || {}, VLIST = Object.keys(VARS).sort((a, b) => a - b);
+let cur = 0, shared = null;
+function bareLoad() { try { const o = JSON.parse(localStorage.getItem(KEY)); if (o) { if (typeof o.copy === 'string') shared = o.copy; if (Number.isInteger(o.cur)) cur = Math.max(0, Math.min(VLIST.length - 1, o.cur)); } } catch {} }
+function bareSave() { try { localStorage.setItem(KEY, JSON.stringify({ cur, copy: shared })); } catch {} }
+function varState(n) {                                        // a variant as the lab's state: its openDx, its split laid out at the current size, its tone, the (shared) text
+  const v = VARS[n] || {}, W = vrect().width, e = pol.eff, tw = block().offsetWidth, [a, b] = v.split || [541, 459];
+  const band = Math.max(0, (e ? e.left : 0) + ((v.openDx ?? pol.openDx) - pol.openDx) * W);
+  return { dx: v.openDx ?? pol.openDx, cx: (Math.max(0, band - tw) * a / (a + b)) / W, al: 'left', tone: v.tone && okTone(v.tone) ? v.tone : 'site', copy: shared ?? v.text ?? null };
+}
+const varName = () => { const n = VLIST[cur], t = (TONES.find(([k]) => k === (VARS[n]?.tone || 'site')) || TONES[0])[1]; return `Var ${n} · ${t.toLowerCase()}`; };
+function setVar(i) {                                          // a swap is navigation, not an edit: no undo step
+  if (editing || !VLIST.length || !live()) return;
+  cur = (i + VLIST.length) % VLIST.length;
+  S = varState(VLIST[cur]); lastSnap = JSON.stringify(S); hist.length = 0; redo.length = 0;
+  bareSave(); apply(); flashTag(varName());
+}
+const tag = document.createElement('div'); tag.className = 'pl-tag'; document.body.appendChild(tag);
+function flashTag(t) { tag.textContent = t; tag.classList.add('on'); clearTimeout(flashTag.t); flashTag.t = setTimeout(() => tag.classList.remove('on'), 1200); }
+async function copyBare() {
+  const t = `Var ${VLIST[cur]} · ` + fmt();
+  try { await navigator.clipboard.writeText(t); } catch { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  flashTag('Copied');
+}
+function whenOpen(f) { (function w() { if (live()) setTimeout(f, 250); else requestAnimationFrame(w); })(); }
 
 /* ---------- boot: the site's values (Reset), the stored ones, then open the polaroids ---------- */
 function start() {
@@ -459,10 +503,16 @@ function start() {
   SITE.a = parseFloat(sp('::before').flexGrow) || 0; SITE.b = parseFloat(sp('::after').flexGrow) || 0;
   SITE.ba = (parseFloat(sp('::before').flexBasis) || 0) / fs; SITE.bb = (parseFloat(sp('::after').flexBasis) || 0) / fs;
   DEF = siteDefaults();
-  S = { ...DEF, ...(load() || {}) }; lastSnap = JSON.stringify(S);
-  root.classList.add('pl');
+  if (BARE) { bareLoad(); S = varState(VLIST[cur]); }
+  else S = { ...DEF, ...(load() || {}) };
+  lastSnap = JSON.stringify(S);
+  root.classList.add('pl'); if (BARE) { root.classList.add('pl-bare'); whenOpen(() => flashTag(varName())); }
   apply();
-  if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) requestAnimationFrame(() => requestAnimationFrame(() => pol.expand()));
+  const open = () => { if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) pol.expand(); };
+  if (BARE) requestAnimationFrame(() => requestAnimationFrame(() => {                   // SWAP: the variant's text is in now — lay its split out with its own width, then open
+    Object.assign(S, varState(VLIST[cur])); lastSnap = JSON.stringify(S); apply(); requestAnimationFrame(() => requestAnimationFrame(open));
+  }));
+  else requestAnimationFrame(() => requestAnimationFrame(open));
 }
 const ready = () => (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(start, 400));
 if (document.readyState === 'complete') ready(); else addEventListener('load', ready, { once: true });
