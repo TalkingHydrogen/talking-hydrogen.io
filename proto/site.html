@@ -49,6 +49,16 @@
      centre of the content box. */
   .hdr-root { position: absolute; pointer-events: none; }
   .hdr { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: opacity, transform; }
+  /* site 2026-10-06: the AGE after the name (owner: "add a number next to the viktor dune representing my age, with an appropriate gap"):
+     the age the work at the name's x was made at (the AGE note in the script). One em after the name — the em space, the classic field
+     gap: ~4 of the name's word spaces, so it reads as its own field and still with the name (?agegap= in em). The caption's quiet gray
+     (the name's secondary, Apple's two-tone label). Tabular figures: every digit one advance, so a roll never moves its neighbour. Each
+     digit is a .slot: an invisible .strut holds its width and baseline, the glyphs (.g, a pool) sit over it and roll (ageWrite()). */
+  .hdr .age { position: relative; display: inline-block; margin-left: var(--age-gap, 1em); color: #868689; font-variant-numeric: tabular-nums; }
+  .age .slot { position: relative; display: inline-block; }
+  .age .strut { visibility: hidden; }
+  .age .g { position: absolute; left: 0; top: 0; will-change: transform, opacity, filter; }   /* each glyph its own layer FOR GOOD: WebKit paints a filtered text node soft — blur(0.001em) looked like ~1.5 px in a real composite — while a layer's blur is CoreAnimation's, at device pixels, so the roll's tail stays crisp (verified 2026-10-06, wkcap) */
+  .age .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* the number as text, for a screen reader (the glyphs are aria-hidden) */
   .hdr .name { font-size: 1.03em; line-height: 1.2; font-weight: 400; letter-spacing: 0; color: #1D1D1F; margin-left: .2em; }   /* owner 2026-10-06 (TYPE · MA): "Moving the name 3.7 px so it lines up with the laptop's left edge. do" — margin-left .2em (3.7 px at 1440): the V's top sat 4.5 px left of the closed laptop's visible left edge (the lid PNG's own transparent margin, a fixed share of its box, so .2em holds at every size); now 0–1 px, a hair of overshoot for the diagonal */   /* owner 2026-10-06 (TYPE · MA, one by one): "do the viktor dune in ink" — #1D1D1F, Apple's text near-black (16.8 : 1; the #D4D4D4 before it was 1.5 : 1, APCA Lc 23: fainter than placeholder text) */   /* owner 2026-10-01, final: "just use apple system regular" — the page's system font (SF), Regular, not caps, the gray (Myriad Light SemiCn / Regular and black were tried) */   /* owner 2026-10-01, last: "regular" — Myriad Pro Regular, normal width (the kit has no Light in that width). First: "Myriad Pro Light SemiCondensed for the viktor dune and the thing description on the left, not caps, in black" (the kit tej7glo, weight 300 = Light; the tracking was the caps' — none in lower case). Size 1.12em = 1.4 × the caps' .8em (owner: 'optically the same size as the one before cuz now its hella small'): the lower case's x-height ≈ the old caps' cap height (13 → 19 device px at 1440 × 820 @2x). Before, 2026-09-30: */   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of its own 1em. Before, 2026-09-28: "viktor dune in the same style" as the caption — weight 450 with it ("do it like 450 for all to see"; 400 = SF Regular, 510 = SF Medium; was 500), its gray #DCDCDE (was #C7C7CC 2026-09-27, #8e8e93 before); size / leading / tracking / font already the caption's */
 
   /* site: the home row's horizontal scroller (zoom.html's body scroller, as an element: the header, the backdrop, the
@@ -291,6 +301,7 @@
        ?masize=0.9  scales the type of both (one size for the page) */
   html[data-ma] .hdr .name { color: var(--ma-1); }   /* its .2em alignment to the laptop is the default since 2026-10-06 (.hdr .name) */
   html[data-ma] .caption { color: var(--ma-2); }
+  html[data-ma] .hdr .age { color: var(--ma-2); }   /* the age is the name's secondary: the variant's second tone */
   html[data-ma] .caption .ma-title { color: var(--ma-1); font-weight: var(--ma-tw, 400); }
   html[data-ma="1"] { --ma-1: #1D1D1F; --ma-2: #868689; }   /* the page's quiet gray (2026-10-06: Apple's #86868B with blue +3 instead of +5) */
   html[data-ma="2"] { --ma-1: #1D1D1F; --ma-2: #1D1D1F; --ma-tw: 600; }
@@ -318,13 +329,16 @@
 <div class="backdrop" id="backdrop"></div>
 <div class="scroller" id="scroller">                  <!-- site: the row's horizontal scroller (the whole viewer) -->
 <main class="row" id="row">
+  <!-- site 2026-10-06: data-age on a row element = the owner's age when they made it (the AGE note: the number after the name follows
+       the element at the name's x). Owner: "macbook 23, lonely photo and polaroids 22, cd 19, concept art batch 18, the last one 16" — the
+       concept art = #digital (2020 digital paintings), the last one = #drawings (2018 drawings); the sign-off carries none -->
   <!-- site 2026-09-29: the MACBOOK (owner: "put the macbook mockup on the left from the polaroid stack a laptop video of macbook from brew …
        first closed, and when I hover it it opens just a little bit, when I click it fully opens and zooms in. when clicking outside it will
        zoom out and gradually close" — "its all from brew work. no windows open for now just desktop"): Apple's lid-open clip with the brew
        desktop on its screen (lid-screen.html's frog-bare master: the film's frog wallpaper and dock, no windows). A STACK of one: its card
        is the closed poster with the lid's six clips over it (LID / makeLid(); MACBOOK in BOOT); on the row's baseline (rest.up); data-size
        1.15 (owner 2026-09-29: "scale it up 15 %" — its HOME size; the open size is the viewer box, as every stack's) -->
-  <div class="wrap" id="macbook" data-size="1.15"><div class="box">
+  <div class="wrap" id="macbook" data-size="1.15" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the lid's clips) is built by the script -->
   </div></div>
   <!-- site: a PHOTO PRINT (owner 2026-09-28: "a photo, in addition to the polaroid feel … just protrude the white out of the
@@ -334,7 +348,7 @@
        same on-screen σ (room-floor.webp). A STACK of one: ROOM in BOOT; data-size 1 (the long side = the row height, as the
        drawings), sitting on the row's baseline (rest.up). 2026-10-05 (owner: "put the lonely photo on the website to the left from
        the polaroids"): moved from right after the polaroids to right before them -->
-  <div class="wrap" id="room" data-size="1"><div class="box">
+  <div class="wrap" id="room" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print) is built by the script: ROOM in BOOT -->
   </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
@@ -346,7 +360,7 @@
        corners, the paper's weave, the cream/brown photo edge, dust and foxing, SX-70 colour), exported as exactly the card
        (assets/neo/*-card.webp, 1645 × 2000). No radius or border (POL_KNOBS); shadows measured from a photo of real prints (POL_FLOOR on the page, POL_CONTACT on the prints below). data-size .9: its
        rest box, so its front card, is 90 % of the row height (owner: 10 % smaller) -->
-  <div class="wrap" id="polaroids" data-size=".9"><div class="box">
+  <div class="wrap" id="polaroids" data-size=".9" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- the .card elements are built by the script -->
   </div></div>
   <!-- the DANDELION demo OST (2021 Dandelion/Dandelion Demo OST Art.png) as a sealed 12" record, exported by the designer from
@@ -361,7 +375,7 @@
        to the case, assets/cd/cd-1.webp 924 × 821), 90 % of the row height like the sleeve; a stack of one since 2026-09-27
        (owner: "zoom in to add on the disk too"). 2026-09-29 (owner: "put the album vynyl of dandelion behind the cd image"):
        ONE pile — the CD in front, the sleeve behind it: DANDELION in BOOT -->
-  <div class="wrap" id="dandelion" data-size=".9"><div class="box">
+  <div class="wrap" id="dandelion" data-size=".9" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
   </div></div>
   <!-- site 2026-10-01: the DIGITAL PAINTINGS (owner: "put them as a separate stack left from paintings drawings one … and move disk on
@@ -369,10 +383,10 @@
        brew/artstudio/artstudio.py (the app's flatten, verified against the layers; lossless gray PNG; masters in website/2020 digital
        paintings). DIGITAL in BOOT; the drawings' card treatment and zoom, data-size 1 as the drawings. The CD + sleeve pile (#dandelion)
        moved from after the drawings to the left of this one -->
-  <div class="wrap" id="digital"><div class="box">
+  <div class="wrap" id="digital" data-age="18"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its five .cards are built by the script: DIGITAL in BOOT -->
   </div></div>
-  <div class="wrap" id="drawings"><div class="box" id="box">
+  <div class="wrap" id="drawings" data-age="16"><div class="box" id="box">
     <div class="item" id="item">
       <div class="hover" id="hover">
         <div class="cards" id="cards"></div>            <!-- the eight .card elements (one per image) are built by the script -->
@@ -386,7 +400,7 @@
 </div>
 <!-- the header: AFTER the scroller (above the row) since 2026-09-28 — the CAMERA carries the name out with the row, so the OPEN cover
      is one full sheet (no hole round the name's corner) -->
-<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">Viktor Dune</div></div></div>
+<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">Viktor Dune<span class="age" id="age"></span></div></div></div>   <!-- .age: the AGE (built by the script) -->
 
 <div class="ghost" id="ghost" aria-hidden="true"></div>   <!-- the viewer box, measured by layout() -->
 
@@ -3141,6 +3155,7 @@ function renderPage() {
   pput(cursorDisc, 'cvT', 'transform', `scale(${.1 + .9 * cursorVis.value})`);
   pput(cursorArrowEl, 'caO', 'opacity', String(cursorVis.value * cursorArrow.value));             // the flip arrow: a sibling of the disc (the .cursor-arrow CSS)
   pput(cursorArrowEl, 'caT', 'transform', `scale(${.1 + .9 * cursorVis.value})`);
+  ageWrite();                               // site: the AGE's roll
 }
 
 /* ============================================================
@@ -3217,6 +3232,7 @@ function rowMeasure() {                     // layoutAll(): the range, the gap, 
                                                                                                                                                                    cy: el.offsetTop + el.offsetHeight / 2, yb: el.offsetTop + el.offsetHeight, st: stacks.find(s => s.wrap === el) || null }));   // yb: its bottom, row px; st: its stack
   rowSync();
   if (!activeStack && RP.drive === 'rest') RP.S = RP.sPrev = Math.round(clamp(RP.S, 0, RP.M));
+  ageMeasure();                             // site: the AGE's take-over points
   rowWrite();
 }
 function rowPush(d) {                       // an input delta (px of S): 1:1 inside the range, rubber-banded past an end (both ways)
@@ -3293,6 +3309,90 @@ function rowStep(dt) {                      // the frame loop: S (release / flin
   rowWrite();
   rowLog(['f', Math.round(performance.now()), +RP.S.toFixed(1), RP.drive]);
 }
+/* ============================================================
+   site 2026-10-06: the AGE after the name (owner: "add a number next to the viktor dune representing my age … when I scroll it will
+   change the number, the number will be displaying depending whats displaying on the left aka at the position the beginning macbook is")
+   ============================================================
+   WHICH: the row element at the ANCHOR — the x the first element (the macbook) starts at with the row unscrolled, the name's x. The
+   next element takes over when the middle of the gap before it crosses the anchor (AGE.th: that scroll, ageMeasure()). The row's
+   rigid scroll S decides (the elements' lag springs are a wobble, not a place), with AGE.hyst px of hysteresis so a stop right on a
+   boundary can't flicker. Only the elements with a data-age count (the sign-off has none: the drawings' age runs on). A take-over the
+   row's range can't reach is pulled in under its end, so the last age always shows there (measured 2026-10-06: not needed — from
+   1024 × 700 to 2560 × 1440 the drawings take over 200–340 px of scroll before the end).
+   HOW: iOS's numericText. Only the digits that change roll. Counting DOWN (scrolling right, back in time) rolls them down: the old
+   glyph slides down and out, the new one drops in from above (counting up: the other way). A glyph's place y is in travels (0 =
+   seated, ±1 = gone, AGE.travel em); it fades and blurs with |y|. One spring per glyph, the page's (170 / 26: critically damped,
+   ≈ SwiftUI's .smooth), ticked by the frame loop (pageSprings), so a reversal mid-roll turns the same glyphs round, and the probes'
+   virtual clock and the showcase film see the roll. A glyph on its way out that shows the new digit comes back instead of a new
+   one. Reduced motion: the fade alone. */
+const AGE = { el: $('age'), slots: [], th: [], ages: [], i: -1, val: '', hyst: 6, travel: .5, blur: .1, fade: 1.4, pool: 4 };
+const AGE_RM = matchMedia('(prefers-reduced-motion: reduce)');
+{ const g = parseFloat(pageQuery.get('agegap')); if (Number.isFinite(g)) document.documentElement.style.setProperty('--age-gap', g + 'em'); }   // ?agegap=: the gap, em
+if (AGE.el) {                               // the slots: as many as the longest age has digits (right-aligned), each a strut + a pool of glyphs
+  AGE.sr = AGE.el.appendChild(Object.assign(document.createElement('span'), { className: 'sr' }));
+  const n = Math.max(1, ...[...row.querySelectorAll('[data-age]')].map(el => el.dataset.age.length));
+  for (let k = 0; k < n; k++) {
+    const sl = AGE.el.appendChild(Object.assign(document.createElement('span'), { className: 'slot' }));
+    sl.setAttribute('aria-hidden', 'true');
+    sl.appendChild(Object.assign(document.createElement('span'), { className: 'strut', textContent: '0' }));
+    const gs = Array.from({ length: AGE.pool }, () => {
+      const g = { el: sl.appendChild(Object.assign(document.createElement('span'), { className: 'g' })), ch: '', y: new Spring({ value: 1 }), w: {} };
+      pageSprings.push(g.y); return g;
+    });
+    AGE.slots.push({ gs, cur: null });
+  }
+}
+function ageMeasure() {                     // rowMeasure(): each aged element's take-over scroll
+  const els = RP.els, A = els.length ? els[0].cx - els[0].w / 2 : 0;
+  AGE.th = []; AGE.ages = [];
+  for (let j = 0; j < els.length; j++) {
+    const v = els[j].el.dataset.age; if (!v) continue;
+    const p = els[j - 1];
+    AGE.th.push(AGE.th.length ? (p.cx + p.w / 2 + els[j].cx - els[j].w / 2) / 2 - A : -Infinity);   // the gap's middle at the anchor
+    AGE.ages.push(v);
+  }
+  for (let k = AGE.th.length - 1, cap = RP.M - AGE.hyst - 1; k > 0; k--) { AGE.th[k] = Math.min(AGE.th[k], cap); cap = AGE.th[k] - 1; }
+}
+function ageSync() {                        // rowWrite(): the number of the element at the anchor
+  const th = AGE.th, n = th.length, S = RP.S, h = AGE.hyst;
+  if (!n || !AGE.el) return;
+  const first = AGE.i < 0;
+  let i = clamp(AGE.i, 0, n - 1);
+  if (first) while (i + 1 < n && S >= th[i + 1]) i++;                                   // the first: where it is, no roll
+  else { while (i + 1 < n && S >= th[i + 1] + h) i++; while (i > 0 && S < th[i] - h) i--; }
+  AGE.i = i;
+  if (AGE.ages[i] !== AGE.val) ageSet(AGE.ages[i], !first);
+}
+function ageSet(v, roll) {
+  const old = AGE.val, N = AGE.slots.length, a = v.padStart(N), dir = +v > +old ? -1 : 1;   // counting down rolls down (+y)
+  AGE.val = v; AGE.sr.textContent = v;
+  for (let k = 0; k < N; k++) {
+    const s = AGE.slots[k], ch = a[k] === ' ' ? '' : a[k];
+    if (s.cur && s.cur.ch === ch) continue;                                              // this digit stays
+    if (!roll) { for (const g of s.gs) g.y.jump(1); const g = s.gs[0]; g.ch = ch; g.el.textContent = ch; g.y.jump(0); s.cur = g; continue; }
+    if (s.cur) s.cur.y.set(dir);                                                         // the old glyph leaves on the far side
+    let g = s.gs.find(x => x !== s.cur && x.ch === ch && Math.abs(x.y.value) * AGE.fade < 1);   // the new digit, still showing on its way out: it comes back
+    if (!g) {                                                                            // else the most faded glyph drops in from the near side
+      g = s.gs.filter(x => x !== s.cur).reduce((m, x) => Math.abs(x.y.value) > Math.abs(m.y.value) ? x : m);
+      g.ch = ch; g.el.textContent = ch; g.y.jump(-dir);
+    }
+    g.y.set(0); s.cur = g;
+  }
+  if (roll) kick();
+}
+function ageWrite() {                       // renderPage(): each glyph's place, opacity and blur from its y
+  const rm = AGE_RM.matches, T = rm ? 0 : AGE.travel, B = rm ? 0 : AGE.blur;
+  for (const s of AGE.slots) for (const g of s.gs) {
+    const y = g.y.value, ay = Math.abs(y), o = clamp(1 - ay * AGE.fade, 0, 1), w = g.w;
+    const tr = Math.abs(y * T) < 5e-4 ? '' : `translateY(${(y * T).toFixed(3)}em)`;
+    const op = o >= 1 ? '' : String(Math.round(o * 1000) / 1000);
+    const fl = o <= 0 || ay * B < 5e-4 ? '' : `blur(${(ay * B).toFixed(3)}em)`;
+    if (w.t !== tr) { w.t = tr; g.el.style.transform = tr; }
+    if (w.o !== op) { w.o = op; g.el.style.opacity = op; }
+    if (w.f !== fl) { w.f = fl; g.el.style.filter = fl; }
+  }
+}
+window.__age = { AGE, ageSync, ageSet, ageWrite };   // debug / probes
 /* THE CAMERA, in general (2026-09-28): a similarity of the home page, viewport px, P → k·P + (x, y). A stack's own zoom at p is one
    (frameOf); the page's camera is the away stack's, or, over a CAMERA MOVE (moveTo()), a pan between the two open framings. Every
    row element gets camera ∘ (its own zoom)⁻¹ as its row child's translate + scale about its centre — the identity for the away
@@ -3411,6 +3511,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     pput(hdr, 'hdrT', 'transform', id ? '' : `translate(${(C.k * ox + C.x - ox).toFixed(2)}px, ${(C.k * oy + C.y - oy).toFixed(2)}px) scale(${C.k.toFixed(5)})`);
     pput(hdr, 'hdrO', 'opacity', fo ? String(Math.round((1 - fo) * 1000) / 1000) : '');   // site: FILM — the name leaves with the rest of the page (a tall window keeps it on screen in OPEN)
   }
+  ageSync();                                // site: the AGE follows the scroll
 }
 /* PERF 2026-09-27 — PARKING (the close's stalls, 45–150 ms as each other row element came back on screen, worse the longer OPEN
    lasted; sampled: the main thread re-decoding their 2000 px JPEG / WebP). A row element that leaves the screen loses its
