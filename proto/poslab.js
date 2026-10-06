@@ -11,10 +11,11 @@
    S) keeps the text ↔ print gap a whole number of lines while either is dragged (← → then step one line); CENTRE PAIR (C) centres
    the text + pile as one block, the gap kept. ALIGN (A) sets the caption flush left or flush right (the lines' straight edge toward the
    page edge or toward the print); TONE (T) swaps the TYPE · MA tones of the 2026-10-05 write-up (the site's html[data-ma] CSS: quiet
-   gray ?ma=3, two tones = the site since 2026-10-06 (?ma=1), ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's). GROUPING (owner 2026-10-06: "for ink
-   version I wanna try to show hierarchy in the form of that there is a space between neo head body and 1x"): the title lines split into
-   groups by space alone — NEO · role (Head & Body, AI Companion) · 1X, or NEO apart, or 1X apart — half a line or a whole line between them
-   (the credits keep their 1.5 lines, so the ladder holds).
+   gray ?ma=3, two tones = the site since 2026-10-06 (?ma=1), ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's). TEXT (owner 2026-10-06: "lemme
+   just type there, and add spaces with shift enter"; it replaces the GROUPING menu of the same day): double-click the caption (or Edit text)
+   and type in place — Enter starts a new line, ⇧Enter adds HALF A LINE of space (press it again for more: 2 = one line, 3 = the 1.5 lines the
+   site keeps before the names), Backspace at a line's start / Delete at its end removes one, Esc or a click outside finishes. The first line
+   takes the title's tone, the lines after the last space the names' (the tones' hooks). Stored as text, a blank line = half a line of space.
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -28,17 +29,30 @@ const vrect = () => viewer.getBoundingClientRect();
 const block = () => capEl.firstElementChild;                 // the caption's type: the lines, then the credits
 const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // one caption line (px): the unit of every interval
 const SNAPK = 'site.poslab.snap';
+const SITE_HTML = block().innerHTML;                          // the site's own caption (TEXT: S.copy null)
+const SP_EM = .6;                                             // one ⇧Enter: half a line of the caption (its leading 1.2em)
+function siteCopy(grp) {                                      // the site's caption as lab text ('' = half a line of space); grp: the GROUPING menu's old states
+  const tmp = document.createElement('div'); tmp.innerHTML = SITE_HTML;
+  const title = [...tmp.querySelectorAll(':scope > div:not(.credits) > p')].map(p => p.textContent);
+  const names = [...tmp.querySelectorAll(':scope > .credits > p')].map(p => p.textContent);
+  const [gk, gs] = (grp || 'none').split(':'), n = gs === '0.5' ? 1 : 2, out = [];
+  title.forEach((t, i) => {
+    if (i === 1 && (gk === 'neo' || gk === 'three')) out.push(...Array(n).fill(''));
+    if (i > 0 && t.trim() === '1X' && (gk === 'three' || gk === '1x')) out.push(...Array(n).fill(''));
+    out.push(t);
+  });
+  if (names.length) out.push('', '', '', ...names);          // .credits margin-top 1.8em = 1.5 lines = three halves
+  return out.join('\n');
+}
 const live = () => pol.state === 'open';
 const r0 = Math.round;
 const TONES = [['site', 'Two tones', 'Two tones · the site (?ma=1)'], ['3', 'Quiet gray', 'Quiet gray · ?ma=3'], ['4', 'Strict', 'Strict contrast · ?ma=4'],
                ['5', 'One ink', 'One ink · ?ma=5'], ['2', 'Mike\'s', 'Mike\'s hierarchy · ?ma=2']];   // [key, menu, Copy values]; the site = ?ma=1 since 2026-10-06
 const okTone = t => TONES.some(([k]) => k === t);
-const GROUPS = [['none', 'Lines together', 'title lines together'], ['three:1', 'NEO · role · 1X  1 ln', 'groups NEO · role · 1X, 1 line apart'],
-                ['three:0.5', 'NEO · role · 1X  ½ ln', 'groups NEO · role · 1X, ½ line apart'], ['neo:1', 'NEO · rest  1 ln', 'NEO apart, 1 line'],
-                ['neo:0.5', 'NEO · rest  ½ ln', 'NEO apart, ½ line'], ['1x:1', 'rest · 1X  1 ln', '1X apart, 1 line'], ['1x:0.5', 'rest · 1X  ½ ln', '1X apart, ½ line']];
-const okGroup = g => GROUPS.some(([k]) => k === g);
 const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o || !Number.isFinite(o.dx) || !Number.isFinite(o.cx)) return null;
-  const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone; if (okGroup(o.grp)) r.grp = o.grp; return r; } catch { return null; } };
+  const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone;
+  if (typeof o.copy === 'string') r.copy = o.copy; else if (/^(three|neo|1x):/.test(o.grp || '')) r.copy = siteCopy(o.grp);   // the old GROUPING menu → text
+  return r; } catch { return null; } };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
@@ -48,7 +62,7 @@ function siteDefaults() {                                    // at the current s
   const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
   const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;
   const free = Math.max(0, band - tw - ba - bb);
-  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W, al: SITE.al, tone: SITE.tone, grp: 'none' };
+  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W, al: SITE.al, tone: SITE.tone, copy: null };
 }
 
 /* ---------- state { dx: openDx, cx: the caption's left edge / W }, undo ---------- */
@@ -72,13 +86,98 @@ function apply() { if (!rq) rq = requestAnimationFrame(frame); }
 function applyType() {                                       // ALIGN + TONE: classes on the root (the lab's CSS) and the site's own data-ma
   root.classList.toggle('pl-al-right', S.al === 'right'); root.classList.toggle('pl-al-left', S.al !== 'right');
   if (S.tone === 'site') { if ('ma' in root.dataset) delete root.dataset.ma; } else if (root.dataset.ma !== S.tone) root.dataset.ma = S.tone;
-  const [gk, gs] = (S.grp || 'none').split(':');                                  // GROUPING: which title lines get space above them, how much
-  const ps = [...capEl.querySelectorAll(':scope > div > div:not(.credits) > p')], x1 = ps.findIndex((q, i) => i > 0 && q.textContent.trim() === '1X');
-  const gapAt = new Set(gk === 'three' ? [1, x1] : gk === 'neo' ? [1] : gk === '1x' ? [x1] : []);   // the lines with space above them
-  ps.forEach((q, i) => q.classList.toggle('pl-linegap', i > 0 && gapAt.has(i)));   // (not .pl-gap: the HUD's strip numbers)
-  for (const o of grpSel.options) o.disabled = x1 < 0 && /^(three|1x)/.test(o.value);           // no 1X line: only 'NEO apart' makes sense
-  root.style.setProperty('--pl-gs', (1.2 * (+gs || 1)) + 'em');                  // in lines of the caption (its leading 1.2)
+  if (!editing) renderCopy();
 }
+/* ---------- TEXT: the caption as typed — lines (<p>) and spaces (.pl-sp, half a line each), in the site's own type box ---------- */
+const spEl = () => { const d = document.createElement('div'); d.className = 'pl-sp'; d.contentEditable = 'false'; return d; };
+const lnEl = t => { const q = document.createElement('p'); if (t) q.textContent = t; else q.append(document.createElement('br')); return q; };
+function renderCopy() {
+  const inner = block(), txt = S.copy;
+  root.classList.toggle('pl-txt', txt != null);
+  if (txt == null) { if ('pl' in inner.dataset) { inner.innerHTML = SITE_HTML; delete inner.dataset.pl; } return; }
+  if (inner.dataset.pl === txt) return;
+  inner.replaceChildren(...txt.split('\n').map(t => t === '' ? spEl() : lnEl(t)));
+  classify(); inner.dataset.pl = txt;
+}
+function classify() {                                         // the tones' hooks: the first line = the title (.ma-title), the lines after the last space = the names (.credits)
+  const kids = [...block().children], ps = kids.filter(k => k.tagName === 'P');
+  let last = -1; kids.forEach((k, i) => { if (k.classList.contains('pl-sp')) last = i; });
+  ps.forEach(q => { q.classList.toggle('ma-title', q === ps[0]); q.classList.toggle('credits', last >= 0 && kids.indexOf(q) > last); });
+}
+function readCopy() {                                         // the edited box → text ('' = a space); empty lines drop, stray text nodes count as lines
+  const out = [];
+  for (const n of block().childNodes) {
+    if (n.nodeType === 1 && n.classList.contains('pl-sp')) { out.push(''); continue; }
+    const t = (n.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+$/, '');
+    if (t.trim()) out.push(...t.split('\n').filter(x => x.trim()));
+  }
+  return out.join('\n');
+}
+let editing = false;
+function startEdit(x, y) {                                    // double-click on the caption (x, y: the caret there) or Edit text (the caret at the end)
+  if (editing || !S || !live()) return;
+  if (S.copy == null) { S.copy = siteCopy(); renderCopy(); }  // the site's caption as text (no visible change)
+  const inner = block();
+  editing = true; hov = drag = null; syncCursor(); root.classList.add('pl-edit');
+  inner.contentEditable = 'true'; inner.spellcheck = false; inner.focus({ preventScroll: true });
+  const sel = getSelection(), r = x != null && document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+  sel.removeAllRanges();
+  if (r && inner.contains(r.startContainer)) sel.addRange(r);
+  else { const e = document.createRange(); e.selectNodeContents(inner.lastElementChild || inner); e.collapse(false); sel.addRange(e); }
+  apply();
+}
+function endEdit() {
+  if (!editing) return;
+  const inner = block();
+  editing = false; root.classList.remove('pl-edit'); inner.contentEditable = 'false'; inner.blur(); getSelection().removeAllRanges();
+  S.copy = readCopy(); delete inner.dataset.pl; renderCopy(); commit(); apply();
+}
+const lineOf = () => { const s = getSelection(); if (!s.rangeCount) return null; let n = s.getRangeAt(0).startContainer; while (n && n.parentNode !== block()) n = n.parentNode; return n; };   // the box's child holding the caret
+const caretTo = (q, end) => { const r = document.createRange(); r.selectNodeContents(q); r.collapse(!end); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+const edgeOf = (q, r, end) => { const t = document.createRange(); if (end) { t.setStart(r.endContainer, r.endOffset); t.setEnd(q, q.childNodes.length); } else { t.setStart(q, 0); t.setEnd(r.startContainer, r.startOffset); } return t.toString() === ''; };
+function asLine(n) {                                          // a stray text node / <br> at the box's top level → a <p> (the caret goes to its end)
+  if (!n || (n.nodeType === 1 && n.tagName === 'P')) return n;
+  const q = document.createElement('p'); n.before(q); q.append(n); caretTo(q, true); return q;
+}
+function newLine() {                                          // Enter: the line splits at the caret, the caret at the new line's start
+  const s = getSelection(); if (!s.rangeCount) return null;
+  s.getRangeAt(0).deleteContents();
+  const q = asLine(lineOf()); if (!q) return null;
+  const r = s.getRangeAt(0), tail = document.createRange();
+  tail.setStart(r.startContainer, r.startOffset); tail.setEnd(q, q.childNodes.length);
+  const nq = document.createElement('p'); nq.append(tail.extractContents());
+  if (!nq.textContent) nq.replaceChildren(document.createElement('br'));
+  if (!q.textContent) q.replaceChildren(document.createElement('br'));
+  q.after(nq); caretTo(nq, false); return nq;
+}
+function addSpace() {                                         // ⇧Enter: half a line of space — after the line (caret at its end), before it (at its start), or between its halves
+  const s = getSelection(); if (!s.rangeCount) return;
+  s.getRangeAt(0).deleteContents();
+  const q = asLine(lineOf()); if (!q) return;
+  const r = s.getRangeAt(0), atStart = edgeOf(q, r, false), atEnd = edgeOf(q, r, true);
+  if (atStart) { q.before(spEl()); caretTo(q, false); }
+  else if (atEnd) { q.after(spEl()); caretTo(q, true); }
+  else { const nq = newLine(); if (nq) { nq.before(spEl()); caretTo(nq, false); } }
+}
+function dropSpace(back) {                                    // Backspace at a line's start / Delete at its end: one space less
+  const s = getSelection(); if (!s.rangeCount || !s.isCollapsed) return false;
+  const q = lineOf(); if (!q || q.nodeType !== 1) return false;
+  const r = s.getRangeAt(0), sib = back ? (edgeOf(q, r, false) ? q.previousSibling : null) : (edgeOf(q, r, true) ? q.nextSibling : null);
+  if (sib && sib.nodeType === 1 && sib.classList.contains('pl-sp')) { sib.remove(); return true; }
+  return false;
+}
+block().addEventListener('keydown', e => {
+  if (!editing) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endEdit(); return; }
+  if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) addSpace(); else newLine(); classify(); apply(); return; }
+  if ((e.key === 'Backspace' || e.key === 'Delete') && dropSpace(e.key === 'Backspace')) { e.preventDefault(); classify(); apply(); }
+});
+block().addEventListener('input', () => { if (editing) { classify(); apply(); } });
+block().addEventListener('paste', e => {                      // plain text only, one line
+  if (!editing) return;
+  e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData?.getData('text/plain') || '').replace(/\s*\n\s*/g, ' '));
+});
+block().addEventListener('focusout', () => setTimeout(() => { if (editing && !block().contains(document.activeElement)) endEdit(); }, 0));
 function frame() {
   rq = 0;
   if (!S) return;
@@ -99,8 +198,11 @@ function geom() {
     if (!q.width || r < 0 || l > v.width) continue;                                       // a parked card (off the table)
     pile.l = Math.min(pile.l, l); pile.r = Math.max(pile.r, r); pile.t = Math.min(pile.t, q.top - v.top); pile.b = Math.max(pile.b, q.bottom - v.top);
   }
-  const [b1, b2] = [...block().children].map(c => c.getBoundingClientRect());
-  const line = b1 && b2 ? (b1.bottom + b2.top) / 2 - v.top : (text.t + text.b) / 2;   // the rulers' y: between the title lines and the credits
+  let line, best = [], run = [];                                    // the rulers' y: in the longest run of spaces (TEXT), else between the title lines and the credits
+  for (const k of block().children) { if (k.classList.contains('pl-sp')) run.push(k); else { if (run.length > best.length) best = run; run = []; } }
+  if (run.length > best.length) best = run;
+  if (best.length) line = (best[0].getBoundingClientRect().top + best[best.length - 1].getBoundingClientRect().bottom) / 2 - v.top;
+  else { const [b1, b2] = [...block().children].map(c => c.getBoundingClientRect()); line = b1 && b2 ? (b1.bottom + b2.top) / 2 - v.top : (text.t + text.b) / 2; }
   return { W: v.width, H: v.height, lh: lineH(), text, print, pile, line, margin: text.l, gap: print.l - text.r, edge: v.width - pile.r };
 }
 function hitAt(x, y) {                                       // viewer px → 'text' | 'pile' | null (the text wins where they overlap)
@@ -117,7 +219,12 @@ css.textContent = `
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
   html.pl-al-left .caption > div { text-align: left !important; }
   html.pl-al-right .caption > div { text-align: right !important; }
-  html.pl .caption p.pl-linegap { margin-top: var(--pl-gs, 1.2em) !important; }
+  html.pl .caption .pl-sp { height: .6em; }
+  html.pl-txt .caption .credits { margin-top: 0 !important; }
+  html.pl-edit .caption, html.pl-edit .caption * { pointer-events: auto !important; -webkit-user-select: text !important; user-select: text !important; cursor: text !important; }
+  html.pl-edit #shield { pointer-events: none !important; }
+  html.pl-edit .caption > div { outline: 1px solid rgba(0, 122, 255, .6); outline-offset: 8px; caret-color: #007AFF; }
+  html.pl-edit .caption .pl-sp { background: rgba(0, 122, 255, .07); box-shadow: inset 0 -1px rgba(0, 122, 255, .22); }
   .pl-seg { display: inline-flex; padding: 2px; border-radius: 7px; background: #F2F2F7; gap: 2px; }
   .pl-seg button { font: inherit; border: 0; border-radius: 5px; padding: 2px 8px; background: transparent; color: #6E6E73; cursor: pointer; }
   .pl-seg button.on { background: #fff; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
@@ -208,7 +315,8 @@ const openBtn = h('button', { class: 'pl-btn', type: 'button' });
 openBtn.onclick = () => { if (live()) pol.collapse(); else if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) pol.expand(); };
 const undoBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Undo', title: '⌘Z (⇧⌘Z redo)' }); undoBtn.onclick = undo;
 const resetBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Reset', title: 'back to the site as it is' });
-resetBtn.onclick = () => { flush(); DEF = siteDefaults(); S = { ...DEF }; commit(); apply(); };
+resetBtn.addEventListener('pointerdown', e => e.preventDefault());
+resetBtn.onclick = () => { endEdit(); flush(); DEF = siteDefaults(); S = { ...DEF }; commit(); apply(); };
 const copyBtn = h('button', { class: 'pl-btn pri', type: 'button', textContent: 'Copy values' });
 copyBtn.onclick = async () => {
   const t = fmt();
@@ -220,13 +328,14 @@ const alSeg = h('div', { class: 'pl-seg', title: 'A — the lines flush left or 
   ...[['left', 'Left'], ['right', 'Right']].map(([v, t]) => { const b = h('button', { type: 'button', textContent: t }); b.dataset.v = v; b.onclick = () => setType({ al: v }); return b; }));
 const toneSel = h('select', { class: 'pl-sel', title: 'T — the caption\'s tone (TYPE · MA)' }, ...TONES.map(([v, t]) => h('option', { value: v, textContent: t })));
 toneSel.onchange = () => setType({ tone: toneSel.value });
-const grpSel = h('select', { class: 'pl-sel', title: 'Grouping — the title lines split by space (hierarchy without tone)' }, ...GROUPS.map(([v, t]) => h('option', { value: v, textContent: t })));
-grpSel.onchange = () => setType({ grp: grpSel.value });
+const editBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Edit text', title: 'or double-click the text · Enter a new line · ⇧Enter half a line of space · Esc done' });
+editBtn.addEventListener('pointerdown', e => e.preventDefault());   // keeps the caret in the text (Done would otherwise blur it first)
+editBtn.onclick = () => { if (editing) endEdit(); else startEdit(); };
 function setType(o) { flush(); Object.assign(S, o); commit(); apply(); }
 const sep = () => h('span', { class: 'pl-sep' });
-const liveBits = [strip, sep(), h('label', { title: 'S — the text ↔ print gap in whole caption lines' }, snapBox, 'Snap'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel, grpSel];
+const liveBits = [strip, sep(), h('label', { title: 'S — the text ↔ print gap in whole caption lines' }, snapBox, 'Snap'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel, editBtn];
 const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, resetBtn, copyBtn);
-const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line (snap off: 1 px, ⇧ 10) · S snap · C centre · A align · T tone · ⌘Z undo · G rulers · H hide · Esc' });
+const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line · S snap · C centre · A align · T tone · double-click the text to type: Enter line, ⇧Enter space · ⌘Z · G rulers · H hide' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
 document.body.appendChild(hud);
 function syncHud(g) {
@@ -235,7 +344,8 @@ function syncHud(g) {
   openBtn.textContent = live() ? 'Close' : 'Open polaroids';
   undoBtn.disabled = !hist.length && lastSnap === JSON.stringify(S);
   for (const c of chips) c.classList.toggle('on', c.dataset.id === sel);
-  if (S) { for (const b of alSeg.children) b.classList.toggle('on', b.dataset.v === S.al); if (toneSel.value !== S.tone) toneSel.value = S.tone; if (grpSel.value !== S.grp) grpSel.value = S.grp; }
+  if (S) { for (const b of alSeg.children) b.classList.toggle('on', b.dataset.v === S.al); if (toneSel.value !== S.tone) toneSel.value = S.tone; }
+  editBtn.textContent = editing ? 'Done' : 'Edit text'; editBtn.classList.toggle('pri', editing);
   if (!on) return;
   for (const [el, v] of [[gm, g.margin], [gg, g.gap], [ge, g.edge]]) el.innerHTML = `${r0(v)}<small>${lines(v, g.lh)} ln</small>`;
 }
@@ -243,8 +353,11 @@ function fmt() {
   const g = geom(), em = parseFloat(getComputedStyle(root).getPropertyValue('--em')) || 0, f = v => r0(v);
   const split = g.margin + g.gap > 0 ? g.margin / (g.margin + g.gap) : 0;
   const L = v => `${f(v)} (${lines(v, g.lh)} ln)`, align = getComputedStyle(block()).textAlign === 'right' ? 'flush right' : 'flush left';
-  const tone = (TONES.find(([k]) => k === S.tone) || TONES[0])[2], grp = (GROUPS.find(([k]) => k === S.grp) || GROUPS[0])[2];
-  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align} · tone ${tone} · ${grp}\n` +
+  const tone = (TONES.find(([k]) => k === S.tone) || TONES[0])[2];
+  const txt = (S.copy ?? siteCopy()).split('\n').reduce((a, t) => { if (t === '') { const m = /^⟨(\d+)⟩$/.exec(a[a.length - 1] || ''); if (m) a[a.length - 1] = `⟨${+m[1] + 1}⟩`; else a.push('⟨1⟩'); } else a.push(t); return a; }, [])
+    .map(t => { const m = /^⟨(\d+)⟩$/.exec(t); return m ? `[+${+m[1] / 2} ln]` : t; }).join(' / ');
+  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align} · tone ${tone}\n` +
+         `text${S.copy == null ? ' (the site)' : ''}: ${txt}\n` +
          `margin ${L(g.margin)} · text ${f(g.text.r - g.text.l)} · gap ${L(g.gap)} · print ${f(g.print.r - g.print.l)} · fan → edge ${L(g.edge)} px\n` +
          `openDx ${S.dx.toFixed(4)} · caption left ${S.cx.toFixed(4)} W · split ${split.toFixed(3)}` +
          (g.margin > 0 ? ` (margin : gap = 1 : ${(g.gap / g.margin).toFixed(2)})` : '');
@@ -258,12 +371,18 @@ addEventListener('pointerdown', e => {
   swallow = false;
   if (!S || !live() || !inViewer(e) || e.button !== 0) return;
   e.stopPropagation(); swallow = true;                      // no flip, no close, no camera move: the open page is the lab's
+  if (editing) { if (!capEl.contains(e.target)) endEdit(); return; }   // TEXT: a press in the text places the caret (native), outside it finishes
   const hit = hitAt(...local(e)); if (!hit) return;
   e.preventDefault();
+  const now = performance.now();                                                           // a double press on the text: type in it
+  if (hit === 'text' && now - lastDown.t < 400 && Math.hypot(e.clientX - lastDown.x, e.clientY - lastDown.y) < 6) { lastDown.t = 0; startEdit(e.clientX, e.clientY); return; }
+  lastDown = { t: now, x: e.clientX, y: e.clientY };
   sel = hit; drag = { id: hit, both: e.metaKey, x0: e.clientX, from: { ...S }, W: vrect().width, g0: geom() };
   syncCursor(); apply();
 }, true);
+let lastDown = { t: 0, x: 0, y: 0 };
 addEventListener('pointermove', e => {
+  if (editing) return;
   if (!drag) {
     const hit = S && live() && inViewer(e) ? hitAt(...local(e)) : null;
     if (hit !== hov) { hov = hit; syncCursor(); apply(); }
