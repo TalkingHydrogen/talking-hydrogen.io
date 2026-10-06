@@ -283,8 +283,8 @@
   .caption { position: absolute; left: 0; top: 0; height: 0; translate: 0 0 -.5px; transform-origin: 0 0; display: flex; align-items: center;
              pointer-events: none; opacity: 0; visibility: hidden; will-change: opacity; white-space: nowrap;
              font-size: calc(var(--em) * 1.03); line-height: 1.2; font-weight: 400; letter-spacing: 0; color: #868689; }   /* owner 2026-10-06: "for the gray color, make blue 3 points higher than RG" — rgb(134, 134, 137) #868689: Apple's #86868B had blue +5, now +3 (a touch less cool; 3.63 : 1 on white, as before) */   /* owner 2026-10-06 (TYPE · MA, one by one): "the side info in quiet gray only" — every line #86868B, Apple's quiet gray (3.6 : 1, APCA Lc 64), the title included (no ink line); was #D4D4D4 */   /* owner 2026-10-01, final: "just use apple system regular" — the page's system font (SF), Regular, not caps, the gray (Myriad Light SemiCn / Regular and black were tried) */   /* owner 2026-10-01: Myriad Pro Light SemiCondensed, not caps, black (the .hdr .name's). Before: SF 500, stretch 85 %, tracking .18em, uppercase, #D4D4D4 — */   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of the caption's own size, its leading. Before, 2026-09-28: weight 450 (between SF Regular 400 and SF Medium 510; Safari maps it straight to the wght axis). The type lab (site.html?type=1): rgb(220, 220, 222) — position / size / weight / tracking kept (their values = the live layout within 0.3 px). Was #C7C7CC (2026-09-27); the play button's #E6E7E8 was tried then: too faint on the backdrop; before that the page's #8e8e93 */
-  .caption::before { content: ''; flex: .45 1 0; }
-  .caption::after  { content: ''; flex: .55 1 0; }
+  .caption::before { content: ''; flex: 1 1 0; }   /* owner 2026-10-06 ("the text occupies big chunk of the left with the polaroids nicely occupying the right", their reference: margin : gap = 93 : 186 px): the free band split 1 : 2 (was Mike's 45 / 55) */
+  .caption::after  { content: ''; flex: 2 1 0; }
   .caption p { margin: 0; }
   .caption .credits { margin-top: 1.8em; }                  /* the gap between the title lines and the credits */
   /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
@@ -1201,6 +1201,15 @@ if (['1', '2', '3', '4', '5'].includes(MA.tone)) document.documentElement.datase
 if (['top', 'bottom', 'split'].includes(MA.anchor)) document.documentElement.dataset.anchor = MA.anchor; else MA.anchor = null;
 if (pageQuery.get('align') === 'hug') document.documentElement.dataset.align = 'hug';
 if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.documentElement.style.setProperty('--ma-size', String(MA.size)); }
+/* site 2026-10-06, CAP_FADE (owner: "the translation on zoom appeared again on text: I repeat, the text is anchored to the background the same way
+   the objects are, it just fades in out, it doesnt move"): the caption still RIDES the table (capWrite), but it is only SEEN while the camera is
+   still. Since the 2026-10-05 row order the polaroids sit at the screen's right edge at HOME, so the camera pans hard, and the old fade (the header's,
+   mirrored: p .667 → 1) showed the text sliding ~350 px into place while it appeared. Now: in once p ≥ at (≈ 6 px of the pan left at 1440, the
+   zoom's last ~45 ms), a 300 ms ease on the compositor (no frame loop needed); out from the close's click, 50 ms ease-out — gone before the
+   table has visibly moved. ?capat= ?capin= ?capout= (ms). */
+const CAP_FADE = { at: +(pageQuery.get('capat') || .995),
+                   in: `opacity ${+(pageQuery.get('capin') || 300)}ms cubic-bezier(.25, .1, .25, 1)`,
+                   out: `opacity ${+(pageQuery.get('capout') || 50)}ms cubic-bezier(0, 0, .2, 1)` };
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
 const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
@@ -2591,6 +2600,7 @@ function collapse() {                       // OPEN → CLOSE (the `viewer:close
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
   perfMark('close ' + cfg.name);
   state = 'close';
+  if (capEl) { put(capEl, 'cpT', 'transition', CAP_FADE.out); put(capEl, 'cpO', 'opacity', '0'); }   // site: CAP_FADE — out from the click itself (render() would start it a frame later, with the table already moving)
   lidSync();                                                                               // site: … and closes, slowly, from the close's first frame (LID)
   setNHover(0);                                                                            // site: a peeking neighbour slides back
   if (!move) RP.move = null;                                                               // (a close during a camera move's last frames: the camera is this stack's own again)
@@ -2752,9 +2762,10 @@ function render() {
   if (TURN) TURN.draw();                                                                  // site: TURN — the faces' homographies (only when the turn moved)
   if (audio || playBtn) songWrite();                                                      // site: the song's volume and its button's fade (× songG: only while its card is in front)
   film?.write(v);                                                                          // site: FILM — the film rides the card
-  if (capEl) {                                                                            // site: its caption — the same fade
-    const o = Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * 1000) / 1000;
-    put(capEl, 'cpO', 'opacity', String(o)); put(capEl, 'cpV', 'visibility', o > 0 ? 'visible' : 'hidden');
+  if (capEl) {                                                                            // site: its caption — seen only while the camera is still (CAP_FADE)
+    const on = state !== 'close' && state !== 'home' && v >= CAP_FADE.at;
+    put(capEl, 'cpT', 'transition', on ? CAP_FADE.in : CAP_FADE.out);                      // set with the opacity: the change takes this transition
+    put(capEl, 'cpO', 'opacity', on ? '1' : '0'); put(capEl, 'cpV', 'visibility', on || state !== 'home' ? 'visible' : 'hidden');
   }
   renderPage();                                                                           // site: the header, the row elements, the other stacks, the backdrop, the cursor
 }
@@ -3884,7 +3895,7 @@ const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],   // 
    trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
-stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .035, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
+stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .15, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
