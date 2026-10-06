@@ -24,7 +24,8 @@
 const pol = (window.__stacks || []).find(s => s.name === 'polaroids');
 if (!pol?.capEl || !window.__row?.layoutAll || !('openDx' in pol)) return;
 const viewer = document.getElementById('viewer'), capEl = pol.capEl, root = document.documentElement;
-const KEY = 'site.poslab.v1';
+const VAR = new URLSearchParams(location.search).get('var');
+const KEY = 'site.poslab.v1' + (VAR ? ':var' + VAR : '');   // a variant (?var=N) keeps its own lab state
 const vrect = () => viewer.getBoundingClientRect();
 const block = () => capEl.firstElementChild;                 // the caption's type: the lines, then the credits
 const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // one caption line (px): the unit of every interval
@@ -33,6 +34,7 @@ const SITE_HTML = block().innerHTML;                          // the site's own 
 const SP_EM = .6;                                             // one ⇧Enter: half a line of the caption (its leading 1.2em)
 function siteCopy(grp) {                                      // the site's caption as lab text ('' = half a line of space); grp: the GROUPING menu's old states
   const tmp = document.createElement('div'); tmp.innerHTML = SITE_HTML;
+  if (tmp.querySelector(':scope > .cap-sp, :scope > p')) return [...tmp.children].map(k => k.classList.contains('cap-sp') ? '' : k.textContent).join('\n');   // a TEXT caption (?var=N)
   const title = [...tmp.querySelectorAll(':scope > div:not(.credits) > p')].map(p => p.textContent);
   const names = [...tmp.querySelectorAll(':scope > .credits > p')].map(p => p.textContent);
   const [gk, gs] = (grp || 'none').split(':'), n = gs === '0.5' ? 1 : 2, out = [];
@@ -89,7 +91,7 @@ function applyType() {                                       // ALIGN + TONE: cl
   if (!editing) renderCopy();
 }
 /* ---------- TEXT: the caption as typed — lines (<p>) and spaces (.pl-sp, half a line each), in the site's own type box ---------- */
-const spEl = () => { const d = document.createElement('div'); d.className = 'pl-sp'; d.contentEditable = 'false'; return d; };
+const spEl = () => { const d = document.createElement('div'); d.className = 'pl-sp'; d.contentEditable = 'false'; d.title = 'Click to remove this half line of space'; return d; };
 const lnEl = t => { const q = document.createElement('p'); if (t) q.textContent = t; else q.append(document.createElement('br')); return q; };
 function renderCopy() {
   const inner = block(), txt = S.copy;
@@ -221,10 +223,11 @@ css.textContent = `
   html.pl-al-right .caption > div { text-align: right !important; }
   html.pl .caption .pl-sp { height: .6em; }
   html.pl-txt .caption .credits { margin-top: 0 !important; }
-  html.pl-edit .caption, html.pl-edit .caption * { pointer-events: auto !important; -webkit-user-select: text !important; user-select: text !important; cursor: text !important; }
-  html.pl-edit #shield { pointer-events: none !important; }
+  html.pl-edit .caption > div, html.pl-edit .caption > div * { pointer-events: auto !important; -webkit-user-select: text !important; user-select: text !important; cursor: text !important; }   /* the type box only: the .caption itself is the band's full height */
+  html.pl-edit #shield, html.pl-edit #row { pointer-events: none !important; }   /* #row: the caption sits behind the row's own plane in its 3D context (z −.5 px), so the row's box takes the hit (elementFromPoint) */
   html.pl-edit .caption > div { outline: 1px solid rgba(0, 122, 255, .6); outline-offset: 8px; caret-color: #007AFF; }
   html.pl-edit .caption .pl-sp { background: rgba(0, 122, 255, .07); box-shadow: inset 0 -1px rgba(0, 122, 255, .22); }
+  html.pl-edit .caption .pl-sp:hover { background: rgba(255, 45, 85, .16) !important; box-shadow: inset 0 -1px rgba(255, 45, 85, .45) !important; cursor: pointer !important; }
   .pl-seg { display: inline-flex; padding: 2px; border-radius: 7px; background: #F2F2F7; gap: 2px; }
   .pl-seg button { font: inherit; border: 0; border-radius: 5px; padding: 2px 8px; background: transparent; color: #6E6E73; cursor: pointer; }
   .pl-seg button.on { background: #fff; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
@@ -335,7 +338,7 @@ function setType(o) { flush(); Object.assign(S, o); commit(); apply(); }
 const sep = () => h('span', { class: 'pl-sep' });
 const liveBits = [strip, sep(), h('label', { title: 'S — the text ↔ print gap in whole caption lines' }, snapBox, 'Snap'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel, editBtn];
 const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, resetBtn, copyBtn);
-const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line · S snap · C centre · A align · T tone · double-click the text to type: Enter line, ⇧Enter space · ⌘Z · G rulers · H hide' });
+const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line · S snap · C centre · A align · T tone · double-click the text: Enter line, ⇧Enter space, click a space to remove · ⌘Z · G rulers · H' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
 document.body.appendChild(hud);
 function syncHud(g) {
@@ -369,9 +372,15 @@ const local = e => { const v = vrect(); return [e.clientX - v.left, e.clientY - 
 function syncCursor() { root.classList.toggle('pl-ew', !!(drag || hov)); }
 addEventListener('pointerdown', e => {
   swallow = false;
+  if (editing && e.button === 0 && !hud.contains(e.target)) {                              // TEXT: a press in the text places the caret (native), anywhere else finishes
+    const sp = e.target.closest?.('.pl-sp');
+    if (sp && capEl.contains(sp)) { e.preventDefault(); sp.remove(); classify(); apply(); }   // a click on a space removes it (the ones under the last line have no line to Backspace from)
+    else if (!block().contains(e.target)) endEdit();
+    if (inViewer(e)) { e.stopPropagation(); swallow = true; }
+    return;
+  }
   if (!S || !live() || !inViewer(e) || e.button !== 0) return;
   e.stopPropagation(); swallow = true;                      // no flip, no close, no camera move: the open page is the lab's
-  if (editing) { if (!capEl.contains(e.target)) endEdit(); return; }   // TEXT: a press in the text places the caret (native), outside it finishes
   const hit = hitAt(...local(e)); if (!hit) return;
   e.preventDefault();
   const now = performance.now();                                                           // a double press on the text: type in it

@@ -288,11 +288,13 @@
      smaller than the margin at every window (the proximity law). A fixed gap of 10 caption lines (their snap at 1440 × 820) was tried first: the
      type grows with the window's height, so at 1440 × 900 it gave 181 · 222 and at 1280 × 800 160 · 198 — the gap past the margin again.
      Was the split 1 : 2 (181 · 362 · 122: "two having a first ever date … too many awkward pauses"), before that Mike's 45 / 55. */
-  .caption::before { content: ''; flex: 541 1 0; }
-  .caption::after  { content: ''; flex: 459 1 0; }
+  .caption::before { content: ''; flex: var(--cap-a, 541) 1 0; }   /* --cap-a / --cap-b: a VARIANT's split (POL_VARS, ?var=N) */
+  .caption::after  { content: ''; flex: var(--cap-b, 459) 1 0; }
   .caption p { margin: 0; }
   .caption .ma-title { color: #1D1D1F; }                  /* owner 2026-10-06 (the lab's tone, "as default"): TWO TONES — the title line (NEO) in ink, every other line the quiet gray (TYPE · MA ?ma=1) */
   .caption .credits { margin-top: 1.8em; }                  /* the gap between the title lines and the credits */
+  .caption .cap-sp { height: .6em; }                        /* site 2026-10-06: a TEXT caption's space — half a line (the POSITION lab's ⇧Enter; cfg.caption.text) */
+  .caption p.credits { margin-top: 0; }                     /* a TEXT caption's names: their space is a .cap-sp run, not the block's 1.8em */
   /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
      caption only). URL-only variants: without ?ma / ?anchor / ?masize the page is untouched. Research: brew/design-guide/typography-ma-notes.md.
        ?ma=1  two tones: the name + the title in Apple's text near-black #1D1D1F, every other line Apple's secondary gray #86868B
@@ -1480,7 +1482,13 @@ if (capEl) {
   const inner = document.createElement('div'); capEl.appendChild(inner);
   const block = (cls, lines) => { const d = document.createElement('div'); if (cls) d.className = cls;
     for (const t of lines) { const p = document.createElement('p'); p.textContent = t; d.appendChild(p); } inner.appendChild(d); };
-  block('', cfg.caption.lines); if (cfg.caption.credits?.length) block('credits', cfg.caption.credits);
+  if (cfg.caption.text != null) {                           // site 2026-10-06: a TEXT caption (the POSITION lab's): lines, '' = half a line of space
+    const kids = cfg.caption.text.split('\n').map(t => { const k = document.createElement(t === '' ? 'div' : 'p'); if (t === '') k.className = 'cap-sp'; else k.textContent = t; return k; });
+    let last = -1; kids.forEach((k, i) => { if (k.className === 'cap-sp') last = i; });
+    kids.forEach((k, i) => { if (k.tagName === 'P' && last >= 0 && i > last) k.classList.add('credits'); });   // the lines after the last space: the names (the tones' hook)
+    inner.append(...kids);
+  } else { block('', cfg.caption.lines); if (cfg.caption.credits?.length) block('credits', cfg.caption.credits); }
+  if (cfg.caption.split) { capEl.style.setProperty('--cap-a', cfg.caption.split[0]); capEl.style.setProperty('--cap-b', cfg.caption.split[1]); }   // a variant's band split
   inner.querySelector('p')?.classList.add('ma-title');      // site 2026-10-05: the title line (TYPE · MA's ?ma; no style without it)
   row.appendChild(capEl);                                   // in the row's 3D context (the .caption CSS), not a row element (RP.els skips it)
 }
@@ -3903,6 +3911,14 @@ const POL_KNOBS = { radius: 0, border: 0, vradius: 0, vborder: 0, shadow: 1, vsh
 const POL_FLOOR = { src: '../assets/neo/pol-floor.webp', fx: .045, fy: .03701 };
 const POL_CONTACT = { sigma: .004, color: 'rgba(100, 60, 23, .675)' };
 /* its caption in OPEN (the .caption CSS; owner 2026-09-27: their copy, title case as in the reference, Børnich's ø) */
+/* site 2026-10-06: the polaroid caption's VARIANTS, URL-only — site.html?var=N (the POSITION lab starts from it: ?pos=1&var=N). Each: the pile's
+   openDx, the band's split (margin : gap), the tone (TYPE · MA ?ma, unless the URL sets one), the TEXT ('' = half a line of space). */
+const POL_VARS = {
+  1: { openDx: .0511, split: [646, 354], tone: '5',          // owner 2026-10-06: "this is var 1 … just remove the three spaces at the bottom" — one ink, the groups
+       text: 'NEO\n\nHead & Body\nAI Companion\n\n1X\n\n\n\nBernt Børnich\nDar Sleeper\nChristoph Kohstall\nEric Jang\nChris Tan\nViktor Dune' },   // ½ line apart, 1.5 lines before the names; at 1440 × 820: 259 · text 138 · 142 (7 lines) · fan → edge 264
+};
+const POL_VAR = POL_VARS[pageQuery.get('var')] || null;
+if (POL_VAR?.tone && !MA.tone) document.documentElement.dataset.ma = POL_VAR.tone;
 const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion'],   // NEO on its own line (owner 2026-09-27). '1X' (the last line) OFF for a look
                       // (owner 2026-10-06: "just remove 1x from tha shi for a sec") — to bring it back: append '1X' after 'AI Companion'
                       credits: ['Bernt Børnich', 'Dar Sleeper', 'Christoph Kohstall', 'Eric Jang', 'Chris Tan', 'Viktor Dune'] };
@@ -3910,7 +3926,8 @@ const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion'],   // NEO on
    trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
-stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .0793, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
+stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: POL_VAR ? POL_VAR.openDx : .0793, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT,
+                                       caption: POL_VAR ? { ...POL_CAPTION, text: POL_VAR.text, split: POL_VAR.split } : POL_CAPTION }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
