@@ -6,7 +6,10 @@
    - the PILE: the stack's openDx (the open pile's centre right of the viewer's centre, a fraction of the viewer width), applied through
      the page's own layout (layoutAll: the zones, the caption's band and the neighbours' peeks follow exactly as on the site);
    - the CAPTION: its left edge, a fraction of the viewer width. It stays put while the pile moves (⌘-drag moves both).
-   The rulers on the caption's line show the intervals: the page's edge → the text → the print, and the fan → the page's edge.
+   The rulers on the caption's line show the intervals: the page's edge → the text → the print, and the fan → the page's edge,
+   in px and in LINES of the caption (its line-height: the research's unit — brew/design-guide/spacing-tldr.md). SNAP (on by default,
+   S) keeps the text ↔ print gap a whole number of lines while either is dragged (← → then step one line); CENTRE PAIR (C) centres
+   the text + pile as one block, the gap kept.
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -18,21 +21,27 @@ const viewer = document.getElementById('viewer'), capEl = pol.capEl, root = docu
 const KEY = 'site.poslab.v1';
 const vrect = () => viewer.getBoundingClientRect();
 const block = () => capEl.firstElementChild;                 // the caption's type: the lines, then the credits
+const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // one caption line (px): the unit of every interval
+const SNAPK = 'site.poslab.snap';
 const live = () => pol.state === 'open';
 const r0 = Math.round;
 const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); return o && Number.isFinite(o.dx) && Number.isFinite(o.cx) ? { dx: o.dx, cx: o.cx } : null; } catch { return null; } };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
-const SITE = { dx: pol.openDx, a: 1, b: 2 };               // the site's openDx and its band's split (read at boot, before the lab's CSS)
-function siteDefaults() {                                    // at the current size: the band at the site's openDx (eff.left moves 1 : 1 with openDx × W)
-  const W = vrect().width, e = pol.eff, tw = block().offsetWidth;
-  const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b;
-  return { dx: SITE.dx, cx: (a + b > 0 ? Math.max(0, band - tw) * a / (a + b) : 0) / W };
+const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0 };   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
+function siteDefaults() {                                    // at the current size: the band at the site's openDx (eff.left moves 1 : 1 with openDx × W), laid out as its flex spacers do
+  const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
+  const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;
+  const free = Math.max(0, band - tw - ba - bb);
+  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W };
 }
 
 /* ---------- state { dx: openDx, cx: the caption's left edge / W }, undo ---------- */
 let DEF = null, S = null, lastSnap = null, sel = 'text', drag = null, hov = null, pinned = false, swallow = false, nudgeUntil = 0, keyT = 0;
+let snap = (() => { try { return localStorage.getItem(SNAPK) !== '0'; } catch { return true; } })();
+const snapGap = (gap, lh) => { const n = Math.round(gap / lh); return n >= 1 ? n * lh : gap; };   // whole lines (free under one line: an overlap stays possible)
+const lines = (px, lh) => { const n = px / lh; return Math.abs(n - Math.round(n)) < .05 ? String(Math.round(n)) : n.toFixed(1); };
 const hist = [], redo = [];
 function commit() {
   const s = JSON.stringify(S); if (s === lastSnap) return;
@@ -67,7 +76,7 @@ function geom() {
   }
   const [b1, b2] = [...block().children].map(c => c.getBoundingClientRect());
   const line = b1 && b2 ? (b1.bottom + b2.top) / 2 - v.top : (text.t + text.b) / 2;   // the rulers' y: between the title lines and the credits
-  return { W: v.width, H: v.height, text, print, pile, line, margin: text.l, gap: print.l - text.r, edge: v.width - pile.r };
+  return { W: v.width, H: v.height, lh: lineH(), text, print, pile, line, margin: text.l, gap: print.l - text.r, edge: v.width - pile.r };
 }
 function hitAt(x, y) {                                       // viewer px → 'text' | 'pile' | null (the text wins where they overlap)
   const g = geom(), inR = (r, p) => x >= r.l - p && x <= r.r + p && y >= r.t - p && y <= r.b + p;
@@ -93,10 +102,11 @@ css.textContent = `
   .pl-box.on { outline-style: solid; outline-color: rgba(0, 122, 255, .8); }
   .pl-hud { position: fixed; top: 12px; left: 50%; translate: -50% 0; z-index: 2147483001; display: flex; flex-direction: column; align-items: center; gap: 4px;
             font: 12px/1.3 -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; color: #1D1D1F; -webkit-user-select: none; user-select: none; }
-  .pl-bar { display: flex; align-items: center; gap: 10px; padding: 5px 6px 5px 10px; border-radius: 11px; background: rgba(255, 255, 255, .92);
+  .pl-bar { display: flex; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); align-items: center; gap: 10px; padding: 5px 6px 5px 10px; border-radius: 11px; background: rgba(255, 255, 255, .92);
             box-shadow: 0 0 0 .5px rgba(0, 0, 0, .14), 0 2px 10px rgba(0, 0, 0, .08); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); white-space: nowrap; }
   .pl-strip { display: flex; align-items: center; gap: 0; font-variant-numeric: tabular-nums; }
-  .pl-gap { min-width: 34px; padding: 0 6px; text-align: center; color: #FF2D55; font-weight: 600; }
+  .pl-gap { min-width: 40px; padding: 0 6px; text-align: center; color: #FF2D55; font-weight: 600; line-height: 1.15; }
+  .pl-gap small { display: block; font-size: 10px; font-weight: 500; opacity: .8; }
   .pl-chip { font: inherit; font-weight: 500; border: 0; border-radius: 6px; padding: 2px 8px; background: #F2F2F7; color: #1D1D1F; cursor: pointer; }
   .pl-chip.on { background: #007AFF; color: #fff; }
   .pl-sep { width: 1px; align-self: stretch; background: #E5E5EA; margin: 2px 0; }
@@ -115,10 +125,10 @@ const rul = { margin: h('div', { class: 'pl-r' }, h('span')), gap: h('div', { cl
 const box = { text: h('div', { class: 'pl-box' }), pile: h('div', { class: 'pl-box' }) };
 ov.append(rul.margin, rul.gap, rul.edge, box.text, box.pile);
 document.body.appendChild(ov);
-function setRuler(el, a, b, y, show) {
+function setRuler(el, a, b, y, show, lh) {
   el.style.opacity = show ? '1' : '0'; if (!show) return;
   Object.assign(el.style, { left: Math.min(a, b) + 'px', top: r0(y) + 'px', width: Math.max(1, Math.abs(b - a)) + 'px' });
-  el.classList.toggle('neg', b < a); el.firstChild.textContent = r0(b - a);
+  el.classList.toggle('neg', b < a); el.firstChild.textContent = `${r0(b - a)} · ${lines(b - a, lh)} ln`;
 }
 function setBox(el, r, show, on) {
   el.style.opacity = show ? '1' : '0'; if (!show) return;
@@ -130,12 +140,20 @@ function draw(g) {
   const ox = v.left, oy = v.top;                             // viewer px → the overlay (the window)
   const sh = r => g && { l: r.l + ox, r: r.r + ox, t: r.t + oy, b: r.b + oy };
   const y = g ? g.line + oy : 0;
-  setRuler(rul.margin, ox, g ? g.text.l + ox : 0, y, on);
-  setRuler(rul.gap, g ? g.text.r + ox : 0, g ? g.print.l + ox : 0, y, on);
-  setRuler(rul.edge, g ? g.pile.r + ox : 0, ox + (g ? g.W : 0), y, on);
+  const lh = g ? g.lh : 20;
+  setRuler(rul.margin, ox, g ? g.text.l + ox : 0, y, on, lh);
+  setRuler(rul.gap, g ? g.text.r + ox : 0, g ? g.print.l + ox : 0, y, on, lh);
+  setRuler(rul.edge, g ? g.pile.r + ox : 0, ox + (g ? g.W : 0), y, on, lh);
   const both = !!drag?.both, cur = drag?.id || hov;
   setBox(box.text, sh(g?.text || {}), !!g && (cur === 'text' || both), !!drag);
   setBox(box.pile, sh(g?.pile || {}), !!g && (cur === 'pile' || both), !!drag);
+}
+function centrePair() {                                     // the text + the pile (to the fan's edge) centred as one block; both move, the gap kept
+  if (!live()) return;
+  flush();
+  const g = geom(), W = g.W, k = (S.dx - pol.openDx) * W, tl = S.cx * W, pr = g.pile.r + k;
+  const shift = (W - (pr - tl)) / 2 - tl;
+  S.cx += shift / W; S.dx += shift / W; commit(); nudgeShow(); apply();
 }
 let nudgeT = 0;
 function nudgeShow() { nudgeUntil = performance.now() + 1200; clearTimeout(nudgeT); nudgeT = setTimeout(apply, 1250); }
@@ -148,6 +166,11 @@ const chips = [chip('text'), chip('pile')];
 const strip = h('div', { class: 'pl-strip' }, gm, chips[0], gg, chips[1], ge);
 const rulersBox = h('input', { type: 'checkbox', title: 'G' });
 rulersBox.onchange = () => { pinned = rulersBox.checked; apply(); };
+const snapBox = h('input', { type: 'checkbox', title: 'S — the text ↔ print gap in whole caption lines', checked: snap });
+const setSnap = v => { snap = snapBox.checked = v; try { localStorage.setItem(SNAPK, v ? '1' : '0'); } catch {} };
+snapBox.onchange = () => setSnap(snapBox.checked);
+const centreBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Centre pair', title: 'C — the text + polaroids centred as one block (the gap kept)' });
+centreBtn.onclick = () => centrePair();
 const openBtn = h('button', { class: 'pl-btn', type: 'button' });
 openBtn.onclick = () => { if (live()) pol.collapse(); else if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) pol.expand(); };
 const undoBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Undo', title: '⌘Z (⇧⌘Z redo)' }); undoBtn.onclick = undo;
@@ -161,9 +184,9 @@ copyBtn.onclick = async () => {
   copyBtn.textContent = 'Copied ✓'; clearTimeout(copyBtn.t); copyBtn.t = setTimeout(() => (copyBtn.textContent = 'Copy values'), 1600);
 };
 const sep = () => h('span', { class: 'pl-sep' });
-const liveBits = [strip, sep(), h('label', {}, rulersBox, 'Rulers')];
+const liveBits = [strip, sep(), h('label', {}, snapBox, 'Snap to lines'), h('label', {}, rulersBox, 'Rulers'), centreBtn];
 const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, resetBtn, copyBtn);
-const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → nudge (⇧ 10 px) · ⌘Z undo · G rulers · H hide · Esc close' });
+const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line (snap off: 1 px, ⇧ 10) · S snap · C centre · ⌘Z undo · G rulers · H hide · Esc' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
 document.body.appendChild(hud);
 function syncHud(g) {
@@ -173,13 +196,14 @@ function syncHud(g) {
   undoBtn.disabled = !hist.length && lastSnap === JSON.stringify(S);
   for (const c of chips) c.classList.toggle('on', c.dataset.id === sel);
   if (!on) return;
-  gm.textContent = r0(g.margin); gg.textContent = r0(g.gap); ge.textContent = r0(g.edge);
+  for (const [el, v] of [[gm, g.margin], [gg, g.gap], [ge, g.edge]]) el.innerHTML = `${r0(v)}<small>${lines(v, g.lh)} ln</small>`;
 }
 function fmt() {
   const g = geom(), em = parseFloat(getComputedStyle(root).getPropertyValue('--em')) || 0, f = v => r0(v);
   const split = g.margin + g.gap > 0 ? g.margin / (g.margin + g.gap) : 0;
-  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px\n` +
-         `margin ${f(g.margin)} · text ${f(g.text.r - g.text.l)} · gap ${f(g.gap)} · print ${f(g.print.r - g.print.l)} · fan → edge ${f(g.edge)} px\n` +
+  const L = v => `${f(v)} (${lines(v, g.lh)} ln)`, align = getComputedStyle(block()).textAlign === 'right' ? 'flush right' : 'flush left';
+  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align}\n` +
+         `margin ${L(g.margin)} · text ${f(g.text.r - g.text.l)} · gap ${L(g.gap)} · print ${f(g.print.r - g.print.l)} · fan → edge ${L(g.edge)} px\n` +
          `openDx ${S.dx.toFixed(4)} · caption left ${S.cx.toFixed(4)} W · split ${split.toFixed(3)}` +
          (g.margin > 0 ? ` (margin : gap = 1 : ${(g.gap / g.margin).toFixed(2)})` : '');
 }
@@ -194,7 +218,7 @@ addEventListener('pointerdown', e => {
   e.stopPropagation(); swallow = true;                      // no flip, no close, no camera move: the open page is the lab's
   const hit = hitAt(...local(e)); if (!hit) return;
   e.preventDefault();
-  sel = hit; drag = { id: hit, both: e.metaKey, x0: e.clientX, from: { ...S }, W: vrect().width };
+  sel = hit; drag = { id: hit, both: e.metaKey, x0: e.clientX, from: { ...S }, W: vrect().width, g0: geom() };
   syncCursor(); apply();
 }, true);
 addEventListener('pointermove', e => {
@@ -204,9 +228,17 @@ addEventListener('pointermove', e => {
     return;
   }
   e.stopPropagation();
-  const d = r0(e.clientX - drag.x0) / drag.W;               // whole px of travel
-  if (drag.id === 'pile' || drag.both) S.dx = drag.from.dx + d;
-  if (drag.id === 'text' || drag.both) S.cx = drag.from.cx + d;
+  const d = r0(e.clientX - drag.x0) / drag.W, g0 = drag.g0, W = drag.W, tw = g0.text.r - g0.text.l;   // whole px of travel
+  if (drag.both) { S.dx = drag.from.dx + d; S.cx = drag.from.cx + d; }                      // the pair together: the gap kept
+  else if (drag.id === 'pile') {
+    let pl = g0.print.l + d * W;                                                            // the print's left edge at this travel
+    if (snap) pl = g0.text.r + snapGap(pl - g0.text.r, g0.lh);
+    S.dx = drag.from.dx + (pl - g0.print.l) / W;
+  } else {
+    let tl = g0.text.l + d * W;
+    if (snap) tl = g0.print.l - tw - snapGap(g0.print.l - tw - tl, g0.lh);
+    S.cx = tl / W;
+  }
   apply();
 }, true);
 function endDrag(e) {
@@ -228,11 +260,16 @@ addEventListener('keydown', e => {
   if (k === 'escape') { if (live()) { e.stopPropagation(); pol.collapse(); } return; }
   if (k === 'g') { pinned = rulersBox.checked = !pinned; apply(); return; }
   if (k === 'h') { hud.hidden = !hud.hidden; return; }
+  if (k === 's') { setSnap(!snap); return; }
+  if (k === 'c') { if (live()) centrePair(); return; }
   const dir = { arrowleft: -1, arrowright: 1 }[k];
   if (!dir || !live()) return;
   e.preventDefault(); e.stopPropagation();
-  const W = vrect().width, d = dir * (e.shiftKey ? 10 : 1) / W;
-  if (sel === 'pile') S.dx += d; else S.cx += d;
+  const g = geom(), W = g.W, pl = g.print.l + (S.dx - pol.openDx) * W, tl = S.cx * W, tw = g.text.r - g.text.l;   // from the state (a layout may be pending)
+  if (snap && !e.shiftKey) {                                   // one line: the pile → right / the text ← left widens the gap
+    const n = Math.max(1, Math.round((pl - tl - tw) / g.lh) + (sel === 'pile' ? dir : -dir)), gap = n * g.lh;
+    if (sel === 'pile') S.dx += (tl + tw + gap - pl) / W; else S.cx = (pl - gap - tw) / W;
+  } else { const d = dir * (e.shiftKey ? 10 : 1) / W; if (sel === 'pile') S.dx += d; else S.cx += d; }
   nudgeShow(); apply();
   clearTimeout(keyT); keyT = setTimeout(commit, 400);
 }, true);
@@ -246,8 +283,9 @@ setInterval(() => {                                          // the pile's state
 
 /* ---------- boot: the site's values (Reset), the stored ones, then open the polaroids ---------- */
 function start() {
-  const grow = s => parseFloat(getComputedStyle(capEl, s).flexGrow) || 0;
-  SITE.a = grow('::before'); SITE.b = grow('::after');
+  const sp = s => getComputedStyle(capEl, s), fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
+  SITE.a = parseFloat(sp('::before').flexGrow) || 0; SITE.b = parseFloat(sp('::after').flexGrow) || 0;
+  SITE.ba = (parseFloat(sp('::before').flexBasis) || 0) / fs; SITE.bb = (parseFloat(sp('::after').flexBasis) || 0) / fs;
   DEF = siteDefaults();
   S = load() || { ...DEF }; lastSnap = JSON.stringify(S);
   root.classList.add('pl');
