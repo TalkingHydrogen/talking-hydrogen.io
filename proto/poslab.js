@@ -9,7 +9,9 @@
    The rulers on the caption's line show the intervals: the page's edge → the text → the print, and the fan → the page's edge,
    in px and in LINES of the caption (its line-height: the research's unit — brew/design-guide/spacing-tldr.md). SNAP (on by default,
    S) keeps the text ↔ print gap a whole number of lines while either is dragged (← → then step one line); CENTRE PAIR (C) centres
-   the text + pile as one block, the gap kept.
+   the text + pile as one block, the gap kept. ALIGN (A) sets the caption flush left or flush right (the lines' straight edge toward the
+   page edge or toward the print); TONE (T) swaps the TYPE · MA tones of the 2026-10-05 write-up (the site's html[data-ma] CSS: quiet
+   gray = the site now, ?ma=1 two tones, ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's).
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -25,16 +27,20 @@ const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // o
 const SNAPK = 'site.poslab.snap';
 const live = () => pol.state === 'open';
 const r0 = Math.round;
-const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); return o && Number.isFinite(o.dx) && Number.isFinite(o.cx) ? { dx: o.dx, cx: o.cx } : null; } catch { return null; } };
+const TONES = [['site', 'Quiet gray · the site'], ['1', 'Two tones · ?ma=1'], ['4', 'Strict contrast · ?ma=4'], ['5', 'One ink · ?ma=5'], ['2', 'Mike\'s hierarchy · ?ma=2']];
+const okTone = t => TONES.some(([k]) => k === t);
+const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o || !Number.isFinite(o.dx) || !Number.isFinite(o.cx)) return null;
+  const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone; return r; } catch { return null; } };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
-const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0 };   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
+const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0,
+               al: root.dataset.align === 'hug' ? 'right' : 'left', tone: okTone(root.dataset.ma) ? root.dataset.ma : 'site' };   // the URL's own align / tone (?ma=3 = the site's quiet gray)   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
 function siteDefaults() {                                    // at the current size: the band at the site's openDx (eff.left moves 1 : 1 with openDx × W), laid out as its flex spacers do
   const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
   const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;
   const free = Math.max(0, band - tw - ba - bb);
-  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W };
+  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W, al: SITE.al, tone: SITE.tone };
 }
 
 /* ---------- state { dx: openDx, cx: the caption's left edge / W }, undo ---------- */
@@ -55,10 +61,15 @@ function redoIt() { flush(); const s = redo.pop(); if (s) { hist.push(lastSnap);
 /* ---------- apply: one frame — the pile through the page's layout (only when it moved), the caption's x, the rulers, the HUD ---------- */
 let rq = 0;
 function apply() { if (!rq) rq = requestAnimationFrame(frame); }
+function applyType() {                                       // ALIGN + TONE: classes on the root (the lab's CSS) and the site's own data-ma
+  root.classList.toggle('pl-al-right', S.al === 'right'); root.classList.toggle('pl-al-left', S.al !== 'right');
+  if (S.tone === 'site') { if ('ma' in root.dataset) delete root.dataset.ma; } else if (root.dataset.ma !== S.tone) root.dataset.ma = S.tone;
+}
 function frame() {
   rq = 0;
   if (!S) return;
   if (pol.openDx !== S.dx) { pol.openDx = S.dx; window.__row.layoutAll('poslab'); }
+  applyType();
   capEl.style.setProperty('--pl-x', (S.cx * vrect().width).toFixed(2) + 'px');
   const g = live() ? geom() : null;
   draw(g); syncHud(g);
@@ -90,6 +101,12 @@ css.textContent = `
   html.pl .caption::after  { flex: 1 1 0 !important; }
   html.pl-live #zoneL, html.pl-live #zoneR, html.pl-live .nzone { pointer-events: none !important; }
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
+  html.pl-al-left .caption > div { text-align: left !important; }
+  html.pl-al-right .caption > div { text-align: right !important; }
+  .pl-seg { display: inline-flex; padding: 2px; border-radius: 7px; background: #F2F2F7; gap: 2px; }
+  .pl-seg button { font: inherit; border: 0; border-radius: 5px; padding: 2px 8px; background: transparent; color: #6E6E73; cursor: pointer; }
+  .pl-seg button.on { background: #fff; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
+  .pl-sel { font: inherit; border: 0; border-radius: 7px; padding: 3px 6px; background: #F2F2F7; color: #1D1D1F; cursor: pointer; }
   .pl-ov { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }
   .pl-ov > * { position: absolute; opacity: 0; }
   .pl-r { height: 0; border-top: 1px solid #FF2D55; }
@@ -100,7 +117,7 @@ css.textContent = `
                  font: 600 11px/16px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .pl-box { outline: 1px dashed rgba(0, 122, 255, .55); outline-offset: 4px; }
   .pl-box.on { outline-style: solid; outline-color: rgba(0, 122, 255, .8); }
-  .pl-hud { position: fixed; top: 12px; left: 50%; translate: -50% 0; z-index: 2147483001; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  .pl-hud { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 2147483001; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none;
             font: 12px/1.3 -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; color: #1D1D1F; -webkit-user-select: none; user-select: none; }
   .pl-bar { display: flex; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); align-items: center; gap: 10px; padding: 5px 6px 5px 10px; border-radius: 11px; background: rgba(255, 255, 255, .92);
             box-shadow: 0 0 0 .5px rgba(0, 0, 0, .14), 0 2px 10px rgba(0, 0, 0, .08); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); white-space: nowrap; }
@@ -115,6 +132,7 @@ css.textContent = `
   .pl-btn:hover { background: #F2F2F7; }
   .pl-btn.pri { background: #007AFF; color: #fff; font-weight: 500; }
   .pl-btn:disabled { opacity: .35; cursor: default; background: transparent; }
+  .pl-bar, .pl-hint { pointer-events: auto; }
   .pl-hint { color: #8E8E93; font-size: 11px; white-space: nowrap; text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
   .pl-hud[hidden] { display: none; }
 `;
@@ -183,10 +201,15 @@ copyBtn.onclick = async () => {
   catch { const ta = h('textarea', { value: t }); ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
   copyBtn.textContent = 'Copied ✓'; clearTimeout(copyBtn.t); copyBtn.t = setTimeout(() => (copyBtn.textContent = 'Copy values'), 1600);
 };
+const alSeg = h('div', { class: 'pl-seg', title: 'A — the lines flush left or flush right' },
+  ...[['left', 'Left'], ['right', 'Right']].map(([v, t]) => { const b = h('button', { type: 'button', textContent: t }); b.dataset.v = v; b.onclick = () => setType({ al: v }); return b; }));
+const toneSel = h('select', { class: 'pl-sel', title: 'T — the caption\'s tone (TYPE · MA)' }, ...TONES.map(([v, t]) => h('option', { value: v, textContent: t })));
+toneSel.onchange = () => setType({ tone: toneSel.value });
+function setType(o) { flush(); Object.assign(S, o); commit(); apply(); }
 const sep = () => h('span', { class: 'pl-sep' });
-const liveBits = [strip, sep(), h('label', {}, snapBox, 'Snap to lines'), h('label', {}, rulersBox, 'Rulers'), centreBtn];
+const liveBits = [strip, sep(), h('label', {}, snapBox, 'Snap to lines'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel];
 const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, resetBtn, copyBtn);
-const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line (snap off: 1 px, ⇧ 10) · S snap · C centre · ⌘Z undo · G rulers · H hide · Esc' });
+const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line (snap off: 1 px, ⇧ 10) · S snap · C centre · A align · T tone · ⌘Z undo · G rulers · H hide · Esc' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
 document.body.appendChild(hud);
 function syncHud(g) {
@@ -195,6 +218,7 @@ function syncHud(g) {
   openBtn.textContent = live() ? 'Close' : 'Open polaroids';
   undoBtn.disabled = !hist.length && lastSnap === JSON.stringify(S);
   for (const c of chips) c.classList.toggle('on', c.dataset.id === sel);
+  if (S) { for (const b of alSeg.children) b.classList.toggle('on', b.dataset.v === S.al); if (toneSel.value !== S.tone) toneSel.value = S.tone; }
   if (!on) return;
   for (const [el, v] of [[gm, g.margin], [gg, g.gap], [ge, g.edge]]) el.innerHTML = `${r0(v)}<small>${lines(v, g.lh)} ln</small>`;
 }
@@ -202,7 +226,8 @@ function fmt() {
   const g = geom(), em = parseFloat(getComputedStyle(root).getPropertyValue('--em')) || 0, f = v => r0(v);
   const split = g.margin + g.gap > 0 ? g.margin / (g.margin + g.gap) : 0;
   const L = v => `${f(v)} (${lines(v, g.lh)} ln)`, align = getComputedStyle(block()).textAlign === 'right' ? 'flush right' : 'flush left';
-  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align}\n` +
+  const tone = (TONES.find(([k]) => k === S.tone) || TONES[0])[1];
+  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align} · tone ${tone}\n` +
          `margin ${L(g.margin)} · text ${f(g.text.r - g.text.l)} · gap ${L(g.gap)} · print ${f(g.print.r - g.print.l)} · fan → edge ${L(g.edge)} px\n` +
          `openDx ${S.dx.toFixed(4)} · caption left ${S.cx.toFixed(4)} W · split ${split.toFixed(3)}` +
          (g.margin > 0 ? ` (margin : gap = 1 : ${(g.gap / g.margin).toFixed(2)})` : '');
@@ -262,6 +287,8 @@ addEventListener('keydown', e => {
   if (k === 'h') { hud.hidden = !hud.hidden; return; }
   if (k === 's') { setSnap(!snap); return; }
   if (k === 'c') { if (live()) centrePair(); return; }
+  if (k === 'a') { setType({ al: S.al === 'right' ? 'left' : 'right' }); return; }
+  if (k === 't') { const i = TONES.findIndex(([v]) => v === S.tone); setType({ tone: TONES[(i + (e.shiftKey ? TONES.length - 1 : 1)) % TONES.length][0] }); return; }
   const dir = { arrowleft: -1, arrowright: 1 }[k];
   if (!dir || !live()) return;
   e.preventDefault(); e.stopPropagation();
@@ -287,7 +314,7 @@ function start() {
   SITE.a = parseFloat(sp('::before').flexGrow) || 0; SITE.b = parseFloat(sp('::after').flexGrow) || 0;
   SITE.ba = (parseFloat(sp('::before').flexBasis) || 0) / fs; SITE.bb = (parseFloat(sp('::after').flexBasis) || 0) / fs;
   DEF = siteDefaults();
-  S = load() || { ...DEF }; lastSnap = JSON.stringify(S);
+  S = { ...DEF, ...(load() || {}) }; lastSnap = JSON.stringify(S);
   root.classList.add('pl');
   apply();
   if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) requestAnimationFrame(() => requestAnimationFrame(() => pol.expand()));
