@@ -1966,7 +1966,7 @@ function filmCtl(F) {
 /* site 2026-10-01 — OPEN_DX (cfg.openDx, a fraction of the viewer width; owner: "move the stack of the polaroids just a bit to
    the right so it optically gives more space to the font"): the open pile's centre sits this far right of the viewer's centre —
    its effective rect, zones and caption band (eff.left) move with it */
-const OPEN_DX = cfg.openDx || 0;
+let OPEN_DX = cfg.openDx || 0;                             // let: the position lab sets it (poslab.js, ?pos; the stack's openDx)
 function layoutSize() {
   Object.assign(G, PG);                                      // the page geometry (pageLayout())
   if (cfg.openB) { G.B = cfg.openB(G.W, G.H); G.K = G.B / STACK.refBox; G.KV = G.B / FLIP.refBox; }   // site 2026-09-30: its own open box (the MACBOOK: the FILM's frame)
@@ -2949,6 +2949,7 @@ const self = {                              // site: what the page sees of this 
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   film, get filmOut() { return film ? film.hideV * p.value : 0; },          // site: FILM — the controller; the neighbours' slide out (rowWrite())
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
+  get openDx() { return OPEN_DX; }, set openDx(v) { OPEN_DX = Number.isFinite(+v) ? +v : 0; },   // site 2026-10-06: OPEN_DX for the position lab (poslab.js, ?pos) — a layoutAll() applies it
   letGo() { hPinned = null; if (hover.target !== 0) { hover.set(0); kick(); } lidSync(); },
   get turn() { return TURN; },                                              // site: TURN (null unless ?turn=1)
   turnAt(clientX, clientY) {                                                // site: TURN — a click on the print in OPEN: the clicked side lifts first
@@ -3660,7 +3661,7 @@ function moveTo(b) {
   a.leave(); b.arrive();
   rowPart();
 }
-window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones };   // debug / tuning
+window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll };   // debug / tuning
 
 /* ============================================================
    EVENTS (the page's)
@@ -4003,5 +4004,7 @@ window.__stacks = stacks;                   // site: every stack's page-facing o
 if (new URLSearchParams(location.search).has('type')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'typelab.js?v=' + Date.now() })); }</script>   <!-- the lab's panel sits under the page: the root scrolls in ?type only -->
 <script>/* site 2026-10-01: the polaroids' COLOUR lab (colorlab.js: R / G / B gain per channel, the panel under the page), ?color only */
 if (new URLSearchParams(location.search).has('color')) { document.documentElement.style.overflow = 'auto'; document.body.appendChild(Object.assign(document.createElement('script'), { src: 'colorlab.js?v=' + Date.now() })); }</script>
+<script>/* site 2026-10-06: the polaroids' POSITION lab (poslab.js: drag the open pile and its caption on x, copy the values), ?pos only */
+if (new URLSearchParams(location.search).has('pos')) document.body.appendChild(Object.assign(document.createElement('script'), { src: 'poslab.js?v=' + Date.now() }));</script>
 </body>
 </html>
