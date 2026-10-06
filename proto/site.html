@@ -1207,9 +1207,12 @@ if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.docume
    mirrored: p .667 → 1) showed the text sliding ~350 px into place while it appeared. Now: in once p ≥ at (≈ 6 px of the pan left at 1440, the
    zoom's last ~45 ms), a 300 ms ease on the compositor (no frame loop needed); out from the close's click, 50 ms ease-out — gone before the
    table has visibly moved. ?capat= ?capin= ?capout= (ms). */
-const CAP_FADE = { at: +(pageQuery.get('capat') || .995),
-                   in: `opacity ${+(pageQuery.get('capin') || 300)}ms cubic-bezier(.25, .1, .25, 1)`,
-                   out: `opacity ${+(pageQuery.get('capout') || 50)}ms cubic-bezier(0, 0, .2, 1)` };
+/* 2026-10-06 later (owner: "there is no fade in/out now"): the 300 ms ease was optically done in ~150 ms and the 50 ms out a cut — now a
+   450 ms ease-in-out, started at p .98 (19 px of pan left at 1440, spent under 5 % opacity: the curve's slow start), and 150 ms out (the old
+   close fade's length; the text leaves with the table, as the objects do). */
+const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
+                   in: `opacity ${+(pageQuery.get('capin') || 450)}ms cubic-bezier(.42, 0, .58, 1)`,
+                   out: `opacity ${+(pageQuery.get('capout') || 150)}ms cubic-bezier(.25, .1, .25, 1)` };
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
 const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
