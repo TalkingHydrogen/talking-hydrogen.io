@@ -3339,6 +3339,8 @@ function rowStep(dt) {                      // the frame loop: S (release / flin
    ≈ SwiftUI's .smooth), ticked by the frame loop (pageSprings), so a reversal mid-roll turns the same glyphs round, and the probes'
    virtual clock and the showcase film see the roll. A glyph on its way out that shows the new digit comes back instead of a new
    one. Reduced motion: the fade alone. */
+const AGE_ON = pageQuery.get('age') === '1';   // owner 2026-10-06: "just toggle off the number for now, I need to see it without for now" — OFF by default, ?age=1 shows it (to bring it back, make this `!== '0'`)
+if (!AGE_ON) $('age')?.remove();            // no node, no glyph layers; every AGE step below is then a no-op (AGE.el null)
 const AGE = { el: $('age'), slots: [], th: [], ages: [], i: -1, val: '', hyst: 6, travel: .5, blur: .1, fade: 1.4, pool: 4 };
 const AGE_RM = matchMedia('(prefers-reduced-motion: reduce)');
 { const g = parseFloat(pageQuery.get('agegap')); if (Number.isFinite(g)) document.documentElement.style.setProperty('--age-gap', g + 'em'); }   // ?agegap=: the gap, em
