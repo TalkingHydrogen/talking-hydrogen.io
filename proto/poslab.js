@@ -53,8 +53,8 @@ function siteCopy(grp) {                                      // the site's capt
 }
 const live = () => pol.state === 'open';
 const r0 = Math.round;
-const TONES = [['site', 'Two tones', 'Two tones · the site (?ma=1)'], ['3', 'Quiet gray', 'Quiet gray · ?ma=3'], ['4', 'Strict', 'Strict contrast · ?ma=4'],
-               ['5', 'One ink', 'One ink · ?ma=5'], ['2', 'Mike\'s', 'Mike\'s hierarchy · ?ma=2']];   // [key, menu, Copy values]; the site = ?ma=1 since 2026-10-06
+const TONES = [['site', 'One ink', 'One ink · the site (?ma=5)'], ['1', 'Two tones', 'Two tones · ?ma=1'], ['3', 'Quiet gray', 'Quiet gray · ?ma=3'],
+               ['4', 'Strict', 'Strict contrast · ?ma=4'], ['2', 'Mike\'s', 'Mike\'s hierarchy · ?ma=2']];   // [key, menu, Copy values]; the site = one ink (?ma=5) since 2026-10-06 (var 1)
 const okTone = t => TONES.some(([k]) => k === t);
 const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o || !Number.isFinite(o.dx) || !Number.isFinite(o.cx)) return null;
   const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone;
@@ -64,7 +64,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
 const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0,
-               al: root.dataset.align === 'hug' ? 'right' : 'left', tone: okTone(root.dataset.ma) ? root.dataset.ma : 'site' };   // the URL's own align / tone (?ma=1 = the site's two tones)   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
+               al: root.dataset.align === 'hug' ? 'right' : 'left', tone: okTone(root.dataset.ma) ? root.dataset.ma : 'site' };   // the URL's own align / tone (?ma=5 = the site's one ink)   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
 function siteDefaults() {                                    // at the current size: the band at the site's openDx (eff.left moves 1 : 1 with openDx × W), laid out as its flex spacers do
   const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
   const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;
