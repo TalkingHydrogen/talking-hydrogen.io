@@ -11,7 +11,10 @@
    S) keeps the text ↔ print gap a whole number of lines while either is dragged (← → then step one line); CENTRE PAIR (C) centres
    the text + pile as one block, the gap kept. ALIGN (A) sets the caption flush left or flush right (the lines' straight edge toward the
    page edge or toward the print); TONE (T) swaps the TYPE · MA tones of the 2026-10-05 write-up (the site's html[data-ma] CSS: quiet
-   gray ?ma=3, two tones = the site since 2026-10-06 (?ma=1), ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's).
+   gray ?ma=3, two tones = the site since 2026-10-06 (?ma=1), ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's). GROUPING (owner 2026-10-06: "for ink
+   version I wanna try to show hierarchy in the form of that there is a space between neo head body and 1x"): the title lines split into
+   groups by space alone — NEO · role (Head & Body, AI Companion) · 1X, or NEO apart, or 1X apart — half a line or a whole line between them
+   (the credits keep their 1.5 lines, so the ladder holds).
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -27,10 +30,15 @@ const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // o
 const SNAPK = 'site.poslab.snap';
 const live = () => pol.state === 'open';
 const r0 = Math.round;
-const TONES = [['site', 'Two tones · the site'], ['3', 'Quiet gray · ?ma=3'], ['4', 'Strict contrast · ?ma=4'], ['5', 'One ink · ?ma=5'], ['2', 'Mike\'s hierarchy · ?ma=2']];   // the site = ?ma=1 since 2026-10-06
+const TONES = [['site', 'Two tones', 'Two tones · the site (?ma=1)'], ['3', 'Quiet gray', 'Quiet gray · ?ma=3'], ['4', 'Strict', 'Strict contrast · ?ma=4'],
+               ['5', 'One ink', 'One ink · ?ma=5'], ['2', 'Mike\'s', 'Mike\'s hierarchy · ?ma=2']];   // [key, menu, Copy values]; the site = ?ma=1 since 2026-10-06
 const okTone = t => TONES.some(([k]) => k === t);
+const GROUPS = [['none', 'Lines together', 'title lines together'], ['three:1', 'NEO · role · 1X  1 ln', 'groups NEO · role · 1X, 1 line apart'],
+                ['three:0.5', 'NEO · role · 1X  ½ ln', 'groups NEO · role · 1X, ½ line apart'], ['neo:1', 'NEO · rest  1 ln', 'NEO apart, 1 line'],
+                ['neo:0.5', 'NEO · rest  ½ ln', 'NEO apart, ½ line'], ['1x:1', 'rest · 1X  1 ln', '1X apart, 1 line'], ['1x:0.5', 'rest · 1X  ½ ln', '1X apart, ½ line']];
+const okGroup = g => GROUPS.some(([k]) => k === g);
 const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o || !Number.isFinite(o.dx) || !Number.isFinite(o.cx)) return null;
-  const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone; return r; } catch { return null; } };
+  const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone; if (okGroup(o.grp)) r.grp = o.grp; return r; } catch { return null; } };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
@@ -40,7 +48,7 @@ function siteDefaults() {                                    // at the current s
   const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
   const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;
   const free = Math.max(0, band - tw - ba - bb);
-  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W, al: SITE.al, tone: SITE.tone };
+  return { dx: SITE.dx, cx: (ba + (a + b > 0 ? free * a / (a + b) : 0)) / W, al: SITE.al, tone: SITE.tone, grp: 'none' };
 }
 
 /* ---------- state { dx: openDx, cx: the caption's left edge / W }, undo ---------- */
@@ -64,6 +72,9 @@ function apply() { if (!rq) rq = requestAnimationFrame(frame); }
 function applyType() {                                       // ALIGN + TONE: classes on the root (the lab's CSS) and the site's own data-ma
   root.classList.toggle('pl-al-right', S.al === 'right'); root.classList.toggle('pl-al-left', S.al !== 'right');
   if (S.tone === 'site') { if ('ma' in root.dataset) delete root.dataset.ma; } else if (root.dataset.ma !== S.tone) root.dataset.ma = S.tone;
+  const [gk, gs] = (S.grp || 'none').split(':');                                  // GROUPING: which title lines get space above them, how much
+  for (const k of ['three', 'neo', '1x']) root.classList.toggle('pl-g-' + k, gk === k);
+  root.style.setProperty('--pl-gs', (1.2 * (+gs || 1)) + 'em');                  // in lines of the caption (its leading 1.2)
 }
 function frame() {
   rq = 0;
@@ -103,6 +114,9 @@ css.textContent = `
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
   html.pl-al-left .caption > div { text-align: left !important; }
   html.pl-al-right .caption > div { text-align: right !important; }
+  html.pl-g-three .caption > div > div:not(.credits) > p:nth-child(2), html.pl-g-three .caption > div > div:not(.credits) > p:last-child:not(:nth-child(2)),
+  html.pl-g-neo .caption > div > div:not(.credits) > p:nth-child(2),
+  html.pl-g-1x .caption > div > div:not(.credits) > p:last-child:not(:first-child) { margin-top: var(--pl-gs, 1.2em) !important; }
   .pl-seg { display: inline-flex; padding: 2px; border-radius: 7px; background: #F2F2F7; gap: 2px; }
   .pl-seg button { font: inherit; border: 0; border-radius: 5px; padding: 2px 8px; background: transparent; color: #6E6E73; cursor: pointer; }
   .pl-seg button.on { background: #fff; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
@@ -187,7 +201,7 @@ rulersBox.onchange = () => { pinned = rulersBox.checked; apply(); };
 const snapBox = h('input', { type: 'checkbox', title: 'S — the text ↔ print gap in whole caption lines', checked: snap });
 const setSnap = v => { snap = snapBox.checked = v; try { localStorage.setItem(SNAPK, v ? '1' : '0'); } catch {} };
 snapBox.onchange = () => setSnap(snapBox.checked);
-const centreBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Centre pair', title: 'C — the text + polaroids centred as one block (the gap kept)' });
+const centreBtn = h('button', { class: 'pl-btn', type: 'button', textContent: 'Centre', title: 'C — the text + polaroids centred as one block (the gap kept)' });
 centreBtn.onclick = () => centrePair();
 const openBtn = h('button', { class: 'pl-btn', type: 'button' });
 openBtn.onclick = () => { if (live()) pol.collapse(); else if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) pol.expand(); };
@@ -205,9 +219,11 @@ const alSeg = h('div', { class: 'pl-seg', title: 'A — the lines flush left or 
   ...[['left', 'Left'], ['right', 'Right']].map(([v, t]) => { const b = h('button', { type: 'button', textContent: t }); b.dataset.v = v; b.onclick = () => setType({ al: v }); return b; }));
 const toneSel = h('select', { class: 'pl-sel', title: 'T — the caption\'s tone (TYPE · MA)' }, ...TONES.map(([v, t]) => h('option', { value: v, textContent: t })));
 toneSel.onchange = () => setType({ tone: toneSel.value });
+const grpSel = h('select', { class: 'pl-sel', title: 'Grouping — the title lines split by space (hierarchy without tone)' }, ...GROUPS.map(([v, t]) => h('option', { value: v, textContent: t })));
+grpSel.onchange = () => setType({ grp: grpSel.value });
 function setType(o) { flush(); Object.assign(S, o); commit(); apply(); }
 const sep = () => h('span', { class: 'pl-sep' });
-const liveBits = [strip, sep(), h('label', {}, snapBox, 'Snap to lines'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel];
+const liveBits = [strip, sep(), h('label', { title: 'S — the text ↔ print gap in whole caption lines' }, snapBox, 'Snap'), h('label', {}, rulersBox, 'Rulers'), centreBtn, sep(), alSeg, toneSel, grpSel];
 const bar = h('div', { class: 'pl-bar' }, ...liveBits, sep(), openBtn, undoBtn, resetBtn, copyBtn);
 const hint = h('div', { class: 'pl-hint', textContent: 'Drag sideways · ⌘-drag both · ← → one line (snap off: 1 px, ⇧ 10) · S snap · C centre · A align · T tone · ⌘Z undo · G rulers · H hide · Esc' });
 const hud = h('div', { class: 'pl-hud' }, bar, hint);
@@ -218,7 +234,7 @@ function syncHud(g) {
   openBtn.textContent = live() ? 'Close' : 'Open polaroids';
   undoBtn.disabled = !hist.length && lastSnap === JSON.stringify(S);
   for (const c of chips) c.classList.toggle('on', c.dataset.id === sel);
-  if (S) { for (const b of alSeg.children) b.classList.toggle('on', b.dataset.v === S.al); if (toneSel.value !== S.tone) toneSel.value = S.tone; }
+  if (S) { for (const b of alSeg.children) b.classList.toggle('on', b.dataset.v === S.al); if (toneSel.value !== S.tone) toneSel.value = S.tone; if (grpSel.value !== S.grp) grpSel.value = S.grp; }
   if (!on) return;
   for (const [el, v] of [[gm, g.margin], [gg, g.gap], [ge, g.edge]]) el.innerHTML = `${r0(v)}<small>${lines(v, g.lh)} ln</small>`;
 }
@@ -226,8 +242,8 @@ function fmt() {
   const g = geom(), em = parseFloat(getComputedStyle(root).getPropertyValue('--em')) || 0, f = v => r0(v);
   const split = g.margin + g.gap > 0 ? g.margin / (g.margin + g.gap) : 0;
   const L = v => `${f(v)} (${lines(v, g.lh)} ln)`, align = getComputedStyle(block()).textAlign === 'right' ? 'flush right' : 'flush left';
-  const tone = (TONES.find(([k]) => k === S.tone) || TONES[0])[1];
-  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align} · tone ${tone}\n` +
+  const tone = (TONES.find(([k]) => k === S.tone) || TONES[0])[2], grp = (GROUPS.find(([k]) => k === S.grp) || GROUPS[0])[2];
+  return `Polaroid position lab · ${f(g.W)}×${f(g.H)} · em ${+em.toFixed(2)} px · caption line ${g.lh.toFixed(2)} px · ${align} · tone ${tone} · ${grp}\n` +
          `margin ${L(g.margin)} · text ${f(g.text.r - g.text.l)} · gap ${L(g.gap)} · print ${f(g.print.r - g.print.l)} · fan → edge ${L(g.edge)} px\n` +
          `openDx ${S.dx.toFixed(4)} · caption left ${S.cx.toFixed(4)} W · split ${split.toFixed(3)}` +
          (g.margin > 0 ? ` (margin : gap = 1 : ${(g.gap / g.margin).toFixed(2)})` : '');
