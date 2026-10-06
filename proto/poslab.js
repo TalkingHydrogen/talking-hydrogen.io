@@ -11,7 +11,7 @@
    S) keeps the text ↔ print gap a whole number of lines while either is dragged (← → then step one line); CENTRE PAIR (C) centres
    the text + pile as one block, the gap kept. ALIGN (A) sets the caption flush left or flush right (the lines' straight edge toward the
    page edge or toward the print); TONE (T) swaps the TYPE · MA tones of the 2026-10-05 write-up (the site's html[data-ma] CSS: quiet
-   gray = the site now, ?ma=1 two tones, ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's).
+   gray ?ma=3, two tones = the site since 2026-10-06 (?ma=1), ?ma=4 strict, ?ma=5 one ink, ?ma=2 Mike's).
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
@@ -27,7 +27,7 @@ const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // o
 const SNAPK = 'site.poslab.snap';
 const live = () => pol.state === 'open';
 const r0 = Math.round;
-const TONES = [['site', 'Quiet gray · the site'], ['1', 'Two tones · ?ma=1'], ['4', 'Strict contrast · ?ma=4'], ['5', 'One ink · ?ma=5'], ['2', 'Mike\'s hierarchy · ?ma=2']];
+const TONES = [['site', 'Two tones · the site'], ['3', 'Quiet gray · ?ma=3'], ['4', 'Strict contrast · ?ma=4'], ['5', 'One ink · ?ma=5'], ['2', 'Mike\'s hierarchy · ?ma=2']];   // the site = ?ma=1 since 2026-10-06
 const okTone = t => TONES.some(([k]) => k === t);
 const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o || !Number.isFinite(o.dx) || !Number.isFinite(o.cx)) return null;
   const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone; return r; } catch { return null; } };
@@ -35,7 +35,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
 const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0,
-               al: root.dataset.align === 'hug' ? 'right' : 'left', tone: okTone(root.dataset.ma) ? root.dataset.ma : 'site' };   // the URL's own align / tone (?ma=3 = the site's quiet gray)   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
+               al: root.dataset.align === 'hug' ? 'right' : 'left', tone: okTone(root.dataset.ma) ? root.dataset.ma : 'site' };   // the URL's own align / tone (?ma=1 = the site's two tones)   // the site's openDx and its band's spacers: grow a : b, bases ba / bb in em of the caption (read at boot, before the lab's CSS; &align=hug = 1 : 0 + 3.6em)
 function siteDefaults() {                                    // at the current size: the band at the site's openDx (eff.left moves 1 : 1 with openDx × W), laid out as its flex spacers do
   const W = vrect().width, e = pol.eff, tw = block().offsetWidth, fs = parseFloat(getComputedStyle(capEl).fontSize) || 16;
   const band = Math.max(0, (e ? e.left : 0) - (pol.openDx - SITE.dx) * W), a = SITE.a, b = SITE.b, ba = SITE.ba * fs, bb = SITE.bb * fs;

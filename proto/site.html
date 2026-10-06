@@ -283,9 +283,15 @@
   .caption { position: absolute; left: 0; top: 0; height: 0; translate: 0 0 -.5px; transform-origin: 0 0; display: flex; align-items: center;
              pointer-events: none; opacity: 0; visibility: hidden; will-change: opacity; white-space: nowrap;
              font-size: calc(var(--em) * 1.03); line-height: 1.2; font-weight: 400; letter-spacing: 0; color: #868689; }   /* owner 2026-10-06: "for the gray color, make blue 3 points higher than RG" — rgb(134, 134, 137) #868689: Apple's #86868B had blue +5, now +3 (a touch less cool; 3.63 : 1 on white, as before) */   /* owner 2026-10-06 (TYPE · MA, one by one): "the side info in quiet gray only" — every line #86868B, Apple's quiet gray (3.6 : 1, APCA Lc 64), the title included (no ink line); was #D4D4D4 */   /* owner 2026-10-01, final: "just use apple system regular" — the page's system font (SF), Regular, not caps, the gray (Myriad Light SemiCn / Regular and black were tried) */   /* owner 2026-10-01: Myriad Pro Light SemiCondensed, not caps, black (the .hdr .name's). Before: SF 500, stretch 85 %, tracking .18em, uppercase, #D4D4D4 — */   /* owner 2026-09-30: "set that style for all the rest of the text" … "keep the size though" … "20% smaller" — the sign-off's setting (the .sign CSS: the print line's) at .8 of the caption's own size, its leading. Before, 2026-09-28: weight 450 (between SF Regular 400 and SF Medium 510; Safari maps it straight to the wght axis). The type lab (site.html?type=1): rgb(220, 220, 222) — position / size / weight / tracking kept (their values = the live layout within 0.3 px). Was #C7C7CC (2026-09-27); the play button's #E6E7E8 was tried then: too faint on the backdrop; before that the page's #8e8e93 */
-  .caption::before { content: ''; flex: 1 1 0; }   /* owner 2026-10-06 ("the text occupies big chunk of the left with the polaroids nicely occupying the right", their reference: margin : gap = 93 : 186 px): the free band split 1 : 2 (was Mike's 45 / 55) */
-  .caption::after  { content: ''; flex: 2 1 0; }
+  /* owner 2026-10-06, from the POSITION lab (site.html?pos=1; the spacing research: brew/design-guide/spacing-tldr.md): their pick at 1440 × 820 —
+     margin 238 · text 138 · gap 203 · fan → edge 224, openDx .0793 — kept as the band's SPLIT, margin : gap = .541 : .459, so the gap stays
+     smaller than the margin at every window (the proximity law). A fixed gap of 10 caption lines (their snap at 1440 × 820) was tried first: the
+     type grows with the window's height, so at 1440 × 900 it gave 181 · 222 and at 1280 × 800 160 · 198 — the gap past the margin again.
+     Was the split 1 : 2 (181 · 362 · 122: "two having a first ever date … too many awkward pauses"), before that Mike's 45 / 55. */
+  .caption::before { content: ''; flex: 541 1 0; }
+  .caption::after  { content: ''; flex: 459 1 0; }
   .caption p { margin: 0; }
+  .caption .ma-title { color: #1D1D1F; }                  /* owner 2026-10-06 (the lab's tone, "as default"): TWO TONES — the title line (NEO) in ink, every other line the quiet gray (TYPE · MA ?ma=1) */
   .caption .credits { margin-top: 1.8em; }                  /* the gap between the title lines and the credits */
   /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
      caption only). URL-only variants: without ?ma / ?anchor / ?masize the page is untouched. Research: brew/design-guide/typography-ma-notes.md.
@@ -3903,7 +3909,7 @@ const POL_CAPTION = { lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],   // 
    trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
-stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .15, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
+stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: .0793, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT, caption: POL_CAPTION }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
