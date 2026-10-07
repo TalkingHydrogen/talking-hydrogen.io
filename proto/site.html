@@ -4118,17 +4118,20 @@ const DANDELION = [
   { id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 },
   { id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082], knobs: DAN_KNOBS, song: true },   // file: the webp's px (the print + its bleed): the srcset descriptors
 ];
-/* site 2026-10-07 (owner: "for the cd toggle off the vynyl dandelion thing and leave cd only"): the CD ALONE — a pile of one, and the
-   song goes with the sleeve (it was the sleeve's; a CD-only pile with cfg.audio would play it from the whole stack, button and all).
-   ?sleeve=1 = the CD + sleeve pile with its song, as before. */
+/* site 2026-10-07 (owner: "for the cd toggle off the vynyl dandelion thing and leave cd only"): the CD ALONE — a pile of one (the
+   song went with the sleeve that morning; back on the CD since the same day, below). ?sleeve=1 = the CD + sleeve pile with its song, as before. */
 const DAN_SLEEVE = pageQuery.get('sleeve') === '1';
+/* site 2026-10-07 (owner: "add a play button the same as on vynyl to cd too"): the song is back, on the CD — the sleeve's own button and
+   behaviour (the CD is the pic.song card: the button a child of it, right of the case, bottoms aligned; from the top on every zoom, volume = p,
+   paused at HOME). With ?sleeve=1 the sleeve keeps it, as before. */
+const DAN_CD = DAN_SLEEVE ? DANDELION : [{ ...DANDELION[0], song: true }];
 /* site 2026-10-07 (owner: "add to …?swap=1 ability to modify spacing and text to cd and macbook open"): the CD's caption, the MACBOOK's manner —
    a TEXT caption, title / ½ line / role / 1.5 lines / name, in the band left of the open CD (split 646 : 354, to the case's edge). The text is a
    placeholder (Dandelion / Demo OST / Viktor Dune) until the owner typed theirs on the SWAP page. lock: the LOCK's reference text = that placeholder (the place). */
 const DAN_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nViktor Dune',   // owner 2026-10-07 (typed on the SWAP page, "apply current values"): Dandelion / 1 line / Founder / 3 lines / Alex Tykh, Viktor Dune
                       lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };   // lock: the reference (LOCK) — this placeholder: the owner's text will start where it starts
-stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_SLEEVE ? DANDELION : [DANDELION[0]], deck: DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
-                                        rest: { rot: -2, up: 0 }, audio: DAN_SLEEVE ? '../assets/dandelion/dt01-drum_variation01-01.mp3' : null,
+stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
+                                        rest: { rot: -2, up: 0 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',
                                         caption: DAN_CAPTION }));
 layoutAll('boot');
 for (const s of stacks) s.boot();
