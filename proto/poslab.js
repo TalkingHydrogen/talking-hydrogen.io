@@ -18,27 +18,36 @@
    takes the title's tone, the lines after the last space the names' (the tones' hooks). Stored as text, a blank line = half a line of space.
    SWAP (site.html?swap=1; owner 2026-10-06: "remove all else ui, just I can swap between two, still edit it via text box by typing and entering and
    swap between two with arrows"): no bar, no rulers, no dragging — ← → swap the caption VARIANTS (the site's POL_VARS: 1 one ink, 2 two tones),
-   a click on the text types in it (as TEXT), C copies the values. The text is SHARED by the variants (the swap compares the tone), stored
-   under 'site.swaplab.v1'; each variant's place is its own split (recomputed after an edit and on resize, as the site lays it out).
+   a click on the text types in it (as TEXT), C copies the values. 2026-10-07 (owner: "add … ability to modify spacing and text to cd and macbook
+   open. Lock the current position of text"): ↑ ↓ (or 1 2 3, row order) open the next CAPTIONED stack — the MacBook, the polaroids, the CD — each
+   with its own text (shared by the variants), stored under 'site.swaplab.v1' as { cur, pile, copy: { name: text } }; C copies every text as a JS
+   string. The place is never the lab's: the site's LOCK (the .caption.lock CSS) keeps each type's top-left corner where its reference text puts it.
    Copy puts the values on the clipboard; they port as openDx + the band's split (margin / (margin + gap)) in the .caption CSS.
    The page's own clicks in OPEN (flip, close, the camera's move to a neighbour) are off here; Esc closes. Nothing touches the normal
    page: the state lives in localStorage under ?pos only. */
 (() => {
 'use strict';
-const pol = (window.__stacks || []).find(s => s.name === 'polaroids');
+let pol = (window.__stacks || []).find(s => s.name === 'polaroids');
 if (!pol?.capEl || !window.__row?.layoutAll || !('openDx' in pol)) return;
-const viewer = document.getElementById('viewer'), capEl = pol.capEl, root = document.documentElement;
+const viewer = document.getElementById('viewer'), root = document.documentElement;
+let capEl = pol.capEl;                                        // let: the SWAP page switches between the captioned stacks (pol / capEl = the one open)
+/* SWAP 2026-10-07 (owner: "add to …?swap=1 ability to modify spacing and text to cd and macbook open. Lock the current position of text. It
+   shouldnt be changable"): every stack with a caption, in row order — ↑ ↓ (or 1 2 3) open the next one; its text types the same way. The
+   place is the site's LOCK (the .caption.lock CSS): the type's corner stays where the reference text puts it, so nothing here moves it. */
+const CAPS = [...document.querySelectorAll('#row > .wrap')].map(w => (window.__stacks || []).find(s => s.wrap === w && s.capEl)).filter(Boolean);
+const CAP_NAME = { polaroids: 'Polaroids', macbook: 'MacBook', dandelion: 'CD' };
+const blockOf = st => st.capEl.querySelector('.cap-live') || st.capEl.firstElementChild;   // the type: the lines (a locked caption's live lines)
 const VAR = new URLSearchParams(location.search).get('var');
 const BARE = new URLSearchParams(location.search).has('swap');   // the SWAP page: no UI but the text and the arrows
 const KEY = BARE ? 'site.swaplab.v1' : 'site.poslab.v1' + (VAR ? ':var' + VAR : '');   // a variant (?var=N) keeps its own lab state
 const vrect = () => viewer.getBoundingClientRect();
-const block = () => capEl.firstElementChild;                 // the caption's type: the lines, then the credits
+const block = () => blockOf(pol);                            // the caption's type: the lines, then the credits
 const lineH = () => parseFloat(getComputedStyle(capEl).lineHeight) || 20;   // one caption line (px): the unit of every interval
 const SNAPK = 'site.poslab.snap';
-const SITE_HTML = block().innerHTML;                          // the site's own caption (TEXT: S.copy null)
+const SITE_HTML_OF = new Map(CAPS.map(st => [st, blockOf(st).innerHTML]));   // each stack's own caption (TEXT: S.copy null)
 const SP_EM = .6;                                             // one ⇧Enter: half a line of the caption (its leading 1.2em)
-function siteCopy(grp) {                                      // the site's caption as lab text ('' = half a line of space); grp: the GROUPING menu's old states
-  const tmp = document.createElement('div'); tmp.innerHTML = SITE_HTML;
+function siteCopy(grp, st = pol) {                            // the site's caption as lab text ('' = half a line of space); grp: the GROUPING menu's old states
+  const tmp = document.createElement('div'); tmp.innerHTML = SITE_HTML_OF.get(st) ?? blockOf(st).innerHTML;
   if (tmp.querySelector(':scope > .cap-sp, :scope > p')) return [...tmp.children].map(k => k.classList.contains('cap-sp') ? '' : k.textContent).join('\n');   // a TEXT caption (?var=N)
   const title = [...tmp.querySelectorAll(':scope > div:not(.credits) > p')].map(p => p.textContent);
   const names = [...tmp.querySelectorAll(':scope > .credits > p')].map(p => p.textContent);
@@ -60,7 +69,7 @@ const load = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); if (
   const r = { dx: o.dx, cx: o.cx }; if (o.al === 'left' || o.al === 'right') r.al = o.al; if (okTone(o.tone)) r.tone = o.tone;
   if (typeof o.copy === 'string') r.copy = o.copy; else if (/^(three|neo|1x):/.test(o.grp || '')) r.copy = siteCopy(o.grp);   // the old GROUPING menu → text
   return r; } catch { return null; } };
-const save = () => { if (BARE) { if (typeof S.copy === 'string') shared = S.copy; bareSave(); return; } try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };   // SWAP: its own store ({ cur, copy }) — the lab's state over it lost the variant
+const save = () => { if (BARE) { if (typeof S.copy === 'string') texts[pol.name] = S.copy; bareSave(); return; } try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };   // SWAP: its own store ({ cur, copy }) — the lab's state over it lost the variant
 
 /* ---------- the site's own values (Reset): its openDx, and where its band puts the caption (the ::before / ::after split) ---------- */
 const SITE = { dx: pol.openDx, a: 1, b: 2, ba: 0, bb: 0,
@@ -101,7 +110,7 @@ const lnEl = t => { const q = document.createElement('p'); if (t) q.textContent 
 function renderCopy() {
   const inner = block(), txt = S.copy;
   root.classList.toggle('pl-txt', txt != null);
-  if (txt == null) { if ('pl' in inner.dataset) { inner.innerHTML = SITE_HTML; delete inner.dataset.pl; } return; }
+  if (txt == null) { if ('pl' in inner.dataset) { inner.innerHTML = SITE_HTML_OF.get(pol); delete inner.dataset.pl; } return; }
   if (inner.dataset.pl === txt) return;
   inner.replaceChildren(...txt.split('\n').map(t => t === '' ? spEl() : lnEl(t)));
   classify(); inner.dataset.pl = txt;
@@ -138,7 +147,7 @@ function endEdit() {
   const inner = block();
   editing = false; root.classList.remove('pl-edit'); inner.contentEditable = 'false'; inner.blur(); getSelection().removeAllRanges();
   S.copy = readCopy(); delete inner.dataset.pl; renderCopy();
-  if (BARE) { shared = S.copy; bareSave(); Object.assign(S, varState(VLIST[cur])); }      // SWAP: one text for both; the place follows its split
+  if (BARE) { texts[pol.name] = S.copy; bareSave(); }                                    // SWAP: this stack's text (both variants share it); the place is the LOCK's
   commit(); apply();
 }
 const lineOf = () => { const s = getSelection(); if (!s.rangeCount) return null; let n = s.getRangeAt(0).startContainer; while (n && n.parentNode !== block()) n = n.parentNode; return n; };   // the box's child holding the caret
@@ -175,18 +184,20 @@ function dropSpace(back) {                                    // Backspace at a 
   if (sib && sib.nodeType === 1 && sib.classList.contains('pl-sp')) { sib.remove(); return true; }
   return false;
 }
-block().addEventListener('keydown', e => {
-  if (!editing) return;
+for (const st of CAPS) { const el = blockOf(st), mine = () => editing && el === block();   // every caption's type (the SWAP page switches them)
+el.addEventListener('keydown', e => {
+  if (!mine()) return;
   if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endEdit(); return; }
   if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) addSpace(); else newLine(); classify(); apply(); return; }
   if ((e.key === 'Backspace' || e.key === 'Delete') && dropSpace(e.key === 'Backspace')) { e.preventDefault(); classify(); apply(); }
 });
-block().addEventListener('input', () => { if (editing) { classify(); apply(); } });
-block().addEventListener('paste', e => {                      // plain text only, one line
-  if (!editing) return;
+el.addEventListener('input', () => { if (mine()) { classify(); apply(); } });
+el.addEventListener('paste', e => {                         // plain text only, one line
+  if (!mine()) return;
   e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData?.getData('text/plain') || '').replace(/\s*\n\s*/g, ' '));
 });
-block().addEventListener('focusout', () => setTimeout(() => { if (editing && !block().contains(document.activeElement)) endEdit(); }, 0));
+el.addEventListener('focusout', () => setTimeout(() => { if (mine() && !block().contains(document.activeElement)) endEdit(); }, 0));
+}
 function frame() {
   rq = 0;
   if (!S) return;
@@ -222,8 +233,8 @@ function hitAt(x, y) {                                       // viewer px → 't
 /* ---------- the overlay: the rulers on the caption's line + the dragged / hovered outline ---------- */
 const css = document.createElement('style');
 css.textContent = `
-  html.pl .caption::before { flex: 0 0 var(--pl-x, 0px) !important; }
-  html.pl .caption::after  { flex: 1 1 0 !important; }
+  html.pl:not(.pl-bare) .caption::before { flex: 0 0 var(--pl-x, 0px) !important; }   /* the POSITION lab drags the x; the SWAP page never moves it (the LOCK) */
+  html.pl:not(.pl-bare) .caption::after  { flex: 1 1 0 !important; }
   html.pl-live #zoneL, html.pl-live #zoneR, html.pl-live .nzone { pointer-events: none !important; }
   html.pl-ew, html.pl-ew * { cursor: ew-resize !important; }
   html.pl-ibeam, html.pl-ibeam * { cursor: text !important; }
@@ -440,9 +451,12 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ((e.metaKey || e.ctrlKey) && k === 'z') { e.preventDefault(); e.stopPropagation(); if (e.shiftKey) redoIt(); else undo(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (BARE) {                                                                              // SWAP: ← → the variants, C copies; nothing else
-    const d = { arrowleft: -1, arrowright: 1 }[k];
-    if (d) { e.preventDefault(); e.stopPropagation(); setVar(cur + d); } else if (k === 'c') copyBare();
+  if (BARE) {                                                                              // SWAP: ← → the variants, ↑ ↓ / 1 2 3 the captions, C copies; nothing else
+    const d = { arrowleft: -1, arrowright: 1 }[k], p = { arrowup: -1, arrowdown: 1 }[k], n = /^[1-9]$/.test(k) ? +k - 1 : -1;
+    if (d) { e.preventDefault(); e.stopPropagation(); setVar(cur + d); }
+    else if (p) { e.preventDefault(); e.stopPropagation(); setPile(CAPS.indexOf(pol) + p); }
+    else if (n >= 0 && n < CAPS.length) setPile(n);
+    else if (k === 'c') copyBare();
     return;
   }
   if (k === 'escape') { if (live()) { e.stopPropagation(); pol.collapse(); } return; }
@@ -464,34 +478,52 @@ addEventListener('keydown', e => {
   clearTimeout(keyT); keyT = setTimeout(commit, 400);
 }, true);
 let resizeT = 0, wasLive = null;
-addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (BARE && S && !editing) Object.assign(S, varState(VLIST[cur])); apply(); }, 90); });   // after the page's own layoutAll (50 ms)
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(apply, 90); });   // after the page's own layoutAll (50 ms)
 setInterval(() => {                                          // the pile's state: the HUD, the zones' pointer events, the rulers
   const on = live(); if (on === wasLive) return; wasLive = on;
   root.classList.toggle('pl-live', on); if (!on) { hov = drag = null; syncCursor(); }
   apply();
 }, 150);
 
-/* ---------- SWAP: the variants, the shared text, the tag ---------- */
+/* ---------- SWAP: the variants (the tone), the captions (↑ ↓), each caption's text, the tag ---------- */
 const VARS = window.__polVars || {}, VLIST = Object.keys(VARS).sort((a, b) => a - b);
-let cur = 0, shared = null;
-function bareLoad() { try { const o = JSON.parse(localStorage.getItem(KEY)); if (o) { if (typeof o.copy === 'string') shared = o.copy; if (Number.isInteger(o.cur)) cur = Math.max(0, Math.min(VLIST.length - 1, o.cur)); } } catch {} }
-function bareSave() { try { localStorage.setItem(KEY, JSON.stringify({ cur, copy: shared })); } catch {} }
-function varState(n) {                                        // a variant as the lab's state: its openDx, its split laid out at the current size, its tone, the (shared) text
-  const v = VARS[n] || {}, W = vrect().width, e = pol.eff, tw = block().offsetWidth, [a, b] = v.split || [541, 459];
-  const band = Math.max(0, (e ? e.left : 0) + ((v.openDx ?? pol.openDx) - pol.openDx) * W);
-  return { dx: v.openDx ?? pol.openDx, cx: (Math.max(0, band - tw) * a / (a + b)) / W, al: 'left', tone: v.tone && okTone(v.tone) ? v.tone : 'site', copy: shared ?? v.text ?? null };
+let cur = 0, texts = {}, pileName = 'polaroids', switching = false;
+function bareLoad() { try { const o = JSON.parse(localStorage.getItem(KEY)); if (!o) return;
+  if (typeof o.copy === 'string') texts.polaroids = o.copy;                                // the store before 2026-10-07: the polaroids' text alone
+  else if (o.copy && typeof o.copy === 'object') for (const [k, v] of Object.entries(o.copy)) if (typeof v === 'string') texts[k] = v;
+  if (Number.isInteger(o.cur)) cur = Math.max(0, Math.min(VLIST.length - 1, o.cur));
+  if (CAPS.some(st => st.name === o.pile)) pileName = o.pile; } catch {} }
+function bareSave() { try { localStorage.setItem(KEY, JSON.stringify({ cur, pile: pol.name, copy: texts })); } catch {} }
+function bareState() {                                         // the open caption as the lab's state: no place of its own (the LOCK), the variant's tone, its text
+  const v = VARS[VLIST[cur]] || {};
+  return { dx: pol.openDx, cx: 0, al: 'left', tone: v.tone && okTone(v.tone) ? v.tone : 'site', copy: texts[pol.name] ?? null };
 }
 const varName = () => { const n = VLIST[cur], t = (TONES.find(([k]) => k === (VARS[n]?.tone || 'site')) || TONES[0])[1]; return `Var ${n} · ${t.toLowerCase()}`; };
+const capName = () => CAP_NAME[pol.name] || pol.name;
 function setVar(i) {                                          // a swap is navigation, not an edit: no undo step
   if (editing || !VLIST.length || !live()) return;
   cur = (i + VLIST.length) % VLIST.length;
-  S = varState(VLIST[cur]); lastSnap = JSON.stringify(S); hist.length = 0; redo.length = 0;
+  S = bareState(); lastSnap = JSON.stringify(S); hist.length = 0; redo.length = 0;
   bareSave(); apply(); flashTag(varName());
 }
+const allHome = () => (window.__stacks || []).every(st => st.state === 'home');
+function whenHome(f) { (function w() { if (allHome()) setTimeout(f, 80); else requestAnimationFrame(w); })(); }
+function setPile(i) {                                         // close the open caption's stack, open the next one (its text as last typed)
+  if (switching || CAPS.length < 2) return;
+  if (editing) endEdit();
+  const next = CAPS[(i + CAPS.length) % CAPS.length]; if (next === pol && live()) return;
+  switching = true;
+  if (pol.state !== 'home') pol.collapse();
+  whenHome(() => {
+    pol = next; capEl = next.capEl; S = bareState(); lastSnap = JSON.stringify(S); hist.length = 0; redo.length = 0;
+    bareSave(); apply(); pol.expand(); whenOpen(() => { switching = false; flashTag(capName()); });
+  });
+}
 const tag = document.createElement('div'); tag.className = 'pl-tag'; document.body.appendChild(tag);
-function flashTag(t) { tag.textContent = t; tag.classList.add('on'); clearTimeout(flashTag.t); flashTag.t = setTimeout(() => tag.classList.remove('on'), 1200); }
-async function copyBare() {
-  const t = `Var ${VLIST[cur]} · ` + fmt();
+function flashTag(t, ms = 1200) { tag.textContent = t; tag.classList.add('on'); clearTimeout(flashTag.t); flashTag.t = setTimeout(() => tag.classList.remove('on'), ms); }
+async function copyBare() {                                   // every caption's text as the site writes it (a JS string), the variant
+  const t = `Swap · ${varName()} · ${r0(vrect().width)}×${r0(vrect().height)}\n` +
+    CAPS.map(st => `${CAP_NAME[st.name] || st.name}: ${JSON.stringify(texts[st.name] ?? siteCopy(null, st))}${texts[st.name] == null ? ' (the site)' : ''}`).join('\n');
   try { await navigator.clipboard.writeText(t); } catch { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
   flashTag('Copied');
 }
@@ -503,14 +535,14 @@ function start() {
   SITE.a = parseFloat(sp('::before').flexGrow) || 0; SITE.b = parseFloat(sp('::after').flexGrow) || 0;
   SITE.ba = (parseFloat(sp('::before').flexBasis) || 0) / fs; SITE.bb = (parseFloat(sp('::after').flexBasis) || 0) / fs;
   DEF = siteDefaults();
-  if (BARE) { bareLoad(); S = varState(VLIST[cur]); }
+  if (BARE) { bareLoad(); pol = CAPS.find(st => st.name === pileName) || pol; capEl = pol.capEl; S = bareState(); }
   else S = { ...DEF, ...(load() || {}) };
   lastSnap = JSON.stringify(S);
-  root.classList.add('pl'); if (BARE) { root.classList.add('pl-bare'); whenOpen(() => flashTag(varName())); }
+  root.classList.add('pl'); if (BARE) { root.classList.add('pl-bare'); whenOpen(() => flashTag(`${capName()} · ↑ ↓ caption · ← → tone · click the text to type`, 2600)); }
   apply();
   const open = () => { if (pol.state === 'home' && !(window.__stacks || []).some(s => s.state !== 'home')) pol.expand(); };
-  if (BARE) requestAnimationFrame(() => requestAnimationFrame(() => {                   // SWAP: the variant's text is in now — lay its split out with its own width, then open
-    Object.assign(S, varState(VLIST[cur])); lastSnap = JSON.stringify(S); apply(); requestAnimationFrame(() => requestAnimationFrame(open));
+  if (BARE) requestAnimationFrame(() => requestAnimationFrame(() => {                   // SWAP: the stored text is in now, then open (the place is the LOCK's)
+    apply(); requestAnimationFrame(() => requestAnimationFrame(open));
   }));
   else requestAnimationFrame(() => requestAnimationFrame(open));
 }

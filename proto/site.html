@@ -300,6 +300,15 @@
   .caption .credits { margin-top: 1.8em; }                  /* the gap between the title lines and the credits */
   .caption .cap-sp { height: .6em; }                        /* site 2026-10-06: a TEXT caption's space — half a line (the POSITION lab's ⇧Enter; cfg.caption.text) */
   .caption p.credits { margin-top: 0; }                     /* a TEXT caption's names: their space is a .cap-sp run, not the block's 1.8em */
+  /* site 2026-10-07, LOCK (owner, the SWAP page: "Lock the current position of text. It shouldnt be changable"): a caption with cfg.caption.lock
+     (a REFERENCE text: the one it shows today) keeps its type's top-left corner where that text puts it, whatever it says now. The band lays
+     out an invisible copy of the reference (.cap-ref, in flow: the split, centred on the viewer's height, as before) and the live lines
+     (.cap-live) sit on its top-left corner, out of flow — so the first line stays put and the lines grow down and right. Exact at every window
+     and font size (SF's optical sizes change the type's width in em with the window: a fixed em box was off by up to 3 px at 1920 × 1080).
+     ?caplock=0 = the live text lays out the band again; ?anchor (TYPE · MA) keeps its own rules (no lock). */
+  .caption.lock > div { position: relative; }
+  .caption .cap-live { position: absolute; left: 0; top: 0; }
+  .caption .cap-ref { visibility: hidden; }
   /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
      caption only). URL-only variants: without ?ma / ?anchor / ?masize the page is untouched. Research: brew/design-guide/typography-ma-notes.md.
        ?ma=1  two tones: the name + the title in Apple's text near-black #1D1D1F, every other line Apple's secondary gray #86868B
@@ -1212,6 +1221,7 @@ const CAMERA = pageQuery.get('zoom') !== 'part';
 const MA = { tone: pageQuery.get('ma'), anchor: pageQuery.get('anchor'), size: parseFloat(pageQuery.get('masize')) };
 if (['1', '2', '3', '4', '5'].includes(MA.tone)) document.documentElement.dataset.ma = MA.tone;
 if (['top', 'bottom', 'split'].includes(MA.anchor)) document.documentElement.dataset.anchor = MA.anchor; else MA.anchor = null;
+const CAP_LOCK = pageQuery.get('caplock') !== '0' && !MA.anchor;   // site 2026-10-07: the captions' LOCK (the .caption.lock CSS); ?caplock=0 = off
 if (pageQuery.get('align') === 'hug') document.documentElement.dataset.align = 'hug';
 if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.documentElement.style.setProperty('--ma-size', String(MA.size)); }
 /* site 2026-10-06, CAP_FADE (owner: "the translation on zoom appeared again on text: I repeat, the text is anchored to the background the same way
@@ -1518,12 +1528,19 @@ if (capEl) {
   const inner = document.createElement('div'); capEl.appendChild(inner);
   const block = (cls, lines) => { const d = document.createElement('div'); if (cls) d.className = cls;
     for (const t of lines) { const p = document.createElement('p'); p.textContent = t; d.appendChild(p); } inner.appendChild(d); };
-  if (cfg.caption.text != null) {                           // site 2026-10-06: a TEXT caption (the POSITION lab's): lines, '' = half a line of space
-    const kids = cfg.caption.text.split('\n').map(t => { const k = document.createElement(t === '' ? 'div' : 'p'); if (t === '') k.className = 'cap-sp'; else k.textContent = t; return k; });
+  const textKids = text => {                                  // site 2026-10-06: a TEXT caption (the POSITION lab's): lines, '' = half a line of space
+    const kids = text.split('\n').map(t => { const k = document.createElement(t === '' ? 'div' : 'p'); if (t === '') k.className = 'cap-sp'; else k.textContent = t; return k; });
     let last = -1; kids.forEach((k, i) => { if (k.className === 'cap-sp') last = i; });
     kids.forEach((k, i) => { if (k.tagName === 'P' && last >= 0 && i > last) k.classList.add('credits'); });   // the lines after the last space: the names (the tones' hook)
-    inner.append(...kids);
-  } else { block('', cfg.caption.lines); if (cfg.caption.credits?.length) block('credits', cfg.caption.credits); }
+    return kids;
+  };
+  if (cfg.caption.lock != null && cfg.caption.text != null && CAP_LOCK) {   // site 2026-10-07: LOCK (the .caption.lock CSS) — the live lines on the reference's corner
+    capEl.classList.add('lock');
+    const live = document.createElement('div'), ref = document.createElement('div');
+    live.className = 'cap-live'; ref.className = 'cap-ref'; ref.setAttribute('aria-hidden', 'true');
+    live.append(...textKids(cfg.caption.text)); ref.append(...textKids(cfg.caption.lock)); inner.append(live, ref);
+  } else if (cfg.caption.text != null) inner.append(...textKids(cfg.caption.text));
+  else { block('', cfg.caption.lines); if (cfg.caption.credits?.length) block('credits', cfg.caption.credits); }
   if (cfg.caption.split) { capEl.style.setProperty('--cap-a', cfg.caption.split[0]); capEl.style.setProperty('--cap-b', cfg.caption.split[1]); }   // a variant's band split
   inner.querySelector('p')?.classList.add('ma-title');      // site 2026-10-05: the title line (TYPE · MA's ?ma; no style without it)
   row.appendChild(capEl);                                   // in the row's 3D context (the .caption CSS), not a row element (RP.els skips it)
@@ -3950,6 +3967,7 @@ const MB = '../assets/macbook/';
    the base's corner (316 px, .0105) is 170 px below the type. To the box it read as floating: margin 141 · text 88 · 160 to the screen (gap ÷
    margin 1.13); to the screen it is the polaroids' pair: margin 194 · text 88 · gap 106 (.55), the base's corner 33 px right of the type. */
 const MB_CAPTION = { text: 'B\n\nAI Agent\n\n\n\nViktor Dune', edge: .099 };
+MB_CAPTION.lock = MB_CAPTION.text;                           // site 2026-10-07: LOCK — the reference = this text (2026-10-07): wherever its type sits today, any text the owner types starts there
 const MACBOOK = [{ id: 'macbook', src: MB + 'lid-poster.webp', w: 1920, h: 1110, vis: [.0104, .9333, .9911, .9865],
                    lid: { base: MB, json: 'lid.json' } }];   // the clips + their pose table (makeLid())
 stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBOOK, deck: [0],
@@ -3996,7 +4014,8 @@ const POL_VARS = {
 window.__polVars = POL_VARS;                                 // the SWAP page (site.html?swap=1: poslab.js) switches between them live
 const POL_VAR = POL_VARS[pageQuery.get('var')] || null;
 if (POL_VAR?.tone && !MA.tone) document.documentElement.dataset.ma = POL_VAR.tone;
-const POL_CAPTION = { text: POL_V1.text,                   // owner 2026-10-06 ("all in ink push on the main localhost"): var 1's TEXT — NEO / ½ line / Head & Body, AI Companion /
+const POL_CAPTION = { text: POL_V1.text, lock: POL_V1.text,   // site 2026-10-07: LOCK — the reference = var 1's text of 2026-10-07 (keep it when the text changes: it is the place)
+                                        // owner 2026-10-06 ("all in ink push on the main localhost"): var 1's TEXT — NEO / ½ line / Head & Body, AI Companion /
                       // ½ line / 1X (back; it was off "for a sec") / 1.5 lines / the names. Before: lines NEO / Head & Body / AI Companion, the credits 1.8em below
                       lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],
                       credits: ['Bernt Børnich', 'Dar Sleeper', 'Christoph Kohstall', 'Eric Jang', 'Chris Tan', 'Viktor Dune'] };
@@ -4103,8 +4122,13 @@ const DANDELION = [
    song goes with the sleeve (it was the sleeve's; a CD-only pile with cfg.audio would play it from the whole stack, button and all).
    ?sleeve=1 = the CD + sleeve pile with its song, as before. */
 const DAN_SLEEVE = pageQuery.get('sleeve') === '1';
+/* site 2026-10-07 (owner: "add to …?swap=1 ability to modify spacing and text to cd and macbook open"): the CD's caption, the MACBOOK's manner —
+   a TEXT caption, title / ½ line / role / 1.5 lines / name, in the band left of the open CD (split 646 : 354, to the case's edge). The text is a
+   PLACEHOLDER until the owner types theirs on the SWAP page. lock: the LOCK's reference text. */
+const DAN_CAPTION = { text: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune', lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };   // lock: the reference (LOCK) — this placeholder: the owner's text will start where it starts
 stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_SLEEVE ? DANDELION : [DANDELION[0]], deck: DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
-                                        rest: { rot: -2, up: 0 }, audio: DAN_SLEEVE ? '../assets/dandelion/dt01-drum_variation01-01.mp3' : null }));
+                                        rest: { rot: -2, up: 0 }, audio: DAN_SLEEVE ? '../assets/dandelion/dt01-drum_variation01-01.mp3' : null,
+                                        caption: DAN_CAPTION }));
 layoutAll('boot');
 for (const s of stacks) s.boot();
 // (KEEPALIVE: keepImg(), at each image's load — see the DOM section)
