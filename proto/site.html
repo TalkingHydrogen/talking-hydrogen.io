@@ -1301,7 +1301,7 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
      hovers first)
      · land 27.6 → 13 in .35 s, rev's speed braked to rest (a closing lid the hover catches: rev plays down to J.land, land takes it
      onto the crack)
-     · hint 0 → J.hint → 0 in 1.4 s, lifted to half the lid's full rise and dropped back (the load-time HINT: LID_HINT, below).
+     · hint 0 → J.hint (16) → 0 in 1.4 s, lifted a little past the crack (1.6 × its rise) and dropped back (the load-time HINT: LID_HINT, below).
    The lid is only ever PLAYED at one constant rate (hardware decode, never a scrub): WebKit's media clock stalls 100–200 ms at every
    playbackRate change mid-play (measured 2026-09-29: the lid overshot its stop by 2 frames), so every ease is baked into a clip, and
    a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
@@ -1322,7 +1322,8 @@ const LID = { open: 1, close: 1, pick: .9 };   // open / close: × the clip's pa
 { const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidopen', 'open'); q('lidclose', 'close'); }
 /* site 2026-10-07 — the lid's HINT (owner: "after the loading … the lid on the laptop will open up and then close. So it's sort of
    like an affordance thing that somebody knows that it's possible to open it"): once per visit, `delay` ms after the page's load (or
-   later, once the hint clip can play through — given up `within` ms after), the closed lid lifts to half its rise and drops back:
+   later, once the hint clip can play through — given up `within` ms after), the closed lid lifts a little past the hover's crack
+   (owner, after half its rise: "not so far, slightly larger than the hover") and drops back:
    the hint clip, played once from rest (makeLid's hint()). Only at HOME, the laptop on screen, nothing pressed / scrolled / typed
    yet and the pointer not on it (armLidHint()); a hidden tab waits until it is seen; reduced motion: none. A hover or a click during
    it takes the lid from the pose on screen (to()); the hint ends closed on its own. ?lidhint=0: off · ?hintat=MS: the delay. */
