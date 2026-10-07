@@ -4073,11 +4073,11 @@ const DIG_FLOOR = DIGITAL[0].floor;
    on the LEFT and the creature (69) on the RIGHT — a hand-held FAN (cfg.fan): each back card turns about its own bottom centre (pivot
    [0, .5] = the poster's bottom, where size[] seats the smaller cards' bottoms), so the turn swings the tops out and leaves the
    bottoms behind the poster. size: both back cards the poster's width (84: .88 × .745 = .66 B, 69: .70 × .953 = .67 B). jitter:
-   [±.02 out, up by the outer bottom corner's drop (w/2 · sin rot) + .012] — measured on the corners: tops out .11 B, bottoms .015 B,
+   [±.01 out, up by the outer bottom corner's drop (w/2 · sin rot) + .012] — measured on the corners: tops out .06 B, bottoms ≤ .01 B,
    nothing below the poster. The pile holds only these three (OPEN pages through them). ?digall=1 = the old seeded five-plus-one pile
    (deck [5, 1, 4]). */
 const DIG_ALL = pageQuery.get('digall') === '1';
-const DIG_FAN = { pivot: [0, .5], rot: [0, -6.5, 8], size: [1, .88, .70], jitter: [[0, 0], [-.02, -.049], [.02, -.058]], open: [0, -2.5, 2.5] };
+const DIG_FAN = { pivot: [0, .5], rot: [0, -3.5, 4.5], size: [1, .88, .70], jitter: [[0, 0], [-.01, -.032], [.01, -.038]], open: [0, -1.5, 1.5] };   // owner 2026-10-07: "even more subtle" — about half (was rot −6.5 / 8, jitter ±.02 / −.049 −.058, open ±2.5: tops .11 B)
 stacks.push(makeStack($('digital'), DIG_ALL
   ? { name: 'digital', idp: 'dig-', images: DIGITAL, deck: [5, 1, 4], nudge: DEFAULT_NUDGE,   // 115 copy in front, then 84, 136
       knobs: POL_KNOBS, castOnly: true, floor: DIG_FLOOR, contact: DIG_CONTACT }
