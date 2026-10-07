@@ -3914,6 +3914,7 @@ const POLAROIDS = [
   { id: 'trees', src: '../assets/neo/trees-card.webp', w: 1645, h: 2000 },
   { id: 'figure', src: '../assets/neo/figure-card.webp', w: 1645, h: 2000 },   // 2025 Neo/L1001549.jpeg, look_mix .15 (owner: "dont change much of the pic"); inked "Love, 1X" since 2026-10-07 (owner: "change the with love from 1x, to just Love, 1X"; the same hand re-lettered by brew/polaroid/reletter.py, same pen / letter size / placement), before: "with Love from 1x" like the NEO print
   { id: 'dancers', src: '../assets/neo/dancers-card.webp', w: 1645, h: 2000 },  // 2025 Neo/Screenshot 2025-11-04 (the red/blue figure drawing) widened to 1:1, --look polaroid (owner: 'apply some polaroid type filter'; sx70 went mint on the white paper), no inscription
+  { id: 'hand',  src: '../assets/neo/hand-card.webp',  w: 1645, h: 2000 },    // owner 2026-10-07: "IMG_2136.HEIC crop and add ts as a polaroid" — NEO's head held in a hand (2025 Neo/IMG_2136.HEIC, upright, square crop 82,760 → 2602,3280 = 2025 Neo/polaroid/hand-sq.png), look_mix .15 + brightened like the NEO print (pre_expo .75, lift .04, sat .9: as shot it read gloomy next to the figure, lum 110 vs 176), no inscription; a page after the dancers (the pile's 3 unchanged)
 ];
 const POL_KNOBS = { radius: 0, border: 0, vradius: 0, vborder: 0, shadow: 1, vshadow: 1 };   // square corners; the shadows carry their own alpha (1 = as measured), at home AND in the viewer (owner 2026-09-26: "add a shadow on the fullscreen version of the polaroid too")
 /* the polaroids' shadows, MEASURED (brew/polaroid/shadowmeasure.py on the owner's photo of three SX-70s on a white table,
@@ -3943,7 +3944,7 @@ const POL_CAPTION = { text: POL_V1.text,                   // owner 2026-10-06 (
                       lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],
                       credits: ['Bernt Børnich', 'Dar Sleeper', 'Christoph Kohstall', 'Eric Jang', 'Chris Tan', 'Viktor Dune'] };
 /* site 2026-10-01 (owner: "max 3 cards … like you hold an unrolled stack of cards in your hand"): the pile shows 3 (figure, NEO,
-   trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
+   trees; the dancers and the hand (2026-10-07) are tucked — still pages in OPEN), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
 stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [2, 0, 1], fan: POL_FAN, openDx: POL_VAR ? POL_VAR.openDx : POL_V1.openDx, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT,
