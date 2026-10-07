@@ -1297,7 +1297,8 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
      hover) · open 13 → 100 in 1.2 s from rest at the crack (its speed ramps up to fwd's: the click after a hover — a mouse always
      hovers first)
      · land 27.6 → 13 in .35 s, rev's speed braked to rest (a closing lid the hover catches: rev plays down to J.land, land takes it
-     onto the crack).
+     onto the crack)
+     · hint 0 → J.hint → 0 in 1.4 s, lifted to half the lid's full rise and dropped back (the load-time HINT: LID_HINT, below).
    The lid is only ever PLAYED at one constant rate (hardware decode, never a scrub): WebKit's media clock stalls 100–200 ms at every
    playbackRate change mid-play (measured 2026-09-29: the lid overshot its stop by 2 frames), so every ease is baked into a clip, and
    a new goal or a change of direction SWAPS to the clip that makes that move, entered at its frame nearest the pose on screen: the
@@ -1316,17 +1317,27 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
    translucent layers at once would double the shadow. */
 const LID = { open: 1, close: 1, pick: .9 };   // open / close: × the clip's pace (the click's opening, the close); pick: the clip size ≥ .9 × the open card's device px
 { const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LID[f] = clamp(v, .1, 8); }; q('lidopen', 'open'); q('lidclose', 'close'); }
+/* site 2026-10-07 — the lid's HINT (owner: "after the loading … the lid on the laptop will open up and then close. So it's sort of
+   like an affordance thing that somebody knows that it's possible to open it"): once per visit, `delay` ms after the page's load (or
+   later, once the hint clip can play through — given up `within` ms after), the closed lid lifts to half its rise and drops back:
+   the hint clip, played once from rest (makeLid's hint()). Only at HOME, the laptop on screen, nothing pressed / scrolled / typed
+   yet and the pointer not on it (armLidHint()); a hidden tab waits until it is seen; reduced motion: none. A hover or a click during
+   it takes the lid from the pose on screen (to()); the hint ends closed on its own. ?lidhint=0: off · ?hintat=MS: the delay. */
+const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'), delay: 800, within: 10000, rm: matchMedia('(prefers-reduced-motion: reduce)') };
+{ const v = parseFloat(pageQuery.get('hintat')); if (Number.isFinite(v)) LID_HINT.delay = clamp(v, 0, 20000); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
   const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
   host.classList.add('lidcard');
-  let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false;   // vis: the clip on screen (null: the poster)
-  const ready = () => !!J && vids.every(K => K.el.readyState >= 2);
+  let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false, hintT = 0;   // vis: the clip on screen (null: the poster)
+  const ready = () => !!J && vids.every(K => K === V.hint || K.el.readyState >= 2);   // the hint clip is never waited on (LID_HINT: its own test in hint())
   function load() {                         // the page's load, or the first hover: lid.json, then the six clips (preload auto)
     if (loaded) return; loaded = true;
     fetch(L.base + L.json).then(r => r.json()).then(j => {
       J = j; const ws = j.w.slice().sort((a, b) => a - b), w = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
-      for (const name of ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land']) {   // DOM order = stacking (a later clip on top)
+      const names = ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];
+      if (LID_HINT.on && j.clips.hint) names.push('hint');                 // site 2026-10-07: the load-time HINT's clip (LID_HINT)
+      for (const name of names) {                                            // DOM order = stacking (a later clip on top)
         const c = j.clips[name], el = document.createElement('video');
         el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
         el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
@@ -1336,6 +1347,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
         host.appendChild(el);
         vids.push(V[name] = { name, el, fps: c.fps, pose: c.pose, last: c.pose.length - 1 });
       }
+      V.hint?.el.addEventListener('ended', () => { if (cur === V.hint && goal === 'hint') { goal = 'closed'; perfMark('lid hint end'); } });   // the HINT lands closed
       cur = V.fwd;                          // at rest: the poster = fwd's frame 0 (closed)
     }).catch(() => {});
   }
@@ -1372,6 +1384,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     K.el.addEventListener('seeked', () => requestAnimationFrame(() => { if (my !== seq) return; cur = K; show(K); play(K); }), { once: true });
   }
   function to(g) {
+    if (goal === 'hint' && (g === 'closed' || g === 'hint')) return;      // the HINT ends closed on its own (its clip's end; a hover / click takes it from here)
     goal = g; const my = ++seq;
     if (!ready() || !cur) return;
     const s = poseNow(), t = g === 'open' ? J.n - 1 : g === 'crack' ? J.crack : 0, C = J.crack, playing = !cur.el.paused;
@@ -1386,6 +1399,18 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
                       : (s <= C + .5 ? V.uncrack : land && s <= J.land + .5 ? V.land : V.rev);
     stopAt = endOf(K) === t ? null : land && K === V.rev ? toLand : { s: t, dir };
     swap(K, s, my);
+  }
+  function hint() {                         // site 2026-10-07, the load-time HINT (LID_HINT): its clip once, from rest closed — true: started · false: the lid is busy (or no hint clip) · null: not loaded yet
+    const K = V.hint;
+    if (!J || !cur || !ready()) return null;
+    if (!K) return false;
+    const b = K.el.buffered;
+    if (K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all
+    if (goal !== 'closed' || !cur.el.paused || poseNow() > .5) return false;
+    goal = 'hint'; stopAt = null; perfMark('lid → hint');
+    clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends closed
+    swap(K, 0, ++seq);
+    return true;
   }
   function snap() {                         // site 2026-09-30, FILM: the closed pose at once, no move (the film landed the laptop shut): the poster, every clip hidden
     ++seq; stopAt = null; goal = 'closed';
@@ -1402,7 +1427,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
       K.el.currentTime = t;
     });
   }
-  return { to, load, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; } };
+  return { to, load, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; } };
 }
 /* site 2026-09-30 — the MACBOOK's FILM (owner: "on the website there is a macbook laptop … when pressing a play button on the right
    from it, it can seamlessly continue as a video. aka the laptop will be a start of the video … the final is with letter B … it will
@@ -2686,6 +2711,26 @@ function hoverTo(t) {
 }
 /* site: the MACBOOK's lid goal (LID): open from the zoom's start until the close; at HOME the hover's crack; closed otherwise */
 function lidSync() { if (lid && !film?.owns) lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 ? 'crack' : 'closed'); }
+/* site 2026-10-07: the lid's load-time HINT (LID_HINT) — armed at BOOT; called off for good by the visitor's first press / wheel / key
+   / touch, or when its moment finds the page elsewhere (away from HOME, the pointer on the laptop, the laptop off screen) */
+function armLidHint() {
+  const evs = ['pointerdown', 'wheel', 'keydown', 'touchstart'];
+  let t = 0, t0 = 0, done = false;
+  const stop = () => { done = true; clearTimeout(t); for (const e of evs) removeEventListener(e, stop, true); document.removeEventListener('visibilitychange', seen); };
+  function seen() { if (done || document.hidden) return; t0 = performance.now(); clearTimeout(t); t = setTimeout(go, LID_HINT.delay); }   // the load, or a hidden tab coming into view
+  function go() {
+    if (done || document.hidden) return;
+    const r = cardsEl.getBoundingClientRect(), seenW = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
+    if (LID_HINT.rm.matches || blocked() || state !== 'home' || activeStack || hover.target !== 0 || film?.owns ||
+        seenW < r.width / 2 || r.bottom < 0 || r.top > innerHeight) return stop();
+    const ok = lid.hint();
+    if (ok === null && performance.now() - t0 < LID_HINT.within) { t = setTimeout(go, 100); return; }   // its clip still loading
+    stop();
+  }
+  for (const e of evs) addEventListener(e, stop, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', seen);
+  if (document.readyState === 'complete') seen(); else addEventListener('load', seen, { once: true });
+}
 
 /* ============================================================
    FRAME LOOP: one loop, every spring and motion; transforms,
@@ -2914,6 +2959,7 @@ function openNow() {
 applyConfigs();
 syncHomeSlots();
 if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete') ld(); else addEventListener('load', ld, { once: true }); }   // site: the lid's clips after the page (the poster is the card's image)
+if (lid && LID_HINT.on) armLidHint();                                     // site 2026-10-07: … and its HINT once they can play (LID_HINT)
 resetOrder();
 for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
 function boot() {
