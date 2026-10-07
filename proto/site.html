@@ -4115,7 +4115,7 @@ const DAN_KNOBS = { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vsh
    its own (pic.knobs = DAN_KNOBS). nudge: the sleeve up-right of the case and turned the other way, so it reads as the record behind it (a same-box pile
    would hide all but a sliver). rest = the CD's old one. song: the song and its button are the sleeve's — only while it is in front (SONG). */
 const DANDELION = [
-  { id: 'cd1', src: '../assets/cd/cd-1.webp', w: 924, h: 821 },
+  { id: 'cd1', src: pageQuery.get('cddot') === '0' ? '../assets/cd/cd-1.webp' : '../assets/cd/cd-1-dot.webp', w: 924, h: 821 },   // site 2026-10-07 (owner: "where is the cd with the dot writtien on it"): "The Dot" printed on the disc — brew/cd/cdlabel.py --w 210 (x 500, y 640, rot −8, ink 24: the 2026-09-29 preview's last state, never shipped then), webp q92; ?cddot=0 = the bare disc
   { id: 'sleeve', src: '../assets/dandelion/sleeve-rim7.webp', w: 1918, h: 1918, file: [2478, 2284], bleed: [0.14599, 0.00000, 0.14599, 0.19082], knobs: DAN_KNOBS, song: true },   // file: the webp's px (the print + its bleed): the srcset descriptors
 ];
 /* site 2026-10-07 (owner: "for the cd toggle off the vynyl dandelion thing and leave cd only"): the CD ALONE — a pile of one (the
