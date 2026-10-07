@@ -373,6 +373,17 @@
   <div class="wrap" id="room" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print) is built by the script: ROOM in BOOT -->
   </div></div>
+  <!-- site 2026-10-07: two more PHOTO PRINTS, each a pile of its own (owner: "add these as two new independant photos"): NEO frames from
+       the owner's screenshots (2880 × 1614, the display's "Color LCD" profile → sRGB) — the robot among the warehouse shelves, and the
+       robot in the sunroom with a woman and the rugs — printed exactly as the room print (photoprint.py --long 1920 --border-px 49 →
+       assets/photo/{shelves,sunroom}-print.webp 2018 × 1174 + their table shadows). SHELVES / SUNROOM in BOOT; data-size 1; right after
+       the room print, so the NEO photos sit together before the polaroids -->
+  <div class="wrap" id="shelves" data-size="1" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): SHELVES in BOOT -->
+  </div></div>
+  <div class="wrap" id="sunroom" data-size="1" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): SUNROOM in BOOT -->
+  </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
        before it loads); --tilt rotates it.
        site: the POLAROIDS are a second STACK (makeStack() below: the drawings stack's engine as its own instance — the same
@@ -4059,6 +4070,16 @@ const ROOM_TURN = pageQuery.get('turn') !== '0' ? {
 } : null;
 stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: ROOM_FLOOR, turn: ROOM_TURN,
                                    rest: { rot: 1.5, up: -(2018 / 1083 - 1) / 2, hover: -1 } }));   // hover: −1 = the hover turn goes counter-clockwise (owner 2026-10-05: "rotate left not right"), +1.5° → ≈ level
+/* site 2026-10-07: two more PHOTO PRINTS (the markup's comment), each a pile of one with the room print's treatment and no TURN (no
+   back printed for them). The same aspect, so the same table-shadow texture (one file each). rest: tilts of their own beside the
+   room's +1.5° (−1.2°, +.8°: hand-laid, not a pattern), on the row's baseline; the hover turns them left, as the room's. */
+const SHELVES = [{ id: 'shelves', src: '../assets/photo/shelves-print.webp', w: 2018, h: 1174 }];
+const SUNROOM = [{ id: 'sunroom', src: '../assets/photo/sunroom-print.webp', w: 2018, h: 1174 }];
+const PRINT_UP = -(2018 / 1174 - 1) / 2;
+stacks.push(makeStack($('shelves'), { name: 'shelves', idp: 'shelves-', images: SHELVES, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                      floor: { src: '../assets/photo/shelves-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: -1.2, up: PRINT_UP, hover: -1 } }));
+stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: SUNROOM, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                      floor: { src: '../assets/photo/sunroom-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: .8, up: PRINT_UP, hover: -1 } }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
