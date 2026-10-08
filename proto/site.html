@@ -1514,7 +1514,8 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
       K.el.currentTime = t;
     });
   }
-  return { to, load, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; } };
+  return { to, load, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
+           get shut() { return !cur || (cur.el.paused && poseNow() < .5); } };   // shut: closed and at rest (lidSync()'s close tail)
 }
 /* site 2026-09-30 — the MACBOOK's FILM (owner: "on the website there is a macbook laptop … when pressing a play button on the right
    from it, it can seamlessly continue as a video. aka the laptop will be a start of the video … the final is with letter B … it will
@@ -1774,6 +1775,7 @@ const outMs = () => knobs.outMs / knobs.speed;               // the OUT phase (t
    DOM values. Sources: SOURCES below (a srcset per card, decoded async, the tucked cards lazily); every card is painted in every state (opacity 1). */
 const cards = [];
 let lid = null;                                                            // site: the MACBOOK's lid (makeLid(); a card with pic.lid)
+let lidTail = false;                                                       // site: the close's lid still on its way down (lidSync(): the CLOSE TAIL)
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 /* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
    squircle outline through feGaussianBlur — which Safari renders as a software filter pass per shade (30 of them) at boot and at every
@@ -2855,8 +2857,22 @@ function hoverTo(t) {
   if (hover.target !== t) { hover.set(t); kick(); }
   lidSync();                                                                               // site: the hover cracks the lid open (LID)
 }
-/* site: the MACBOOK's lid goal (LID): open from the zoom's start until the close; at HOME the hover's crack; closed otherwise */
-function lidSync() { if (lid && !film?.owns) lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 ? 'crack' : 'closed'); }
+/* site: the MACBOOK's lid goal (LID): open from the zoom's start until the close; at HOME the hover's crack; closed otherwise.
+   site 2026-10-08, the CLOSE TAIL (owner: "when I open it and then click outside … when I keep hovering on the … hover trigger zone,
+   then it jitters when it's supposed to be closing, but then there is a hover animation. So it sort of goes up and down super
+   quick"): the lid's close (rev, 1.2 s) outlasts the zoom out (.45 s), so the laptop lands at HOME with its lid still closing — and
+   a hover in that last ~.8 s (the pointer resting where it lands: enterHome() re-reads it) took the lid mid-close: swapped clips
+   (each swap a 50–130 ms hold: the pause + the seek) and, under the crack, reversed it — down, up. Measured in WKWebView (real
+   clicks): the lid shut → 9.7 → held 2 frames → back up to 13. Now the close owns the lid until it is shut (lidTail): no hover
+   changes it on the way down, so it closes in one move; the crack follows the pointer from there (its next enter or move on the
+   laptop: the cards' pointermove, below) — from rest, as on any closed laptop. */
+function lidSync() {
+  if (!lid || film?.owns) return;
+  if (state === 'zoom' || state === 'open') lidTail = false;
+  else if (state === 'close') lidTail = true;
+  else if (lidTail && lid.shut) lidTail = false;
+  lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 && !lidTail ? 'crack' : 'closed');
+}
 /* site 2026-10-07: the lid's load-time HINT (LID_HINT) — armed at BOOT; called off for good by the visitor's first press / wheel / key
    / touch, or when its moment finds the page elsewhere (away from HOME, the pointer on the laptop, the laptop off screen) */
 function armLidHint() {
@@ -2996,6 +3012,7 @@ function render() {
    geometry), so the hit area is the box plus whatever fans out of it (the tucked cards are inside the front card). */
 cardsEl.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') hoverTo(1); });
 cardsEl.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hoverTo(0); });
+cardsEl.addEventListener('pointermove', e => { if (lidTail && lid && e.pointerType !== 'touch' && lid.shut) lidSync(); }, { passive: true });   // site: the CLOSE TAIL's end — the crack once the pointer moves on the shut laptop (lidSync())
 /* OPEN (owner: click only; "clicking outside the effective area of the images zooms out"): routed by GEOMETRY against the
    effective rect, not by element — left 30 % → prev, right 30 % → next, the middle 40 % → nothing, outside the rect (a
    portrait card's overhang included) → close. On the viewer element. Ignored in every other state. */
