@@ -1334,7 +1334,7 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
    it. URL knobs ?nrest= ?nhover= ?nstagger= ?npad= ?ntilt=. */
 const SKIP = new Set((pageQuery.get('skip') || '').split(',').filter(Boolean));   // debug (perf A/B, 2026-09-29): ?skip=cast,floor,shade,wrapwc leaves those layers out
 if (SKIP.has('wrapwc')) document.documentElement.classList.add('skip-wrapwc');
-const NB = { rest: 26.4, hover: 1, stagger: 70, pad: 12, tilt: 4 };   // rest 24 → 26.4 (owner 2026-10-08: "make on the sides pics protrude a little more +10%")
+const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4 };   // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more")
 for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
 
 /* site: TWO STACKS. makeStack() is the drawings stack's engine as one instance per .wrap in the row: its own images, knobs,
