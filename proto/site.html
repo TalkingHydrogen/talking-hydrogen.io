@@ -1818,8 +1818,13 @@ for (let j = 0; j < D; j++) {
 /* site 2026-09-29 (owner: "you must anchor it to the album"): with a pic.song card the play button is a CHILD of that card — it
    rides its every pose (the flip's flight and lift, the peek, the zoom); placePlay() sets it right of the card, bottoms
    aligned. playSlot: an empty box in the .item where the button rests (the card at the front seat) — the shield's hole. */
-const playSlot = playBtn && SONG >= 0 ? item.appendChild(Object.assign(document.createElement('div'), { className: 'play-slot' })) : null;
-if (playSlot) cards[SONG].el.appendChild(playBtn);
+/* site 2026-10-08: a pile of ONE anchors its button to its one card too — the NEO clip and the MACBOOK (owner: "anchor the play pause
+   button to the pic position, now when it zooms in it kinda slides to that position" + "same for the macbook too"): in the .item it sat
+   at the OPEN place while the card still carried its HOME pose (rest.up × (1 − p)), so it slid onto the card over the zoom's last third
+   (the clip: 12 % of the card's height). Anchored, it rides the card's pose: the FILM's proxy reads the slot (item px), not the button. */
+const PLAY_CARD = SONG >= 0 ? SONG : D === 1 ? 0 : -1;
+const playSlot = playBtn && PLAY_CARD >= 0 ? item.appendChild(Object.assign(document.createElement('div'), { className: 'play-slot' })) : null;
+if (playSlot) cards[PLAY_CARD].el.appendChild(playBtn);
 if (VID) {                                                   // site: CLIP — over the print's photo window (the .clip CSS); seen from its first frame on
   cards[0].el.appendChild(audio);
   audio.addEventListener('loadeddata', () => { clipFrame = true; songWrite(); }, { once: true });
@@ -2070,9 +2075,10 @@ function filmCtl(F) {
     const Ox = G.boxCx - scroller.scrollLeft + ex, Oy = G.boxB + ey;
     const tx = Ox + x + s * (pz.X + SC * (bx - w / 2)), ty = Oy + y + s * (pz.Y + SC * (by - h / 2) - B / 2);
     fput('t', 'transform', `matrix(${(s * SC * ax).toFixed(6)}, 0, 0, ${(s * SC * ay).toFixed(6)}, ${tx.toFixed(2)}, ${ty.toFixed(2)})`);
-    if (proxy) {                            // the button's resting rect (placePlay(), item px) through the item's map
-      const bs = playBtn.style, L = parseFloat(bs.left) || 0, T = parseFloat(bs.top) || 0, d = parseFloat(bs.width) || 0;
-      const v2 = `${d}px|${(Ox + x + s * (L - B / 2)).toFixed(2)}|${(Oy + y + s * (T - B)).toFixed(2)}|${s.toFixed(5)}`;
+    if (proxy) {                            // the button through the item's map — site 2026-10-08: anchored (playSlot), through its CARD's (the film's own mapping above): it rides the card's pose
+      const bs = playBtn.style, L = parseFloat(bs.left) || 0, T = parseFloat(bs.top) || 0, d = parseFloat(bs.width) || 0;   // anchored: card px; else item px
+      const v2 = playSlot ? `${d}px|${(Ox + x + s * (pz.X + SC * (L - w / 2))).toFixed(2)}|${(Oy + y + s * (pz.Y + SC * (T - h / 2) - B / 2)).toFixed(2)}|${(s * SC).toFixed(5)}`
+                          : `${d}px|${(Ox + x + s * (L - B / 2)).toFixed(2)}|${(Oy + y + s * (T - B)).toFixed(2)}|${s.toFixed(5)}`;
       if (fr.px !== v2) { fr.px = v2; const q = v2.split('|'); Object.assign(proxy.style, { width: d + 'px', height: d + 'px', transform: `translate(${q[1]}px, ${q[2]}px) scale(${q[3]})` }); }
     }
   }
