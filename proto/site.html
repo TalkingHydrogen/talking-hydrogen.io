@@ -393,6 +393,14 @@
   <div class="wrap" id="sunroom" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): SUNROOM in BOOT -->
   </div></div>
+  <!-- site 2026-10-08: one more PHOTO PRINT, a pile of its own (owner: "Screenshot 2026-10-08 at 4.00.59 PM ts in the folder add it to the
+       webstie as a standalone pic for me to see"): a NEO film frame — the technician checking the robot's head with a flashlight against the
+       wood panels (2025 Neo/Screenshot 2026-10-08 at 4.00.59 PM.png, 2874 × 1616, "Color LCD" → sRGB first), printed as the room print
+       (photoprint.py --long 1920 --border-px 49 → assets/photo/inspect-print.webp 2018 × 1178 + its table shadow). INSPECT in BOOT;
+       data-size 1; right after the sunroom print, so the NEO clip stays right of the last lonely photo -->
+  <div class="wrap" id="inspect" data-size="1" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): INSPECT in BOOT -->
+  </div></div>
   <!-- site 2026-10-08: the NEO CLIP (owner: "put the video on the right from the last lonely photo on the website. It can be played paused
        the same way as the vynyl or mac, same button and same position"): 1X's NEO film (youtu.be/LTYMWadOW7c) 4:03.33 – 4:19.96, cut on
        its two hard cuts (the hand on the robot, then the man and the robot; 16.6 s) (assets/neofilm/neofilm-{1920,3840}{-wk,}.mp4), right
@@ -4143,6 +4151,11 @@ stacks.push(makeStack($('shelves'), { name: 'shelves', idp: 'shelves-', images: 
                                       floor: { src: '../assets/photo/shelves-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: -1.2, up: PRINT_UP, hover: -1 } }));
 stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: SUNROOM, deck: [0], knobs: POL_KNOBS, castOnly: true,
                                       floor: { src: '../assets/photo/sunroom-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: .8, up: PRINT_UP, hover: -1 } }));
+/* site 2026-10-08: one more PHOTO PRINT (the markup's comment): the room print's treatment, a tilt of its own (−1°) beside the sunroom's
+   +.8°, on the row's baseline, the hover turning it left as the prints */
+const INSPECT = [{ id: 'inspect', src: '../assets/photo/inspect-print.webp', w: 2018, h: 1178 }];
+stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: INSPECT, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                      floor: { src: '../assets/photo/inspect-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -1, up: -(2018 / 1178 - 1) / 2, hover: -1 } }));
 /* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note). PLAIN (owner, the same day: "make the vid without the photo borders
    though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the clip's first frame alone (1920 × 1080,
    assets/neofilm/neofilm-poster.webp: photoprint.py's photo step, no paper), the clip over all of it; square corners, no border, no
