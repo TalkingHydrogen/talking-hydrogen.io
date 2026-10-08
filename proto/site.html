@@ -1312,6 +1312,9 @@ if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.docume
    into its last ~150 ms it read as a pop. Now it STARTS as the camera lands (p ≥ at = .98: the last ~20 px of the pan at 1440, ~80 ms) and runs
    600 ms ease-in-out on the compositor, so it ends ~0.5 s after the table stops; while the table still moves the text is under ~5 % (the law above
    holds: it is never seen moving). OUT unchanged. ?capat= ?capin= ?capout= (ms). */
+/* 2026-10-08 (owner: "let the text next to the macbook stop fading in the moment the lid fully opens"): the MACBOOK's caption still starts
+   at the camera's landing, but its fade lasts until the lid's last frame (capFadeIn(): lid.eta, ~.6–.7 s), not a fixed 600 ms that ended
+   ~.1–.2 s before the lid did. Its curve is the same; a lid already open (the FILM's stop) or not loaded: the 600 ms. */
 const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
                    in: `opacity ${+(pageQuery.get('capin') || 600)}ms cubic-bezier(.42, 0, .58, 1)`,
                    out: `opacity ${+(pageQuery.get('capout') || 150)}ms cubic-bezier(.25, .1, .25, 1)` };
@@ -1334,8 +1337,9 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
    it. URL knobs ?nrest= ?nhover= ?nstagger= ?npad= ?ntilt=. */
 const SKIP = new Set((pageQuery.get('skip') || '').split(',').filter(Boolean));   // debug (perf A/B, 2026-09-29): ?skip=cast,floor,shade,wrapwc leaves those layers out
 if (SKIP.has('wrapwc')) document.documentElement.classList.add('skip-wrapwc');
-const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4 };   // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more")
-for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
+const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4,      // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more")
+             nudge: .15, nudgeat: 60, nudgeout: 260, nudgeback: 440 };   // the NUDGE (its note at nbNudge()): + .15 × rest, after 60 ms, out 260 ms, back 440 ms
+for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt', 'nudge', 'nudgeat', 'nudgeout', 'nudgeback']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
 
 /* site: TWO STACKS. makeStack() is the drawings stack's engine as one instance per .wrap in the row: its own images, knobs,
    springs, pile, viewer model, state machine and debug API. ONE for the page: the header, the backdrop, the row elements
@@ -1515,7 +1519,11 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     });
   }
   return { to, load, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
-           get shut() { return !cur || (cur.el.paused && poseNow() < .5); } };   // shut: closed and at rest (lidSync()'s close tail)
+           get shut() { return !cur || (cur.el.paused && poseNow() < .5); },   // shut: closed and at rest (lidSync()'s close tail)
+           get eta() {                      // s until the lid is fully open (its opening clip's last frame) — null unless it is on its way there (capFadeIn())
+             if (goal !== 'open' || !cur || cur.el.paused || dirOf(cur) <= 0 || endOf(cur) !== J.n - 1) return null;
+             return (cur.last - cur.el.currentTime * cur.fps) / cur.fps / (cur.el.playbackRate || 1);
+           } };
 }
 /* site 2026-09-30 — the MACBOOK's FILM (owner: "on the website there is a macbook laptop … when pressing a play button on the right
    from it, it can seamlessly continue as a video. aka the laptop will be a start of the video … the final is with letter B … it will
@@ -1776,6 +1784,11 @@ const outMs = () => knobs.outMs / knobs.speed;               // the OUT phase (t
 const cards = [];
 let lid = null;                                                            // site: the MACBOOK's lid (makeLid(); a card with pic.lid)
 let lidTail = false;                                                       // site: the close's lid still on its way down (lidSync(): the CLOSE TAIL)
+let capOn = false, capIn = CAP_FADE.in;                                    // site: the caption's fade in — on, and its transition (capFadeIn())
+function capFadeIn() {                      // site 2026-10-08 (CAP_FADE): the MACBOOK's caption ends its fade in with the lid's opening
+  const s = lid ? lid.eta : null;
+  return s > .25 ? `opacity ${Math.round(s * 1000)}ms cubic-bezier(.42, 0, .58, 1)` : CAP_FADE.in;
+}
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 /* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
    squircle outline through feGaussianBlur — which Safari renders as a software filter pass per shade (30 of them) at boot and at every
@@ -2790,6 +2803,7 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   // the pointer may already be in a zone (no pointerenter fires until it moves): peek from where it last was
   if (lastX >= 0) setVHover(zoneAt(lastX, lastY) || 0);
   placeNZones();                                                                           // site: the CAMERA's neighbour zones
+  nbNudge();                                                                               // site 2026-10-08: the NEIGHBOUR NUDGE — "I'm here"
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
@@ -2997,7 +3011,9 @@ function render() {
   if (capEl) {                                                                            // site: its caption — seen only while the camera is still (CAP_FADE)
     const filmUp = !!film && film.state !== 'off' && film.state !== 'stop';                // site 2026-10-07: FILM — from the press to the stop the film owns the open page (its fade in lifts it OVER the caption): the caption leaves at the press, as at a close, and comes back with the stop
     const into = state === 'zoom' || state === 'open', on = into && v >= CAP_FADE.at && !filmUp;   // in: from the camera's landing, CAP_FADE.in on the compositor; out: closeNow()'s transition
-    put(capEl, 'cpT', 'transition', on ? CAP_FADE.in : into && !filmUp ? 'none' : CAP_FADE.out);
+    if (on && !capOn) capIn = capFadeIn();                                                 // site 2026-10-08: its length, chosen once as it starts (the MACBOOK: until its lid is open)
+    capOn = on;
+    put(capEl, 'cpT', 'transition', on ? capIn : into && !filmUp ? 'none' : CAP_FADE.out);
     put(capEl, 'cpO', 'opacity', on ? '1' : '0');
     put(capEl, 'cpV', 'visibility', state !== 'home' ? 'visible' : 'hidden');
   }
@@ -3323,7 +3339,7 @@ let last = 0, rafId = 0;
    integrate the whole stall at once: 0 → 30–40 % of the zoom in one frame) */
 let startGuard = 0;
 const blocked = () => stacks.some(s => s.blocked());       // a debug freeze / pin (the primary's URL) holds the loop, as before
-const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive();
+const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive() || RP.nt0 > 0;   // RP.nt0: the NEIGHBOUR NUDGE is playing
 /* FRAME RECORDER (debug, 2026-09-27; designer: "still lags a bit … find what exactly causes it"): every frame of the loop — its
    interval (raw, before maxFrameDt / startGuard), the loop's own script time, and the named steps (perfMark) that ran since
    the frame before — in a ring of PERF.N frames. A slow frame's interval minus its script time is Safari's own work (style,
@@ -3394,7 +3410,7 @@ function renderPage() {
   }
   if (RP.part && RP.part !== activeStack && RP.part.progress === 0) RP.part = null;        // site: PARTING, until the close's p is exactly home
   if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) RP.move = null;  // site: a CAMERA move is over when both piles are exactly at their ends
-  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0);
+  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV());   // RP.nv: the NUDGE, once a frame
   if (ck !== RP.pv) rowWrite();                                                            // … the other row elements ride the zoom (the CAMERA / PARTING)
   for (const t of tiles) { const th = t.h.value.toFixed(4); if (t._h !== th) { t._h = th; t.style.setProperty('--h', th); } }   // site: the row elements' hover
   pput(backdrop, 'bd', 'opacity', String(v));
@@ -3708,11 +3724,27 @@ function nbEdge(F, n, side) {
 }
 const shiftOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i ? 0 : j < d.i ? d.L : d.R; };
 const tiltOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i - 1 ? d.tL : j === d.i + 1 ? d.tR : 0; };
+/* site 2026-10-08 — the NEIGHBOUR NUDGE (owner: "one affordance trick to try. Let them protrude additional 15% on zoom, and then retract,
+   aka saying im here"): as a pile lands OPEN (enterOpen(): a click's zoom and a CAMERA move's arrival), both sides' neighbours slide in a
+   further NB.nudge × their rest peek and back — NB.nudgeat ms after the landing, out over NB.nudgeout ms (ease-out), back over NB.nudgeback
+   ms (ease-in-out): `RP.nv` 0 … 1 … 0, the whole side as one (as the rest shift), × the open pile's p (a close takes it down with the
+   zoom). Translate only (the compositor's). ?nnudge=0: none · ?nnudge= ?nnudgeat= ?nnudgeout= ?nnudgeback= to try others. */
+function nbNudge() { if (!CAMERA || !(NB.nudge > 0)) return; RP.nt0 = performance.now(); perfMark('nudge'); kick(); }
+function nudgeV() {
+  if (!RP.nt0) return 0;
+  const t = performance.now() - RP.nt0 - NB.nudgeat, r4 = x => Math.round(x * 1e4) / 1e4;
+  if (t <= 0) return 0;
+  if (t < NB.nudgeout) return r4(1 - (1 - t / NB.nudgeout) ** 3);
+  const b = (t - NB.nudgeout) / Math.max(1, NB.nudgeback);
+  if (b < 1) return r4(1 - (b < .5 ? 4 * b ** 3 : 1 - (2 - 2 * b) ** 3 / 2));
+  RP.nt0 = 0; return 0;
+}
+const nudgeOf = e => { const d = RP.dPart, j = RP.els.indexOf(e); return !RP.nv || !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * RP.nv * NB.nudge * NB.rest * PG.KV; };
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
   const m = RP.move, pa = RP.part ? RP.part.progress : 0, fo = RP.part ? RP.part.filmOut || 0 : 0;   // fo: site FILM — the neighbours' slide out
-  RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo;
+  RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0);
   const cap = ROWPHYS.lag.cap * RP.gap, pv = pageP();
   const up = !!RP.part && pv > 0, W = RP.W, H = RP.H;                                      // PARKING (above): the cover is up
   const cv = up ? String(Math.round((255 - 3 * pv) * 100) / 100) : '';
@@ -3726,7 +3758,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     if (CAMERA) {
       const st = e.st, ps = st ? st.progress : 0, mover = !!st && (st === RP.part || (!!m && st === m.from));
       // the camera ∘ its own zoom⁻¹ (scale kk), + its side's shift; its tilt turns it about its DRAWN centre (where its own zoom put it)
-      const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e))
+      const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e)) + (m ? u : pa) * nudgeOf(e)   // + the NUDGE, inward
               + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * W : 0);   // site: FILM — out of the film's way
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
       const yh = RP.rowTop + e.cy, X = C.k * xh + C.x + d, Y = C.k * yh + C.y;              // its centre on screen
