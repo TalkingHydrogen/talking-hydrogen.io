@@ -392,9 +392,10 @@
        the same way as the vynyl or mac, same button and same position"): 1X's NEO film (youtu.be/LTYMWadOW7c) 4:03.33 – 4:19.96, cut on
        its two hard cuts (the hand on the robot, then the man and the robot; 16.6 s) (assets/neofilm/neofilm-{1920,3840}{-wk,}.mp4), right
        after the sunroom print, the last of the lonely photos. PLAIN (owner, the same day: "make the vid without the photo borders though …
-       lets try just plain vid. 20%+ scale"): the bare frame, data-size 1.2 → 1.44 ("scale 20% more": × 1.2). ?clipprint=1: the first try, a print whose photo moves (data-size
+       lets try just plain vid. 20%+ scale"): the bare frame, data-size 1.2; zoomed 1.2 × further than the other piles (owner: "scale on
+       zoom … it takes too little of the space": NEOFILM's openB). ?clipprint=1: the first try, a print whose photo moves (data-size
        1, set by BOOT). NEOFILM in BOOT -->
-  <div class="wrap" id="neofilm" data-size="1.44" data-age="22"><div class="box">
+  <div class="wrap" id="neofilm" data-size="1.2" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): NEOFILM in BOOT -->
   </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
@@ -4133,10 +4134,13 @@ stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: 
 /* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note). PLAIN (owner, the same day: "make the vid without the photo borders
    though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the clip's first frame alone (1920 × 1080,
    assets/neofilm/neofilm-poster.webp: photoprint.py's photo step, no paper), the clip over all of it; square corners, no border, no
-   shadow; straight (rot 0: no print laid on the table — so no hover turn, the hover's lift stays), on the row's baseline; data-size 1.2, then 1.44 (owner: "scale 20% more").
+   shadow; straight (rot 0: no print laid on the table — so no hover turn, the hover's lift stays), on the row's baseline; data-size 1.2. OPEN: CLIP_ZOOM × the page's open box (cfg.openB, centred as the
+   ghost; the button keeps the page's size; owner: "scale 20% more" → "no i meant scale on zoom, i think we need to zoom in a little more
+   on it, since it takes too little of the space"): 1.2, ?clipzoom= to try others.
    ?clipprint=1: the first try — the print of its first frame with the photo prints' treatment (the same paper and table shadow; photo
    1920 × 1080 + 49 px paper = the window's fractions of the card), rest −.9° with the prints' hover, data-size 1. Played as the CD's song. */
 const CLIP_PRINT = pageQuery.get('clipprint') === '1';
+const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(pageQuery.get('clipzoom')));
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
@@ -4145,7 +4149,8 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
   ? { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
       floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
-      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP }));
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP,
+      openB: () => CLIP_ZOOM * PG.B }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
