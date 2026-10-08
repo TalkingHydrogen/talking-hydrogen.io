@@ -11,6 +11,26 @@
      (expand, open, close, home) — a style change on <html> that Safari answers with a full relayout and a compositing-tree walk of
      every layer on the page: the first frame of the zoom in / out stalled 167–215 ms (frame recorder). Nothing ever overflows. */
   html { overflow: hidden; }
+  /* site 2026-10-08, the WHEEL SINK (owner: "optimize the intertia on the web, wehn im playing with it with all these elements it lags a
+     bit"). Measured in the owner's ?hud tab: ~55 ms frames, usually two at each new swipe, with this page's own work 0–5 ms of them.
+     The cause is Safari's (WebKit's UI-side scrolling: RemoteLayerTreeEventDispatcher, RemoteScrollingTreeMac). A gesture's first events
+     (fingers down, the first move; the harness: also the fingers' lift into the coast) over a NON-PASSIVE wheel listener are held on the
+     scrolling thread for up to 50 ms, waiting for the page's answer, and that thread holds the layer hit-test lock meanwhile. The UI's main thread needs the lock to apply the page's next frame
+     (and waits on that thread at each display refresh), and the page's answer comes back through that same main thread. So while the row
+     animates, the wait always runs out: the whole page freezes 50 ms, and then the swipe's piled-up deltas land as one 130–200 px jump.
+     A PASSIVE listener is never waited for. The catch: preventDefault() was what kept Safari's two-finger back / forward swipe off
+     (Safari ignores overscroll-behavior for it: WebKit bug 240183), and that swipe starts only where the page is PINNED at its edge.
+     So the root is made never pinned. It is a native horizontal scroller with a 60 000 px range (body::after), parked in the middle
+     (SINK, under pageQuery) and parked again after every wheel stream, with no scrollbar, and the viewer is fixed on top of it, so the
+     root's own scroll moves nothing on screen.
+     The row's scroll stays the page's own (ROW PHYSICS). Harness (wkwheel: trackpad-phased NSEvents through a WKWebView): 6–9 frames of
+     51–56 ms per 16 quick swipes → 0 (max 19–29 ms); WebKit's pinned state went from 15 (every edge) to 10 (top + bottom only).
+     ?sink=0 = the old page. Set once at boot, never toggled (the PERF note above). Off where the root scrolls for a lab (?type, ?color)
+     and on screens with no hover (no trackpad there: no wheel, no history swipe). */
+  html.sink { overflow-x: scroll; overflow-y: hidden; scrollbar-width: none; }
+  html.sink::-webkit-scrollbar, html.sink body::-webkit-scrollbar { display: none; }
+  html.sink body::after { content: ''; display: block; width: 60000px; height: 1px; }   /* the root's range (2 × SINK_MID): nothing paints */
+  html.sink .viewer { position: fixed; left: 0; top: 0; width: 100%; }                    /* the same box as in flow (100 vw × 100 vh at 0, 0) */
   body {
     background: #fff; color: #8e8e93;                    /* stack.html's home page */
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -1248,6 +1268,21 @@ function keepImg(im) {
 }
 
 const pageQuery = new URLSearchParams(location.search);    // site: the URL knobs / debug hooks — the primary stack's (the drawings) only
+/* site 2026-10-08: the WHEEL SINK (the html.sink CSS): the root a never-pinned native scroller under the fixed viewer, parked mid-range
+   after the boot layout (and at load, in case the browser restored a scroll). It takes every horizontal wheel natively, so it drifts by
+   the deltas: parked again once a stream has been quiet for SINK_PARK.quiet ms and has drifted more than SINK_PARK.far px. Kept small:
+   parked 500 000 px out, the composite of a fixed layer that far rounds (the open print differed by up to 4/255); ≤ 100 000 is exact. */
+const SINK = pageQuery.get('sink') !== '0' && !pageQuery.has('type') && !pageQuery.has('color') && matchMedia('(any-hover: hover)').matches;
+const SINK_MID = 30000, SINK_PARK = { quiet: 150, far: 2000 };
+let sinkDrift = 0, sinkT = 0;
+function sinkPark() { if (SINK) { perfMark('sink park'); sinkDrift = 0; scrollTo(SINK_MID, 0); } }
+if (SINK) {
+  document.documentElement.classList.add('sink'); history.scrollRestoration = 'manual';
+  addEventListener('wheel', e => {          // every wheel, whatever its target (the root scrolls natively under all of them)
+    sinkDrift += e.deltaX * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerWidth : 1);
+    clearTimeout(sinkT); sinkT = setTimeout(() => { if (Math.abs(sinkDrift) > SINK_PARK.far) sinkPark(); }, SINK_PARK.quiet);
+  }, { capture: true, passive: true });
+}
 /* site 2026-09-28, the CAMERA (owner: "why bring the whole stack forward and move away everything else if I can just zoom in the
    whole view to it" — the iOS folder zoom): the zoom is ONE map of the whole page, the active pile's own — a uniform scale
    k = 1 + (S − 1)·p about its rest bottom-centre a0 plus its open translate (ix, iy)·p. The pile keeps its tuned transform;
@@ -2680,7 +2715,7 @@ const flipActive = () => phase !== 'rest' || !flipDone();
    ============================================================ */
 /* the page scroll lock (see the header): every transition runs at scroll 0 with the page locked (the viewer IS the viewport).
    Inert: the page is exactly the 100 vh viewer, so it never scrolls in any state. */
-function lockPage() { scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
+function lockPage() { if (!SINK) scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
 function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
@@ -3059,7 +3094,7 @@ function openNow() {
   lidSync();
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: as expand()
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
-  scrollTo(0, 0); unlockPage();                                                            // OPEN: at the top, not locked (as enterOpen())
+  if (!SINK) scrollTo(0, 0); unlockPage();                                                 // OPEN: at the top, not locked (as enterOpen()); the WHEEL SINK: never (its x)
   hover.jump(0); p.jump(1);
   loadTucked(); vhover = 0; jumpAll(); setLayout('viewer'); untuck(true);
   rowPart(); row.classList.add('parting');                                                 // the CAMERA at p = 1, as expand() does (2026-09-28: it used to ride on the font-ready layoutAll, which is gone)
@@ -3872,11 +3907,11 @@ document.addEventListener('pointermove', e => { lastX = e.clientX; lastY = e.cli
    (ctrlKey) is left alone. */
 scroller.addEventListener('wheel', e => {
   if (activeStack || e.ctrlKey) return;
-  e.preventDefault();
+  if (!SINK) e.preventDefault();            // the WHEEL SINK: passive, so Safari never holds a gesture's first events for it (the html.sink CSS)
   const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scroller.clientWidth : 1;
   rowWheel(e.deltaX * k, e.deltaY * k); PERF.wheel++;
   rowLog(['w', Math.round(performance.now()), Math.round(e.timeStamp), e.deltaX, e.deltaY, RP.act, +RP.S.toFixed(1)]);
-}, { passive: false });
+}, { passive: SINK });
 scroller.addEventListener('pointerdown', e => {
   RP.caught = rowOver(RP.S) > 1 || (RP.drive === 'free' && Math.abs(RP.V) > .05);
   if (e.pointerType === 'mouse' || activeStack || RP.touch) return;
@@ -4251,6 +4286,7 @@ stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: 
                                         rest: { rot: -2, up: 0 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',
                                         caption: DAN_CAPTION }));
 layoutAll('boot');
+sinkPark(); if (SINK) addEventListener('load', sinkPark);   // the WHEEL SINK: mid-range (the layout is clean here: no extra pass)
 for (const s of stacks) s.boot();
 // (KEEPALIVE: keepImg(), at each image's load — see the DOM section)
 for (const t of tiles) {                    // site: a row element re-lays out the row if its decoded aspect is not the one it was sized by
