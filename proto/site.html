@@ -143,6 +143,10 @@
   /* site 2026-09-29: the MACBOOK's lid clips (makeLid(), the LID note): the card's box, over its poster (the closed pose); one shown at a time */
   .card video.lid { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
   .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
+  /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its print's photo window (--vl / --vt / --vw / --vh: its
+     fractions of the card), over the poster (the print = the clip's first frame); its opacity rides p (songWrite()) */
+  .card video.clip { position: absolute; left: calc(100% * var(--vl)); top: calc(100% * var(--vt)); width: calc(100% * var(--vw));
+                     height: calc(100% * var(--vh)); z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
   /* site 2026-09-30: the MACBOOK's FILM (the FILM note): the B film, IN the row's 3D context at −.875 px — over the OPEN cover (−1),
      under the other row elements (−.75 while the cover is up) and the open pile (0: the card and its play button) — laid out at
      the film's own 3840 × 2160 px and mapped onto the viewport by one matrix (filmWrite()) that puts its laptop on the card's.
@@ -383,6 +387,15 @@
   </div></div>
   <div class="wrap" id="sunroom" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): SUNROOM in BOOT -->
+  </div></div>
+  <!-- site 2026-10-08: the NEO CLIP (owner: "put the video on the right from the last lonely photo on the website. It can be played paused
+       the same way as the vynyl or mac, same button and same position"): 1X's NEO film (youtu.be/LTYMWadOW7c) 4:03.33 – 4:19.96, cut on
+       its two hard cuts (the hand on the robot, then the man and the robot; 16.6 s), as a print whose photo moves: its first frame printed
+       exactly as the photo prints (photoprint.py --long 1920 --border-px 49 → assets/photo/neofilm-print.webp 2018 × 1178 + its table
+       shadow), the clip over the photo window (assets/neofilm/neofilm-{1920,3840}{-wk,}.mp4). NEOFILM in BOOT; data-size 1; right after the
+       sunroom print, the last of the lonely photos -->
+  <div class="wrap" id="neofilm" data-size="1" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print + the clip): NEOFILM in BOOT -->
   </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
        before it loads); --tilt rotates it.
@@ -1504,12 +1517,37 @@ const FILM = {
 };
 const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * Math.min(W / 16, H / 9));   // css px
 const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBOOK's open box (cfg.openB)
+/* site 2026-10-08 — the NEO CLIP (owner: "put the video on the right from the last lonely photo on the website. It can be played paused
+   the same way as the vynyl or mac, same button and same position"). A stack with cfg.video { base, src ('{w}': the width), sizes,
+   window [l, t, w, h]: its photo window, fractions of the card } is a PRINT whose photo moves. Its card is the print of the clip's
+   first frame (the poster: photoprint.py, as the photo prints); the clip is a <video> over the photo window (the .clip CSS) that
+   takes the SONG's part — the media API is the same — so it behaves as the CD's song: the zoom starts it from the top (inside the
+   click: the gesture; prime() silent on the press), its volume = p, the button right of the print, bottoms aligned (placePlay()),
+   pauses / plays it, the close pauses it. Its picture: opacity = p (songWrite()), from its first decoded frame on — the poster at
+   HOME, the clip from the zoom (the same frame at the start: the print starts moving); the close dissolves it back into the poster
+   as it flies home, and enterHome() rewinds it unseen. Its file: the smallest of sizes ≥ CLIP.pick × the open photo window's
+   device px, chosen at the first hover / press (warmAudio()) — nothing is fetched at BOOT — in the kind for this browser
+   (filmweb.py's GRADE law: WebKit shows video code values as sRGB(v ^ 1.961) whatever the tag — measured on this clip's plain
+   H.264: +10 levels over its poster): WebKit HEVC Main10 carrying v = L ^ (1 / 1.961) (its frame 0 shows as the poster), the
+   rest H.264 with the code values, tagged sRGB. */
+const CLIP = { pick: .9 };
+let clipKindV = null;                       // 'hevc' | 'h264' — once (canPlayType: a WebKit without HEVC takes the H.264)
+const clipKind = V => clipKindV ||= (() => { const pr = document.createElement('video');
+  return (/apple/i.test(navigator.vendor) ? ['hevc', 'h264'] : ['h264']).find(k => V.src[k] && pr.canPlayType(V.type[k])) || 'h264'; })();
+function clipEl(V) {
+  const el = document.createElement('video');
+  el.className = 'clip'; el.preload = 'none'; el.playsInline = true; el.disablePictureInPicture = true;
+  el.setAttribute('playsinline', ''); el.setAttribute('disableremoteplayback', ''); el.setAttribute('aria-hidden', 'true');
+  ['vl', 'vt', 'vw', 'vh'].forEach((k, i) => el.style.setProperty('--' + k, V.window[i]));
+  return el;
+}
 function makeStack(wrap, cfg) {
 /* one stack (site): cfg = { name, primary (the URL knobs, the debug hooks and window.__site: the drawings), idp (a prefix for
    its SVG filter ids), images [{ id, w, h, src? }], assets (the folder of id + '.jpg'), deck, nudge, knobs (own values over
    the defs), rest (site: { rot °, up } — a HOME-only pose of the pile, squared up by the zoom: × (1 − p)), audio (a song src: played
    from the top by the zoom, its volume = p, paused at HOME), play (site 2026-09-30: true or fn(on) — the same button without a song:
-   the MACBOOK's; it toggles filmOn and calls the fn) }. Everything below is the drawings stack's engine, per instance;
+   the MACBOOK's; it toggles filmOn and calls the fn), video (site 2026-10-08: the CLIP — a <video> in the song's part, its note
+   above) }. Everything below is the drawings stack's engine, per instance;
    the page's shared parts are after it. */
 const IMAGES = cfg.images, D = IMAGES.length, ASSETS = cfg.assets || '', IDP = cfg.idp || '';
 const DEFAULT_DECK = cfg.deck, DEFAULT_NUDGE = cfg.nudge || [];
@@ -1522,9 +1560,16 @@ const CONTACT = cfg.contact || null;                           // site: CAST as 
 const SH = cfg.shadow || STACK.shadow;                        // site: this stack's shadow geometry, 340-box px: { x, y, sigma } (the drawings: STACK.shadow)
 const query = cfg.primary ? pageQuery : new URLSearchParams('');
 const REST = cfg.rest || null;                              // site: the HOME-only pose (the sleeve: the tile's old tilt / raise), × (1 − p) in render()
-const audio = cfg.audio ? new Audio() : null;               // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it
-if (audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
-function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { audio.preload = 'auto'; audio.load(); } }
+const VID = cfg.video || null;                               // site 2026-10-08: the CLIP (its note, above makeStack())
+const audio = cfg.audio ? new Audio() : VID ? clipEl(VID) : null;   // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it — or the CLIP's <video> (the same media API)
+if (cfg.audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
+function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { if (VID) audio.src = clipSrc(); audio.preload = 'auto'; audio.load(); } }
+let clipFrame = false;                                       // site: CLIP — it has shown a frame (loadeddata): from then its opacity rides p
+function clipSrc() {                                         // site: CLIP — its file for this window: the smallest ≥ CLIP.pick × the open photo window's device px
+  const pic = IMAGES[0], r = pic.w / pic.h, B = G.B || estB(), px = (r >= 1 ? B : B * r) * VID.window[2] * (devicePixelRatio || 1);
+  const ws = VID.sizes.slice().sort((a, b) => a - b);
+  return VID.base + VID.src[clipKind(VID)].replace('{w}', ws.find(w => w >= px * CLIP.pick) || ws[ws.length - 1]);
+}
 /* site: its play / pause button (the .play CSS): built with the audio, in the .item; the glyph follows the audio's own state
    (syncPlay on its play / pause / ended events — a refused autoplay shows play). A click toggles it (OPEN only) and never
    reaches the viewer's close routing. */
@@ -1598,6 +1643,7 @@ let songG = 1, songT = 1, songRaf = 0, songLast = 0, songHeld = false;
 function songWrite() {                      // render() and the fade: the volume and the button's opacity
   const v = clamp(p.value, 0, 1);
   if (audio) { const vol = Math.round(v * songG * 1000) / 1000; if (audio.volume !== vol) audio.volume = vol; }   // site: the song rises with the zoom, falls with the close
+  if (VID) put(audio, 'clipO', 'opacity', clipFrame ? String(Math.round(v * 1000) / 1000) : '0');   // site: CLIP — the picture rides p: the poster at HOME, the clip in OPEN (the same first frame: the print starts moving)
   if (playBtn) {                            // site: its button — the header's fade, mirrored
     const o = film?.btnOff ? 0 : Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * songG * (film ? 1 - film.hideV : 1) * 1000) / 1000;   // site: FILM — its button rides the cursor while the film plays (a touch: it fades out)
     const px = film?.proxyOn;                                                               // site: FILM — its stand-in over the film shows it meanwhile
@@ -1772,6 +1818,10 @@ for (let j = 0; j < D; j++) {
    aligned. playSlot: an empty box in the .item where the button rests (the card at the front seat) — the shield's hole. */
 const playSlot = playBtn && SONG >= 0 ? item.appendChild(Object.assign(document.createElement('div'), { className: 'play-slot' })) : null;
 if (playSlot) cards[SONG].el.appendChild(playBtn);
+if (VID) {                                                   // site: CLIP — over the print's photo window (the .clip CSS); seen from its first frame on
+  cards[0].el.appendChild(audio);
+  audio.addEventListener('loadeddata', () => { clipFrame = true; songWrite(); }, { once: true });
+}
 if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site: CAST — in card c, one .cast per other card u (its shadow on c)
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
   c.casts.push({ u, el, tf: '', o: null, key: '' });
@@ -2722,7 +2772,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
   lidSync();
   if (activeStack === self) activeStack = null;                                            // site: every stack at HOME again (unless the CAMERA moved on to another)
   wrap.classList.remove('active');
-  if (audio) audio.pause();                                                                // site: the song ends with the close (its volume is ~0 by now)
+  if (audio) { audio.pause(); if (VID && audio.currentTime) audio.currentTime = 0; }       // site: the song ends with the close (its volume is ~0 by now); CLIP: back to its first frame (the poster's), unseen
   else if (playBtn && filmOn) { filmOn = false; if (typeof cfg.play === 'function') cfg.play(false); syncPlay(); }   // site: the MACBOOK's film stops with the close
   if (film && !film.owns) film.disarm();                                                   // site: FILM — no layer at HOME
   if (!activeStack) {
@@ -4080,6 +4130,16 @@ stacks.push(makeStack($('shelves'), { name: 'shelves', idp: 'shelves-', images: 
                                       floor: { src: '../assets/photo/shelves-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: -1.2, up: PRINT_UP, hover: -1 } }));
 stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: SUNROOM, deck: [0], knobs: POL_KNOBS, castOnly: true,
                                       floor: { src: '../assets/photo/sunroom-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: .8, up: PRINT_UP, hover: -1 } }));
+/* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note): the print of its first frame with the photo prints' treatment (the
+   same paper and table shadow; photo 1920 × 1080 + 49 px paper = the window's fractions of the card), the clip over the photo window;
+   rest: a tilt of its own (−.9°), on the row's baseline, the hover turning it left as the prints. Played as the CD's song. */
+const NEOFILM = [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }];
+const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178],
+                       src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
+                       type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
+stacks.push(makeStack($('neofilm'), { name: 'neofilm', idp: 'nf-', images: NEOFILM, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 },
+                                      rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
