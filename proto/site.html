@@ -143,8 +143,8 @@
   /* site 2026-09-29: the MACBOOK's lid clips (makeLid(), the LID note): the card's box, over its poster (the closed pose); one shown at a time */
   .card video.lid { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
   .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
-  /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its print's photo window (--vl / --vt / --vw / --vh: its
-     fractions of the card), over the poster (the print = the clip's first frame); its opacity rides p (songWrite()) */
+  /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its card's photo window (--vl / --vt / --vw / --vh: its
+     fractions of the card — all of it when plain), over the poster (the clip's first frame); its opacity rides p (songWrite()) */
   .card video.clip { position: absolute; left: calc(100% * var(--vl)); top: calc(100% * var(--vt)); width: calc(100% * var(--vw));
                      height: calc(100% * var(--vh)); z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
   /* site 2026-09-30: the MACBOOK's FILM (the FILM note): the B film, IN the row's 3D context at −.875 px — over the OPEN cover (−1),
@@ -390,12 +390,12 @@
   </div></div>
   <!-- site 2026-10-08: the NEO CLIP (owner: "put the video on the right from the last lonely photo on the website. It can be played paused
        the same way as the vynyl or mac, same button and same position"): 1X's NEO film (youtu.be/LTYMWadOW7c) 4:03.33 – 4:19.96, cut on
-       its two hard cuts (the hand on the robot, then the man and the robot; 16.6 s), as a print whose photo moves: its first frame printed
-       exactly as the photo prints (photoprint.py --long 1920 --border-px 49 → assets/photo/neofilm-print.webp 2018 × 1178 + its table
-       shadow), the clip over the photo window (assets/neofilm/neofilm-{1920,3840}{-wk,}.mp4). NEOFILM in BOOT; data-size 1; right after the
-       sunroom print, the last of the lonely photos -->
-  <div class="wrap" id="neofilm" data-size="1" data-age="22"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print + the clip): NEOFILM in BOOT -->
+       its two hard cuts (the hand on the robot, then the man and the robot; 16.6 s) (assets/neofilm/neofilm-{1920,3840}{-wk,}.mp4), right
+       after the sunroom print, the last of the lonely photos. PLAIN (owner, the same day: "make the vid without the photo borders though …
+       lets try just plain vid. 20%+ scale"): the bare frame, data-size 1.2. ?clipprint=1: the first try, a print whose photo moves (data-size
+       1, set by BOOT). NEOFILM in BOOT -->
+  <div class="wrap" id="neofilm" data-size="1.2" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): NEOFILM in BOOT -->
   </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
        before it loads); --tilt rotates it.
@@ -1519,10 +1519,10 @@ const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * M
 const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBOOK's open box (cfg.openB)
 /* site 2026-10-08 — the NEO CLIP (owner: "put the video on the right from the last lonely photo on the website. It can be played paused
    the same way as the vynyl or mac, same button and same position"). A stack with cfg.video { base, src ('{w}': the width), sizes,
-   window [l, t, w, h]: its photo window, fractions of the card } is a PRINT whose photo moves. Its card is the print of the clip's
-   first frame (the poster: photoprint.py, as the photo prints); the clip is a <video> over the photo window (the .clip CSS) that
+   window [l, t, w, h]: its photo window, fractions of the card } is a picture that moves. Its card is the clip's first frame (the
+   poster — bare, or printed as the photo prints: NEOFILM in BOOT); the clip is a <video> over the photo window (the .clip CSS) that
    takes the SONG's part — the media API is the same — so it behaves as the CD's song: the zoom starts it from the top (inside the
-   click: the gesture; prime() silent on the press), its volume = p, the button right of the print, bottoms aligned (placePlay()),
+   click: the gesture; prime() silent on the press), its volume = p, the button right of the card, bottoms aligned (placePlay()),
    pauses / plays it, the close pauses it. Its picture: opacity = p (songWrite()), from its first decoded frame on — the poster at
    HOME, the clip from the zoom (the same frame at the start: the print starts moving); the close dissolves it back into the poster
    as it flies home, and enterHome() rewinds it unseen. Its file: the smallest of sizes ≥ CLIP.pick × the open photo window's
@@ -4130,16 +4130,22 @@ stacks.push(makeStack($('shelves'), { name: 'shelves', idp: 'shelves-', images: 
                                       floor: { src: '../assets/photo/shelves-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: -1.2, up: PRINT_UP, hover: -1 } }));
 stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: SUNROOM, deck: [0], knobs: POL_KNOBS, castOnly: true,
                                       floor: { src: '../assets/photo/sunroom-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: .8, up: PRINT_UP, hover: -1 } }));
-/* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note): the print of its first frame with the photo prints' treatment (the
-   same paper and table shadow; photo 1920 × 1080 + 49 px paper = the window's fractions of the card), the clip over the photo window;
-   rest: a tilt of its own (−.9°), on the row's baseline, the hover turning it left as the prints. Played as the CD's song. */
-const NEOFILM = [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }];
-const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178],
+/* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note). PLAIN (owner, the same day: "make the vid without the photo borders
+   though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the clip's first frame alone (1920 × 1080,
+   assets/neofilm/neofilm-poster.webp: photoprint.py's photo step, no paper), the clip over all of it; square corners, no border, no
+   shadow; straight (rot 0: no print laid on the table — so no hover turn, the hover's lift stays), on the row's baseline; data-size 1.2.
+   ?clipprint=1: the first try — the print of its first frame with the photo prints' treatment (the same paper and table shadow; photo
+   1920 × 1080 + 49 px paper = the window's fractions of the card), rest −.9° with the prints' hover, data-size 1. Played as the CD's song. */
+const CLIP_PRINT = pageQuery.get('clipprint') === '1';
+const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
-stacks.push(makeStack($('neofilm'), { name: 'neofilm', idp: 'nf-', images: NEOFILM, deck: [0], knobs: POL_KNOBS, castOnly: true,
-                                      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 },
-                                      rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }));
+if (CLIP_PRINT) $('neofilm').dataset.size = '1';
+stacks.push(makeStack($('neofilm'), CLIP_PRINT
+  ? { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
+      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }
+  : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
