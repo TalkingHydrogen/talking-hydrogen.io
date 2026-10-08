@@ -145,8 +145,13 @@
   .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
   /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its card's photo window (--vl / --vt / --vw / --vh: its
      fractions of the card — all of it when plain), over the poster (the clip's first frame); its opacity rides p (songWrite()) */
-  .card video.clip { position: absolute; left: calc(100% * var(--vl)); top: calc(100% * var(--vt)); width: calc(100% * var(--vw));
-                     height: calc(100% * var(--vh)); z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
+  /* site 2026-10-08 (owner: "there is a little black like artifact on the video"): --vo, an OVERSCAN past the photo window on every side.
+     The clip's layer and the poster painted under it snap their edges differently (measured in WKWebView: ~.5 device px apart), so the
+     poster's own edge pixels showed past the clip's — a dark line wherever the first frame is dark (its top right) — gone once the clip
+     covers them (1 card px: 2 device px in OPEN at 2x; the frame is stretched .13 %) */
+  .card video.clip { --vo: 1px; position: absolute; left: calc(100% * var(--vl) - var(--vo)); top: calc(100% * var(--vt) - var(--vo));
+                     width: calc(100% * var(--vw) + 2 * var(--vo)); height: calc(100% * var(--vh) + 2 * var(--vo));
+                     z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
   /* site 2026-09-30: the MACBOOK's FILM (the FILM note): the B film, IN the row's 3D context at −.875 px — over the OPEN cover (−1),
      under the other row elements (−.75 while the cover is up) and the open pile (0: the card and its play button) — laid out at
      the film's own 3840 × 2160 px and mapped onto the viewport by one matrix (filmWrite()) that puts its laptop on the card's.
