@@ -1755,7 +1755,8 @@ function srcsetOf(pic) {
   const cands = VARIANTS.filter(L => L < L0).map(L => `${m[1]}-${L}.${m[2]} ${Math.round(fw * L / L0)}w`);
   return { src, srcset: cands.concat(`${src} ${fw}w`).join(', ') };
 }
-const estB = () => Math.min(FLIP.boxVw * viewer.clientWidth, FLIP.boxVh * viewer.clientHeight) * ZOOM.viewScale;   // B before the first layout (= pageLayout()'s)
+const estB = () => cfg.openB ? cfg.openB(viewer.clientWidth, viewer.clientHeight)   // B before the first layout (= layoutSize()'s: its own open box — the MACBOOK, the CLIP —
+                                : Math.min(FLIP.boxVw * viewer.clientWidth, FLIP.boxVh * viewer.clientHeight) * ZOOM.viewScale;   // else pageLayout()'s); 2026-10-08: the page's B under an own box made Safari fetch the poster's smaller file first, then upgrade (two files)
 function sizesOf(c) {                        // the img's CSS width at B: the card's contain-fit width (× its bleed overhang)
   const r = c.pic.w / c.pic.h, B = G.B || estB(), w = c.w || (r >= 1 ? B : B * r), bl = c.pic.bleed;
   return Math.round(w * (bl ? 1 + bl[0] + bl[2] : 1)) + 'px';
@@ -4150,7 +4151,7 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
       floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP,
-      openB: () => CLIP_ZOOM * PG.B }));
+      openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
