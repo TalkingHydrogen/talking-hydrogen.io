@@ -1346,8 +1346,8 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
 const SKIP = new Set((pageQuery.get('skip') || '').split(',').filter(Boolean));   // debug (perf A/B, 2026-09-29): ?skip=cast,floor,shade,wrapwc leaves those layers out
 if (SKIP.has('wrapwc')) document.documentElement.classList.add('skip-wrapwc');
 const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4,      // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more")
-             nudge: 1, nudgeat: 60, nudgeout: 360, nudgehold: 2000, nudgeback: 700 };   // the NUDGE (its note at nbNudge()): + 1 × rest (was .15), after 60 ms, out 360 ms, held 2 s, back 700 ms
-for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt', 'nudge', 'nudgeat', 'nudgeout', 'nudgehold', 'nudgeback']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
+             nudge: 1, nudgehold: 2000, nudgeback: 700 };   // the NUDGE (its note at nbNudgeIn()): + 1 × rest, ridden in by the zoom, held 2 s from the landing, back over 700 ms
+for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt', 'nudge', 'nudgehold', 'nudgeback']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
 
 /* site: TWO STACKS. makeStack() is the drawings stack's engine as one instance per .wrap in the row: its own images, knobs,
    springs, pile, viewer model, state machine and debug API. ONE for the page: the header, the backdrop, the row elements
@@ -2776,6 +2776,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
   else if (playBtn) { filmOn = false; syncPlay(); }                                        // site: the MACBOOK's button opens showing play (nothing runs until it is pressed)
   if (film) { film.kill(); film.arm(); }                                                   // site: FILM — its file for this window, its first frame ready (a B still up fades)
+  nbNudgeIn();                                                                             // site 2026-10-08: the NEIGHBOUR NUDGE — the neighbours ride in protruding
 }
 /* PERF 2026-09-27: the click's costly work, moved to the PRESS (pointerdown on this stack at HOME; the click is its pointerup):
    the viewer clips (setLayout re-rasters the preview cards, ~30 ms on the drawings: sub-pixel at rest scale, as expand()
@@ -2811,7 +2812,7 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   // the pointer may already be in a zone (no pointerenter fires until it moves): peek from where it last was
   if (lastX >= 0) setVHover(zoneAt(lastX, lastY) || 0);
   placeNZones();                                                                           // site: the CAMERA's neighbour zones
-  nbNudge();                                                                               // site 2026-10-08: the NEIGHBOUR NUDGE — "I'm here"
+  nbNudgeLand();                                                                           // site 2026-10-08: the NEIGHBOUR NUDGE — landed protruding: the hold starts
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
@@ -2858,6 +2859,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
   if (!activeStack) {
     unlockPage();                                                                          // page scroll unlocked
     scroller.classList.remove('frozen'); row.classList.remove('parting');                  // the row scrolls again
+    nbNudgeOff();                                                                          // site 2026-10-08: the NEIGHBOUR NUDGE ends at HOME (a close took it down with the zoom)
   }
   homeDue = true;                                                                          // PERF: the home clips + shade layers back at the next idle (idle()): a re-raster, 35–45 ms, kept off the close's last frames and the hover that may start here
   render();
@@ -3733,30 +3735,31 @@ function nbEdge(F, n, side) {
 const shiftOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i ? 0 : j < d.i ? d.L : d.R; };
 const tiltOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i - 1 ? d.tL : j === d.i + 1 ? d.tR : 0; };
 /* site 2026-10-08 — the NEIGHBOUR NUDGE (owner: "one affordance trick to try. Let them protrude additional 15% on zoom, and then retract,
-   aka saying im here"; then "make it protrude wayy more, and let it retract not so fast hold it like 2s"): as a pile lands OPEN (enterOpen():
-   a click's zoom and a CAMERA move's arrival), both sides' neighbours slide in a further NB.nudge × their rest peek (1: the sliver doubles;
-   was .15), hold, and go back — NB.nudgeat ms after the landing, out over NB.nudgeout ms (ease-out), held NB.nudgehold ms, back over
-   NB.nudgeback ms (ease-in-out): `RP.nv` 0 … 1 … 1 … 0, the whole side as one (as the rest shift), × the open pile's p (a close takes it
-   down with the zoom). Translate only (the compositor's). While it plays the neighbour zones reach its full width (placeNZones()), so a
-   click on what sticks out moves the camera there instead of closing. ?nnudge=0: none · ?nnudge= ?nnudgeat= ?nnudgeout= ?nnudgehold=
-   ?nnudgeback= to try others. */
-function nbNudge() {
-  if (!CAMERA || !(NB.nudge > 0)) return;
-  RP.nt0 = performance.now(); perfMark('nudge'); placeNZones(); kick();
-  clearTimeout(RP.ntT); RP.ntT = setTimeout(kick, NB.nudgeat + NB.nudgeout + NB.nudgehold);   // the hold needs no frames: the loop may rest, this wakes it for the way back
+   aka saying im here"; "make it protrude wayy more, and let it retract not so fast hold it like 2s"; then "so, it zooms to the already
+   protruding amount, then retracts"): the zoom IN carries both sides' neighbours to their rest peek + NB.nudge × it (1: the sliver
+   doubles) — RP.nv = 1 from the zoom's first frame (expand(): a click's zoom and a CAMERA move's arrival), so they ride in already
+   protruding (× p, as the rest shift); from the landing (enterOpen()) it holds NB.nudgehold ms, then goes back over NB.nudgeback ms
+   (ease-in-out). A close takes it down with the zoom (× p) and ends it at HOME; a camera move hands it over (the old sides × (1 − u),
+   the new × u). While it is out the neighbour zones reach its full width (placeNZones()), so a click on what sticks out moves the
+   camera there instead of closing. Translate only; the hold needs no frames (a timer wakes the loop for the way back).
+   ?nnudge=0: none · ?nnudge= ?nnudgehold= ?nnudgeback= to try others. */
+function nbNudgeIn() { if (!CAMERA || !(NB.nudge > 0)) return; clearTimeout(RP.ntT); RP.nPh = 'in'; perfMark('nudge in'); }
+function nbNudgeLand() {
+  if (RP.nPh !== 'in') return;
+  RP.nPh = 'hold'; RP.nb0 = performance.now() + NB.nudgehold;
+  clearTimeout(RP.ntT); RP.ntT = setTimeout(kick, NB.nudgehold);           // the hold needs no frames: the loop may rest, this wakes it for the way back
+  placeNZones();
 }
-const nudgeRun = () => { if (!(RP.nt0 > 0)) return false; const t = performance.now() - RP.nt0 - NB.nudgeat; return t < NB.nudgeout + 20 || t >= NB.nudgeout + NB.nudgehold; };
+function nbNudgeOff() { clearTimeout(RP.ntT); if (RP.nPh) { RP.nPh = null; placeNZones(); } }
+const nudgeRun = () => RP.nPh === 'hold' && performance.now() >= RP.nb0;   // frames only for the way back (the zoom has its own)
 function nudgeV() {
-  if (!RP.nt0) return 0;
-  const t = performance.now() - RP.nt0 - NB.nudgeat, r4 = x => Math.round(x * 1e4) / 1e4;
-  if (t <= 0) return 0;
-  if (t < NB.nudgeout) return r4(1 - (1 - t / NB.nudgeout) ** 3);
-  if (t < NB.nudgeout + NB.nudgehold) return 1;
-  const b = (t - NB.nudgeout - NB.nudgehold) / Math.max(1, NB.nudgeback);
-  if (b < 1) return r4(1 - (b < .5 ? 4 * b ** 3 : 1 - (2 - 2 * b) ** 3 / 2));
-  RP.nt0 = 0; placeNZones(); return 0;                                    // over: the zones back to the rest sliver
+  if (!RP.nPh) return 0;
+  const b = RP.nPh === 'in' ? 0 : (performance.now() - RP.nb0) / Math.max(1, NB.nudgeback);
+  if (b <= 0) return 1;
+  if (b < 1) return Math.round((1 - (b < .5 ? 4 * b ** 3 : 1 - (2 - 2 * b) ** 3 / 2)) * 1e4) / 1e4;
+  RP.nPh = null; placeNZones(); return 0;                                  // over: the zones back to the rest sliver
 }
-const nudgeOf = e => { const d = RP.dPart, j = RP.els.indexOf(e); return !RP.nv || !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * RP.nv * NB.nudge * NB.rest * PG.KV; };
+const nudgeOf = (d, e) => { const j = RP.els.indexOf(e); return !RP.nv || !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * RP.nv * NB.nudge * NB.rest * PG.KV; };   // the whole side, inward
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
@@ -3775,7 +3778,8 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     if (CAMERA) {
       const st = e.st, ps = st ? st.progress : 0, mover = !!st && (st === RP.part || (!!m && st === m.from));
       // the camera ∘ its own zoom⁻¹ (scale kk), + its side's shift; its tilt turns it about its DRAWN centre (where its own zoom put it)
-      const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e)) + (m ? u : pa) * nudgeOf(e)   // + the NUDGE, inward
+      const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e))
+              + (m ? (1 - u) * nudgeOf(RP.dFrom, e) + u * nudgeOf(RP.dPart, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward
               + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * W : 0);   // site: FILM — out of the film's way
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
       const yh = RP.rowTop + e.cy, X = C.k * xh + C.x + d, Y = C.k * yh + C.y;              // its centre on screen
@@ -3912,7 +3916,7 @@ function placeNZones() {                    // over each neighbour's sliver (+ i
     if (!n?.st) { if (z.style.cssText) z.style.cssText = ''; continue; }                    // no neighbour on this side: back to its zero size (never display: none — PERF, the .nzone CSS)
     const g = nbEdge(frameOf(a, 1), n, side), sh = side < 0 ? d.L : d.R, pad = NB.pad * PG.KV;   // its tilted inner edge (the corner that shows most)
     const inner = side < 0 ? g.ext + sh : RP.W - (g.ext + sh);
-    const w = Math.max(0, inner) + pad + (nHov === side ? NB.hover * n.st.peekPx : 0) + (RP.nt0 > 0 ? NB.nudge * NB.rest * PG.KV : 0);   // + the NUDGE's full reach while it plays
+    const w = Math.max(0, inner) + pad + (nHov === side ? NB.hover * n.st.peekPx : 0) + (RP.nPh ? NB.nudge * NB.rest * PG.KV : 0);   // + the NUDGE's full reach while it plays
     const top = Math.max(0, g.top - pad), bot = Math.min(RP.H, g.bot + pad);
     z.style.cssText = `left:${side > 0 ? RP.W - w : 0}px;top:${top}px;width:${w}px;height:${Math.max(0, bot - top)}px`;
   }
