@@ -458,6 +458,14 @@
   <div class="wrap" id="dandelion" data-size=".9" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
   </div></div>
+  <!-- site 2026-10-08: a BORDERLESS PIC right of the CD stack (owner: "put ts right to the cd stack as the borderless pic"): an animation still
+       — the boy in the green shirt among the greyed-out figures (the owner's screenshot, 2804 × 1568, "Color LCD" → sRGB; the original in
+       All dump/Screenshot 2026-10-08 at 5.20.41 PM.png → assets/still/friends.webp + its srcset sizes, website-perf/mkvariants.py). The NEO
+       clip's plain treatment: the bare image, no paper, border or shadow, straight, data-size 1.2, zoomed CLIP_ZOOM × as it. FRIENDS in BOOT;
+       data-age 19, the CD's (the age doesn't change across it) -->
+  <div class="wrap" id="friends" data-size="1.2" data-age="19"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the still): FRIENDS in BOOT -->
+  </div></div>
   <!-- site 2026-10-01: the DIGITAL PAINTINGS (owner: "put them as a separate stack left from paintings drawings one … and move disk on
        the left from that stack"): the five Artstudio Pro paintings (2020–21, iCloud Untitled 108 / 84 / 69 / 66 / 136) as their own pile —
        brew/artstudio/artstudio.py (the app's flatten, verified against the layers; lossless gray PNG; masters in website/2020 digital
@@ -4272,6 +4280,11 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP,
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
+/* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
+   shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
+stacks.push(makeStack($('friends'), { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
+                                      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(2804 / 1568 - 1) / 2 },
+                                      openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
