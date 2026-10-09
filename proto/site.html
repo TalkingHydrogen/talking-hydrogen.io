@@ -108,6 +108,15 @@
   .sign { position: relative; z-index: 20; flex: none; will-change: transform; align-self: flex-end; padding-bottom: .825em;
           font-size: .64em; line-height: 1; font-weight: 500; font-stretch: 85%; letter-spacing: .18em; text-transform: uppercase;
           white-space: nowrap; color: #D4D4D4; pointer-events: none; }
+  /* site 2026-10-09 — the SIGN-OFF IN A RING (?ring=N, URL-only: RING in BOOT). The .sign keeps its type; its glyphs are set one by
+     one on a circle (.ring-g: each the line's own glyph, at the line's kerned place, turned about the ring's centre); the box is the
+     ring's square, standing on the row's floor as the objects do */
+  .sign.ring { padding-bottom: 0; letter-spacing: 0; font-feature-settings: 'case'; }   /* 'case': SF's bullet on the caps' middle */
+  .sign.ring .ring-in { position: relative; will-change: rotate; }
+  .sign.ring .ring-g { position: absolute; left: 0; top: 0; display: block; line-height: 1; letter-spacing: 0; white-space: pre; }
+  .sign.ring .ring-m { position: absolute; left: 0; top: 0; visibility: hidden; letter-spacing: .18em; white-space: pre; line-height: 1; }
+  .sign.ring .ring-dot { position: absolute; border-radius: 50%; background: currentColor; }
+  @keyframes ring-spin { to { rotate: 360deg; } }
   html.skip-wrapwc .wrap { will-change: auto; }   /* debug: ?skip=wrapwc */   /* PERF 2026-09-28: its own layer FOR GOOD (was `.row.parting .wrap:not(.active)`: will-change toggled on the four other stacks at the zoom's first frame and the close's last — layers created / destroyed mid-motion, a compositing-tree rebuild each time). Its children are layers already: this one holds no bitmap. */
   /* PERF 2026-09-27: the COVER — an opaque sheet over the whole viewport IN the row's 3D context at depth −1 px, coloured exactly as
      the backdrop is at that p (rowWrite()), so it is never seen: above the PARKED row elements (depth −2 px), under the active
@@ -4233,6 +4242,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   if (RP.hAim && !held && !RP.hAim.aged) { RP.hAim.aged = true; AGE.i = -1; }              // HOME AIM: the new HOME's age is set, not rolled — the name is out of sight here
   if (!held) ageSync();                     // site: the AGE follows the scroll (HOME AIM: the old one while the name is held)
   liveSync();                               // site: the LIVE hint — its card on screen
+  RP.ringRoll?.();                          // site 2026-10-09: the SIGN-OFF's ring rolled by the row (?ring=3)
 }
 /* site 2026-10-09: the LIVE hint's eyes (its note): each live stack's share of the screen at its HOME place (the row's rigid scroll + its
    lag spring), and near (within a viewport of it: its clip loads) */
@@ -4815,6 +4825,83 @@ const DAN_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nVikt
 stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_CD_ON && DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD (?cd=1&sleeve=1 only)
                                         rest: DAN_CD_ON ? { rot: -2, up: 0 } : { rot: 3, up: .03 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',   // 2026-10-09: the sleeve's own rest again (the CD's was rot −2 / up 0)
                                         caption: DAN_CAPTION }));
+/* site 2026-10-09 — the SIGN-OFF IN A RING (owner: "compose this one as the text composed in a circle like what jony ive likes to do
+   … research first with agents and then put a couple versions there for me to see if its worth it"): ?ring=1 … 4 only, the default
+   page untouched. THE RESEARCH (two agents, 2026-10-09): Ive / LoveFrom set an OBJECT's legend as ONE continuous clockwise ring of
+   tracked sans caps, tops out, the bottom simply upside down, closed by a single round bullet with ~a word space each side, cap
+   height ~3–6 % of the diameter, the centre quiet, tone on tone (the Moncler Duo button "DESIGNED WITH OUR FRIENDS AT LOVEFROM IN
+   CALIFORNIA •", bullet at 6; the Balmuda lantern's underside; the Apple Watch case back); the CEREMONIAL seals (Terra Carta, Astra
+   Carta, the Coronation emblem) split it — the top arc clockwise, the bottom flipped upright, marks at the joins. Craft: space the
+   letters along the circle through the caps' MIDDLE (the eye reads the gaps there; on the baseline circle the tops fan out ~4.5 %);
+   fit the circle to the string (circumference = its advance + the join), never the tracking to the circle; SF's bullet with 'case'
+   sits on the caps' middle; a turning ring calm at 60–120 s a turn, against the reading (counter-clockwise), or rolled by the scroll.
+   ringSign() lays the .sign's own line out straight (hidden; the same type — SF, width 85, 500, .18em, caps — so no SVG optical-size
+   trap: WebKit lays SVG text out at device size), reads each glyph's kerned place (a Range per character), and sets every glyph
+   alone at that arc length, turned about the centre. Lengths in em: the ring scales with the page. ?ringsize= × the type. */
+const RING_VARS = {
+  1: { label: "maker's mark — one clockwise legend, the bullet at the foot (the Moncler button)", join: ' • ', arcs: 'full' },
+  2: { label: 'seal — the top arc clockwise, the bottom upright, a bullet at each join (Terra Carta, the Coronation)', arcs: 'split',
+       top: 'A love letter to the people I worked with', bot: 'and things we made along', join: ' • ' },
+  3: { label: "maker's mark, ROLLED by the row — a coin on the table: it turns as the row carries it, at rest with the bullet at the foot", join: ' • ', arcs: 'full', roll: true },
+  4: { label: "maker's mark, TURNING — 90 s a turn, counter-clockwise, a still dot in the centre", join: ' • ', arcs: 'full', spin: 90, centreDot: .3 },
+};
+function ringSign(el, V) {
+  const k = (v => Number.isFinite(v) ? clamp(v, .5, 3) : 1)(parseFloat(pageQuery.get('ringsize'))) * (V.size || 1);
+  const f = parseFloat(getComputedStyle(el).fontSize) * k, CAP = .7046;    // SF's cap height (1443 / 2048 em)
+  const text = el.textContent.trim(), u = v => (v / f).toFixed(5) + 'em';   // laid out in px at this size, written in em
+  el.textContent = ''; el.classList.add('ring'); el.setAttribute('aria-label', text);
+  const inner = el.appendChild(Object.assign(document.createElement('div'), { className: 'ring-in' }));
+  inner.style.fontSize = k + 'em'; inner.setAttribute('aria-hidden', 'true');
+  const ls = .18 * f, capH = CAP * f, BASE = .875 * f;                     // the line box: line-height 1, the baseline .125em above its bottom (the .sign CSS)
+  const measure = str => {                                                 // each character's centre along the straight line (its advance, kerned in context), the whole advance
+    const m = inner.appendChild(Object.assign(document.createElement('span'), { className: 'ring-m', textContent: str }));
+    const node = m.firstChild, r0 = m.getBoundingClientRect(), rg = document.createRange(), g = [];
+    for (let i = 0; i < str.length; i++) {
+      rg.setStart(node, i); rg.setEnd(node, i + 1);
+      const r = rg.getBoundingClientRect();
+      g.push({ ch: str[i], c: r.left - r0.left + (r.width - ls) / 2, w: r.width - ls });
+    }
+    const L = r0.width; m.remove(); return { g, L, ink: L - ls };          // ink: without the last glyph's trailing tracking
+  };
+  const glyph = (ch, w, a, out) => {                                       // a: radians clockwise from the top; out: the caps point out (else in: read upright on the bottom)
+    const g = inner.appendChild(Object.assign(document.createElement('span'), { className: 'ring-g', textContent: ch }));
+    const y = out ? cy - rb - BASE : cy + rB - BASE, oy = out ? rb + BASE : BASE - rB, deg = (out ? a : a - Math.PI) * 180 / Math.PI;
+    g.style.cssText = `left:${u(cx - w / 2)};top:${u(y)};width:${u(w)};transform-origin:${u(w / 2)} ${u(oy)};transform:rotate(${deg.toFixed(4)}deg)`;
+  };
+  let R, D, cx, cy, rb, rB;
+  const frame = C => { R = C / (2 * Math.PI); D = 2 * (R + capH / 2) + 2; cx = cy = D / 2; rb = R - capH / 2; rB = R + capH / 2; };   // R: the caps' middle circle
+  if (V.arcs === 'split') {
+    const top = measure(V.top), bot = measure(V.bot), J = measure(V.join);
+    frame(top.ink + bot.ink + 2 * (J.L + ls));                             // both arcs + a join each side (the join string's advance + the arc's trailing tracking)
+    for (const q of top.g) if (q.ch.trim()) glyph(q.ch, q.w, (q.c - top.ink / 2) / R, true);
+    for (const q of bot.g) if (q.ch.trim()) glyph(q.ch, q.w, Math.PI - (q.c - bot.ink / 2) / R, false);   // left to right = counter-clockwise along the bottom
+    const b = J.g.find(q => q.ch === '•'), phi = (top.ink / 2 + ls + b.c) / R;
+    glyph('•', b.w, phi, true); glyph('•', b.w, -phi, true);
+  } else {
+    const M = measure(text + V.join), t = measure(text);
+    frame(M.L);
+    for (const q of M.g) if (q.ch.trim()) glyph(q.ch, q.w, (V.start || 0) * Math.PI / 180 + (q.c - t.ink / 2) / R, true);   // the legend's middle at `start` (0: the top) — the bullet lands opposite
+  }
+  inner.style.width = inner.style.height = u(D);
+  if (V.centreDot) {
+    const d = V.centreDot * f, dot = inner.appendChild(Object.assign(document.createElement('i'), { className: 'ring-dot' }));
+    dot.style.cssText = `width:${u(d)};height:${u(d)};left:${u(D / 2 - d / 2)};top:${u(D / 2 - d / 2)}`;
+  }
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (V.spin && !still) inner.style.animation = `ring-spin ${V.spin}s linear infinite reverse`;   // counter-clockwise: against the reading, the words arrive from the right over the top
+  if (V.roll && !still) {                                                  // rolled by the row (rowWrite() → RP.ringRoll): turned by the distance from its rest place over its radius — a coin rolling on the floor; at rest (the row at its end) as set
+    let half = 0, W = 0, e = null, last = '';
+    RP.ringRoll = () => {
+      if (!e || !RP.els.includes(e)) e = RP.els.find(x => x.el === el); if (!e) return;
+      if (RP.W !== W) { W = RP.W; half = inner.offsetWidth / 2; }
+      const deg = ((e.cx - RP.S + (e.o || 0)) - (e.cx - RP.M)) / half * 180 / Math.PI, v = deg.toFixed(3) + 'deg';
+      if (v !== last) { last = v; inner.style.rotate = v; }
+    };
+  }
+  return { label: V.label, R: R / f, D: D / f, capPct: +(100 * capH / D).toFixed(2), em: f };
+}
+const RING = RING_VARS[pageQuery.get('ring')] || null;
+if (RING) window.__ring = ringSign($('sign'), RING);
 layoutAll('boot');
 sinkPark(); if (SINK) addEventListener('load', sinkPark);   // the WHEEL SINK: mid-range (the layout is clean here: no extra pass)
 for (const s of stacks) s.boot();
