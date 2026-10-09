@@ -478,6 +478,14 @@
   <div class="wrap" id="dandelion" data-size=".9" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
   </div></div>
+  <!-- site 2026-10-09: a PHOTO PRINT right of the CD stack (owner: "add this as a photo right from the cd on the website"): the TRIANGLE BOB
+       title card — the words and the little yellow triangle on white (the owner's screenshot, 1796 × 1450, "Display" → sRGB; the original in
+       All dump/triangle-bob-src.png), printed as the room print (photoprint.py --long 1920 --border-px 49 → assets/photo/trianglebob-print.webp
+       2018 × 1648 + its table shadow; the card's white = the paper's, so the print is one sheet). TRIANGLEBOB in BOOT; data-size 1; data-age 19,
+       the CD's (the age doesn't change across it) -->
+  <div class="wrap" id="trianglebob" data-size="1" data-age="19"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): TRIANGLEBOB in BOOT -->
+  </div></div>
   <!-- site 2026-10-08: a BORDERLESS PIC right of the CD stack (owner: "put ts right to the cd stack as the borderless pic"): an animation still
        — the boy in the green shirt among the greyed-out figures (the owner's screenshot, 2804 × 1568, "Color LCD" → sRGB; the original in
        All dump/Screenshot 2026-10-08 at 5.20.41 PM.png → assets/still/friends.webp + its srcset sizes, website-perf/mkvariants.py). The NEO
@@ -4619,6 +4627,11 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
 stacks.push(makeStack($('friends'), { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
                                       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(2804 / 1568 - 1) / 2 },
                                       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));
+/* site 2026-10-09: the TRIANGLE BOB print (the markup's comment): the room print's treatment, a tilt of its own (+1.2°: the CD left of it
+   leans −2°), on the row's baseline, the hover turning it left as the prints */
+const TRIANGLEBOB = [{ id: 'trianglebob', src: '../assets/photo/trianglebob-print.webp', w: 2018, h: 1648 }];
+stacks.push(makeStack($('trianglebob'), { name: 'trianglebob', idp: 'tb-', images: TRIANGLEBOB, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                          floor: { src: '../assets/photo/trianglebob-floor.webp', fx: .03331, fy: .04080 }, rest: { rot: 1.2, up: -(2018 / 1648 - 1) / 2, hover: -1 } }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
