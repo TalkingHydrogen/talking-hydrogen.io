@@ -172,6 +172,18 @@
   .card video.clip { --vo: 1px; position: absolute; left: calc(100% * var(--vl) - var(--vo)); top: calc(100% * var(--vt) - var(--vo));
                      width: calc(100% * var(--vw) + 2 * var(--vo)); height: calc(100% * var(--vh) + 2 * var(--vo));
                      z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
+  /* site 2026-10-09: the LIVE hint (the LIVE note): over the card's image, under the clip — the photo window exactly, clipped (its motion
+     zooms ×1.075 inside it); the poster's copy (.live-p) under the motion (.live-v), both filling it. NO overscan (the clip's --vo): the
+     copy must sit on the card's image pixel for pixel — with the clip's 1 px it drew a hairline round the card and a .13 % stretch
+     (rms 5.7 levels at the hint's end, measured in WKWebView); a motion layer snapping ~.5 px off shows the copy (the same picture) */
+  .card .live { --vo: 0px; position: absolute; left: calc(100% * var(--vl) - var(--vo)); top: calc(100% * var(--vt) - var(--vo));
+                width: calc(100% * var(--vw) + 2 * var(--vo)); height: calc(100% * var(--vh) + 2 * var(--vo));
+                z-index: 2; overflow: hidden; pointer-events: none; opacity: 0; }
+  .card .live > img.live-p, .card .live > video.live-v { position: absolute; left: 0; top: 0; z-index: auto; display: block; width: 100%; height: 100%;
+                object-fit: fill; background: none; clip-path: none; }
+  .card .live > img.live-p { left: calc(-100% * var(--vl) / var(--vw)); top: calc(-100% * var(--vt) / var(--vh));   /* the card's image whole, its window on the box (a print: the paper outside, clipped) */
+                width: calc(100% / var(--vw)); height: calc(100% / var(--vh));
+                transform-origin: calc(100% * (var(--vl) + var(--vw) / 2)) calc(100% * (var(--vt) + var(--vh) / 2)); }
   /* site 2026-09-30: the MACBOOK's FILM (the FILM note): the B film, IN the row's 3D context at −.875 px — over the OPEN cover (−1),
      under the other row elements (−.75 while the cover is up) and the open pile (0: the card and its play button) — laid out at
      the film's own 3840 × 2160 px and mapped onto the viewport by one matrix (filmWrite()) that puts its laptop on the card's.
@@ -1598,6 +1610,26 @@ const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBO
    H.264: +10 levels over its poster): WebKit HEVC Main10 carrying v = L ^ (1 / 1.961) (its frame 0 shows as the poster), the
    rest H.264 with the code values, tagged sRGB. */
 const CLIP = { pick: .9 };
+/* site 2026-10-09 — the LIVE hint (owner: "im looking into affordance, I want to let the thing know that its a video not just a static
+   image … something a live preview or live photo as apple has it effect, when I first time scroll into it"). A stack with cfg.live
+   { base, src ('{w}'), type, sizes } (NEOFILM_LIVE) has a short MUTED clip whose frame 0 IS its poster (brew/neofilm/neofilm.py
+   --only live: the poster's frame on, 1.5 s — a Live Photo's motion after its key photo). It plays ONCE, the first time the card is
+   LIVE.at of its width on screen for LIVE.dwell ms (rowWrite() → liveSync(): the row's place, no DOM reads), at HOME, nothing open, as
+   Apple's HINT playback (LivePhotosKit JS 1.x's HINT recipe, read 2026-10-09): the motion from the key photo on, zoomed ×1.075 (eased
+   in over .15 s) while the photo goes in .06 s (the same frame: unseen); at the motion's end a .75 s RETURN — its last frame blurs
+   0 → 7.5 px as the photo comes back over it from 7.5 px to sharp, both settling 1.075 → 1. Apple's tween: .5 − .5 cos πt. Blur in
+   screen px at HOME (× G.S in the card's px: a card is laid out at the open box). DOM (the .live CSS): the poster's copy UNDER the
+   motion — the motion fading out over a still photo = Apple's photo fading in over a still motion (both opaque), and the copy is
+   on screen under it all along. Its file: the smallest of sizes ≥ LIVE.pick × the HOME window's device px × the zoom, set when the
+   card comes within a viewport of the screen (~150 KB). A zoom in during it finishes it early (the return from where it is, as
+   Apple's beginFinishingPlaybackEarly); before it, calls it off. Reduced motion: never. ?live=0 off · ?live=again on every entry
+   (tuning) · ?livezoom= ?liveblur= ?liveat= */
+const LIVE = { on: pageQuery.get('live') !== '0' && !pageQuery.has('film'), again: pageQuery.get('live') === 'again',
+               at: .6, dwell: 150, zoom: 1.075, blur: 7.5, inMs: 60, scaleMs: 150, outMs: 750, pick: .9, within: 10000,
+               rm: matchMedia('(prefers-reduced-motion: reduce)') };
+{ const q = (k, f, lo, hi) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LIVE[f] = clamp(v, lo, hi); };
+  q('livezoom', 'zoom', 1, 1.3); q('liveblur', 'blur', 0, 30); q('liveat', 'at', .05, 1); }
+const liveTween = t => t <= 0 ? 0 : t >= 1 ? 1 : .5 - .5 * Math.cos(t * Math.PI);   // LivePhotosKit's
 let clipKindV = null;                       // 'hevc' | 'h264' — once (canPlayType: a WebKit without HEVC takes the H.264)
 const clipKind = V => clipKindV ||= (() => { const pr = document.createElement('video');
   return (/apple/i.test(navigator.vendor) ? ['hevc', 'h264'] : ['h264']).find(k => V.src[k] && pr.canPlayType(V.type[k])) || 'h264'; })();
@@ -1900,6 +1932,80 @@ if (playSlot) cards[PLAY_CARD].el.appendChild(playBtn);
 if (VID) {                                                   // site: CLIP — over the print's photo window (the .clip CSS); seen from its first frame on
   cards[0].el.appendChild(audio);
   audio.addEventListener('loadeddata', () => { clipFrame = true; songWrite(); }, { once: true });
+}
+let liveSeen = null, liveStop = () => {};                   // site 2026-10-09: the LIVE hint (its note, above makeStack()) — liveSync()'s hook; expand()'s
+if (cfg.live && LIVE.on) {
+  const L = cfg.live, win = VID ? VID.window : [0, 0, 1, 1], host = cards[0].el, im = cards[0].img;
+  const box = host.insertBefore(Object.assign(document.createElement('div'), { className: 'live' }), VID ? audio : null);
+  ['vl', 'vt', 'vw', 'vh'].forEach((k, i) => box.style.setProperty('--' + k, win[i]));
+  box.setAttribute('aria-hidden', 'true');
+  const ph = box.appendChild(Object.assign(document.createElement('img'), { className: 'live-p', alt: '', draggable: false, decoding: 'async' }));
+  const v = box.appendChild(document.createElement('video'));
+  v.className = 'live-v'; v.preload = 'none'; v.muted = v.defaultMuted = true; v.playsInline = true; v.disablePictureInPicture = true;
+  ['muted', 'playsinline', 'disableremoteplayback'].forEach(a => v.setAttribute(a, ''));
+  let ls = 'idle', armed = false, f = 0, t = 0, tW = 0, raf = 0, t0 = 0, tO = 0, sO = 1;   // ls: idle | wait | start | play | out | done
+  const lwr = {}, lput = (el, k, prop, val) => { if (lwr[k] !== val) { lwr[k] = val; el.style[prop] = val; } };
+  const n3 = x => String(Math.round(x * 1000) / 1000);
+  const arm = () => {                       // its file (this window's), loading; the poster's copy (the card's own source: cached)
+    if (armed) return; armed = true;
+    const pic = IMAGES[0], r = pic.w / pic.h, B = G.B || estB();
+    const px = (r >= 1 ? B : B * r) * win[2] / (G.S || 1) * (devicePixelRatio || 1) * LIVE.zoom;
+    const ws = L.sizes.slice().sort((a, b) => a - b);
+    v.src = L.base + L.src[clipKind(L)].replace('{w}', ws.find(w => w >= px * LIVE.pick) || ws[ws.length - 1]);
+    v.preload = 'auto'; v.load();
+    ph.sizes = im.sizes; if (im.srcset) ph.srcset = im.srcset; ph.src = im.getAttribute('src') || srcsetOf(IMAGES[0]).src;
+    ph.decode?.().catch(() => {});
+  };
+  liveSeen = (frac, near) => {
+    f = frac;
+    if (near) arm();
+    if (ls === 'done' && LIVE.again && frac <= 0) ls = 'idle';
+    if (ls === 'idle' && frac >= LIVE.at) { ls = 'wait'; tW = performance.now(); clearTimeout(t); t = setTimeout(go, LIVE.dwell); }
+    else if (ls === 'wait' && frac < LIVE.at) { clearTimeout(t); ls = 'idle'; }
+  };
+  function go() {
+    if (ls !== 'wait') return;
+    if (f < LIVE.at) { ls = 'idle'; return; }
+    if (LIVE.rm.matches) { ls = 'done'; return; }
+    if (document.hidden || state !== 'home' || activeStack || blocked() || v.readyState < 3) {   // a hidden tab, the page elsewhere, its clip still loading: a little later
+      if (performance.now() - tW < LIVE.within) t = setTimeout(go, 200); else ls = 'idle';
+      return;
+    }
+    ls = 'start'; perfMark('live start');
+    if (v.currentTime) v.currentTime = 0;
+    const begin = () => { if (ls !== 'start') return; ls = 'play'; t0 = performance.now(); loop(); };   // its first frame on screen (the poster's)
+    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(begin);
+    v.addEventListener('playing', () => requestAnimationFrame(() => requestAnimationFrame(begin)), { once: true });   // (no rVFC, or it never fires)
+    v.play().catch(() => { if (ls === 'start') ls = 'done'; });
+  }
+  function loop() { cancelAnimationFrame(raf); raf = requestAnimationFrame(now => { step(now); if (ls === 'play' || ls === 'out') loop(); }); }
+  function step(now) {
+    if (ls === 'play') {
+      const e = now - t0; sO = 1 + (LIVE.zoom - 1) * liveTween(e / LIVE.scaleMs);
+      lput(box, 'o', 'opacity', n3(liveTween(e / LIVE.inMs)));
+      lput(v, 'vt', 'transform', `scale(${sO.toFixed(5)})`);
+      if (v.ended) { ls = 'out'; tO = now; }                                  // its last frame held: the RETURN
+    }
+    if (ls === 'out') {
+      const u = liveTween((now - tO) / LIVE.outMs), sc = `scale(${(1 + (sO - 1) * (1 - u)).toFixed(5)})`, b = LIVE.blur * (G.S || 1);
+      lput(box, 'o', 'opacity', '1');
+      lput(v, 'vt', 'transform', sc); lput(v, 'vf', 'filter', u > 0 ? `blur(${(b * u).toFixed(2)}px)` : ''); lput(v, 'vo', 'opacity', n3(1 - u));
+      lput(ph, 'pt', 'transform', sc); lput(ph, 'pf', 'filter', u < 1 ? `blur(${(b * (1 - u)).toFixed(2)}px)` : '');
+      if (u >= 1) end();
+    }
+  }
+  function end() {                          // the copy = the card's image now: the box goes, unseen
+    ls = 'done'; cancelAnimationFrame(raf); v.pause(); perfMark('live end');
+    lput(box, 'o', 'opacity', '0');
+    lput(v, 'vt', 'transform', ''); lput(v, 'vf', 'filter', ''); lput(v, 'vo', 'opacity', '');
+    lput(ph, 'pt', 'transform', ''); lput(ph, 'pf', 'filter', '');
+  }
+  liveStop = () => {                        // expand(): finish early (playing: the return from here) — or call it off
+    if (ls === 'play') { v.pause(); ls = 'out'; tO = performance.now(); loop(); return; }
+    if (ls === 'out' || ls === 'done') return;
+    clearTimeout(t); if (ls === 'start') v.pause();
+    ls = LIVE.again ? 'idle' : 'done';
+  };
 }
 if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site: CAST — in card c, one .cast per other card u (its shadow on c)
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
@@ -2748,6 +2854,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
   if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
+  liveStop();                                                                              // site: the LIVE hint finishes early (its note)
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: this stack takes the page (the zones, the fades), above the other stacks
   for (const s of stacks) if (s !== self) s.letGo();                                       // site: the other stacks let go of their hover (they fade with the row elements)
   if (!move) {
@@ -3205,6 +3312,7 @@ const self = {                              // site: what the page sees of this 
   homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
+  liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
   film, get filmOut() { return film ? film.hideV * p.value : 0; },          // site: FILM — the controller; the neighbours' slide out (rowWrite())
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
   get openDx() { return OPEN_DX; }, set openDx(v) { OPEN_DX = Number.isFinite(+v) ? +v : 0; },   // site 2026-10-06: OPEN_DX for the position lab (poslab.js, ?pos) — a layoutAll() applies it
@@ -3819,6 +3927,15 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     pput(hdr, 'hdrO', 'opacity', fo ? String(Math.round((1 - fo) * 1000) / 1000) : '');   // site: FILM — the name leaves with the rest of the page (a tall window keeps it on screen in OPEN)
   }
   ageSync();                                // site: the AGE follows the scroll
+  liveSync();                               // site: the LIVE hint — its card on screen
+}
+/* site 2026-10-09: the LIVE hint's eyes (its note): each live stack's share of the screen at its HOME place (the row's rigid scroll + its
+   lag spring), and near (within a viewport of it: its clip loads) */
+function liveSync() {
+  for (const e of RP.els) if (e.st?.live) {
+    const x = e.cx - RP.S + (e.o || 0), h = e.w / 2, W = RP.W;
+    e.st.liveSeen(Math.max(0, Math.min(x + h, W) - Math.max(x - h, 0)) / e.w, x - h < 2 * W && x + h > -W);
+  }
 }
 /* PERF 2026-09-27 — PARKING (the close's stalls, 45–150 ms as each other row element came back on screen, worse the longer OPEN
    lasted; sampled: the main thread re-decoding their 2000 px JPEG / WebP). A row element that leaves the screen loses its
@@ -4282,12 +4399,13 @@ const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(p
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
+const NEOFILM_LIVE = { base: '../assets/neofilm/', sizes: [1280, 1920], src: { hevc: 'neofilm-live-{w}-wk.mp4', h264: 'neofilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };   // site 2026-10-09: the LIVE hint (its note)
 if (CLIP_PRINT) $('neofilm').dataset.size = '1';
 stacks.push(makeStack($('neofilm'), CLIP_PRINT
   ? { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
-      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP }
+      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE }
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
-      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP,
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE,
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
 /* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
