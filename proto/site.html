@@ -285,6 +285,7 @@
      (display none when there is no neighbour on that side); hit-testable in OPEN only. */
   .nzone { position: absolute; z-index: 100; pointer-events: none; cursor: pointer; left: 0; top: 0; width: 0; height: 0; will-change: transform; }   /* PERF 2026-09-28: ALWAYS in layout, its own (empty) layer, only ever resized — it used to be display: none until OPEN, and showing two positioned z-index 100 nodes over the composited row at the open frame cost Safari 100–125 ms (frame recorder, ?xp=nozones isolated it); the WKWebView never showed it */
   .viewer.open .nzone { pointer-events: auto; }
+  .nzone[data-side="-1"] { cursor: w-resize; } .nzone[data-side="1"] { cursor: e-resize; }   /* 2026-10-09: arrows as the flip zones' (no custom cursor; under html.custom-cursor's none) */
   html.custom-cursor .nzone { cursor: none; }
   html.zones .viewer.open .nzone { outline: 1px solid rgba(52, 199, 89, .85); outline-offset: -1px; }
   /* ?zones=1 (debug): thin outlines of the effective rect (blue) and the two zones (red), in OPEN; the neighbour zones (green) */
@@ -1401,7 +1402,8 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
    delay, and on click it will move the camera there"). In OPEN the row elements left / right of the pile are shifted (per side,
    the whole side as one) so the nearest one's card edge stands `rest` px (680-box px × KV) inside the viewport edge, whatever the
    window; hover = its top two cards slide out by `hover` × its own flip peek, `stagger` ms apart; the hover / click area is its
-   sliver + `pad`. TILT (owner: "peek out must always be with top angle tilted towards on the left side, and the bottom side angled
+   sliver × `zone` + `pad` (owner 2026-10-09: "make the trigger area … more generous and contain arrows not just a pointer. So
+   roughly 2x the sticking out size": zone 1 → 2; over it the cursor disc wears the flip arrow toward that side, cursorSync()). TILT (owner: "peek out must always be with top angle tilted towards on the left side, and the bottom side angled
    out on the right side", then "use right side bottom is protruding"): every peeking pile is turned `tilt` degrees CLOCKWISE —
    on the left its top corner protrudes into the view, on the right its bottom corner — whatever its own HOME tilt (a sleeve's /
    case's REST rot is cancelled), about its drawn centre; `rest` is where its most protruding corner stands (owner: "dont make them
@@ -1409,9 +1411,9 @@ const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
    it. URL knobs ?nrest= ?nhover= ?nstagger= ?npad= ?ntilt=. */
 const SKIP = new Set((pageQuery.get('skip') || '').split(',').filter(Boolean));   // debug (perf A/B, 2026-09-29): ?skip=cast,floor,shade,wrapwc leaves those layers out
 if (SKIP.has('wrapwc')) document.documentElement.classList.add('skip-wrapwc');
-const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4,      // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more")
+const NB = { rest: 29, hover: 1, stagger: 70, pad: 12, tilt: 4, zone: 2,   // rest 24 → 26.4 → 29 (owner 2026-10-08: "make on the sides pics protrude a little more +10%", then "+10 more"); zone: the hover / click area × the sliver (2026-10-09: "roughly 2x")
              nudge: 1, nudgehold: 0, nudgeback: 700 };   // the NUDGE (its note at nbNudgeIn()): + 1 × rest, ridden in by the zoom, back over 700 ms from the landing — no hold (2 s → 1 s → 0: owner 2026-10-08 "cut -1s", then "-1s")
-for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt', 'nudge', 'nudgehold', 'nudgeback']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
+for (const k of ['rest', 'hover', 'stagger', 'pad', 'tilt', 'zone', 'nudge', 'nudgehold', 'nudgeback']) { const v = parseFloat(pageQuery.get('n' + k)); if (Number.isFinite(v) && v >= 0) NB[k] = v; }
 
 /* site: TWO STACKS. makeStack() is the drawings stack's engine as one instance per .wrap in the row: its own images, knobs,
    springs, pile, viewer model, state machine and debug API. ONE for the page: the header, the backdrop, the row elements
@@ -4330,14 +4332,14 @@ function rowPart() {                        // each row element's zoom place fro
 const nzL = $('nzoneL'), nzR = $('nzoneR');
 let nHov = 0;                               // the hovered neighbour: −1 left, +1 right, 0 none
 const nbOf = side => { const d = RP.dPart; return d ? RP.els[d.i + side]?.st || null : null; };
-function placeNZones() {                    // over each neighbour's sliver (+ its hover emergence while hovered), its card height; OPEN only
+function placeNZones() {                    // over each neighbour's sliver × NB.zone (+ its hover emergence while hovered), its card height; OPEN only
   const a = activeStack, d = RP.dPart, on = CAMERA && !!a && a.state === 'open' && !!d && d.s === a;
   for (const z of [nzL, nzR]) {
     const side = +z.dataset.side, n = on ? RP.els[d.i + side] : null;
     if (!n?.st) { if (z.style.cssText) z.style.cssText = ''; continue; }                    // no neighbour on this side: back to its zero size (never display: none — PERF, the .nzone CSS)
     const g = nbEdge(frameOf(a, 1), n, side), sh = side < 0 ? d.L : d.R, pad = NB.pad * PG.KV;   // its tilted inner edge (the corner that shows most)
     const inner = side < 0 ? g.ext + sh : RP.W - (g.ext + sh);
-    const w = Math.max(0, inner) + pad + (nHov === side ? NB.hover * n.st.peekPx : 0) + (RP.nPh ? NB.nudge * NB.rest * PG.KV : 0);   // + the NUDGE's full reach while it plays
+    const w = NB.zone * Math.max(0, inner) + pad + (nHov === side ? NB.hover * n.st.peekPx : 0) + (RP.nPh ? NB.nudge * NB.rest * PG.KV : 0);   // + the NUDGE's full reach while it plays
     const top = Math.max(0, g.top - pad), bot = Math.min(RP.H, g.bot + pad);
     z.style.cssText = `left:${side > 0 ? RP.W - w : 0}px;top:${top}px;width:${w}px;height:${Math.max(0, bot - top)}px`;
   }
@@ -4352,6 +4354,7 @@ function setNHover(side) {
   const n = side ? nbOf(side) : null;
   if (n) n.protrude(-side, NB.hover * n.peekPx * n.zoom.S / frameOf(activeStack, 1).k, NB.stagger);   // its flip peek in viewport px (its cards are at k / S)
   placeNZones();
+  cursorSync();                             // the arrow toward it on the cursor (2026-10-09)
 }
 /* THE CAMERA MOVE (a click on a neighbour): the open stack closes and the neighbour opens on their own master springs, started
    together (so their p stay mirrored: one clock), while the camera pans from the one's open framing to the other's (camera()).
@@ -4538,7 +4541,7 @@ function cursorSync() {
   if (!cursorOn) return;
   const t = cursorIn ? 1 : 0;
   if (cursorVis.target !== t) { cursorVis.set(t); kick(); }
-  const z = activeStack && activeStack.state === 'open' ? activeStack.zone : 0;      // the flip arrow: over a zone in OPEN
+  const z = activeStack && activeStack.state === 'open' ? activeStack.zone || nHov : 0;   // the flip arrow: over a zone in OPEN — or a peeking neighbour's (toward it: the camera goes there)
   if (z) cursorArrowEl.classList.toggle('left', z < 0);                              // the side is kept while it fades out
   if (cursorArrow.target !== (z ? 1 : 0)) { cursorArrow.set(z ? 1 : 0); kick(); }
 }
