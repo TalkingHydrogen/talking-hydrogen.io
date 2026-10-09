@@ -1350,16 +1350,19 @@ const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
    single pic. the right from the macbook" — scrolling in OPEN = the CAMERA's moves, a click on a peeking neighbour, the owner's "when I
    scroll in zoom in mode, click on right and left"): the NEO part of the row — the single pics right of the MacBook (room, shelves,
    sunroom, inspect, the clip) and the polaroids — shares ONE caption, the polaroids' (CAP_GROUPS; the inspect's own copy of the text
-   gives way to it). While the camera moves between two members the text STAYS: pinned to the viewport (no ride, no fade), UNDER the
-   moving piles — both slide over it (owner, the same day: "let the pics slide over the text"; it was over them at first): CAP_GROUP.z
-   −.8 px, below the leaving pile's −.75 (rowWrite(): the riding elements) and the arriving one's 0, above the OPEN cover's −1. Into the group (a zoom from HOME, a
-   move from the MacBook) it fades in as the camera lands (CAP_FADE); out of it (a close, a move to the MacBook or the CD) it fades out
-   from the click, riding the member it leaves (CAP_FADE's out, as before). Every member's open box starts where the owner's front card
-   does (layoutSize(): its OPEN_DX), so the text keeps its interval to whichever is open — centred, they ran into it (at 1440 × 900 the
-   prints' left edge 380 px, the clip's 312, the text's right edge 385). ?capgroup=0 = every pile as before (the inspect's own caption). */
+   gives way to it). While the camera moves between two members the text never fades: it GLIDES, quietly, from its place beside the one
+   to its place beside the other (owner, the same day: "let the text quietly adjust to the pic position not vise versa. Gently moving
+   during the pic change" — at first the pics moved, every open box on the polaroids' left edge, so that the text could stay still): the
+   camera's u through a smoothstep (capGroupDx()), so it sets off after the pics and lands with them. Its place beside a pic = where that
+   pic's own caption would sit — the band left of its open box, split as every caption's (capDx()): at 1440 × 900 the polaroids' x 235,
+   the prints' 149, the clip's 105. UNDER the moving piles — both slide over it (owner: "let the pics slide over the text"; it was over
+   them at first): CAP_GROUP.z −.8 px, below the leaving pile's −.75 (rowWrite(): the riding elements) and the arriving one's 0, above
+   the OPEN cover's −1. Into the group (a zoom from HOME, a move from the MacBook) it fades in as the camera lands (CAP_FADE); out of it
+   (a close, a move to the MacBook or the CD) it fades out from the click, riding the member it leaves (CAP_FADE's out, as before).
+   ?capgroup=0 = every pile as before (the inspect's own caption). */
 const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 -.8px' };
 const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'polaroids'] } } : {};
-function capGroup(g) {                      // its state now: on (seen), held (a camera move inside the group: pinned), ride (the member whose zoom it rides)
+function capGroup(g) {                      // its state now: on (seen), held (a camera move inside the group: no ride, it glides — capGroupDx()), ride (the member whose zoom it rides)
   const m = RP.move, a = activeStack, inG = s => !!s && s.capGroup === g;
   if (m && inG(m.from) && inG(m.to)) return { on: true, held: true, ride: null };
   if (inG(a)) return { on: (a.state === 'zoom' || a.state === 'open') && a.progress >= CAP_FADE.at, held: false, ride: a };
@@ -1367,6 +1370,11 @@ function capGroup(g) {                      // its state now: on (seen), held (a
   return { on: false, held: false, ride: null };
 }
 const capOwner = g => stacks.find(s => s.name === CAP_GROUPS[g].owner);
+function capGroupDx(s, g) {                 // the group's type offset now (owner s's capDx()): beside the open member, or on its way between two
+  if (!g.held) return g.ride ? s.capDx(g.ride) : 0;
+  const u = clamp(RP.move.to.progress, 0, 1), k = u * u * (3 - 2 * u);                   // smoothstep of the camera's u: it sets off after the pics, lands with them
+  return mix(s.capDx(RP.move.from), s.capDx(RP.move.to), k);
+}
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
 const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
@@ -1731,8 +1739,8 @@ const mediaOn = () => audio ? !audio.paused : filmOn;
 function syncPlay() { if (!playBtn) return; const on = mediaOn(); playBtn.classList.toggle('playing', on); playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
 /* site: its caption (the .caption CSS): page space, in the viewer; the lines, then the credits */
 const CAPG = Object.keys(CAP_GROUPS).find(g => CAP_GROUPS[g].members.includes(cfg.name)) || null;   // site 2026-10-09: its CAPTION GROUP (the note at CAP_GROUP)
-const ALIGN = CAPG && CAP_GROUPS[CAPG].owner !== cfg.name ? CAP_GROUPS[CAPG].owner : null;   // … a member's open box starts where the owner's does (layoutSize())
-const capEl = cfg.caption && !ALIGN ? document.createElement('div') : null;   // (a member's own copy of the owner's text gives way to it: the inspect's)
+const CAPM = !!CAPG && CAP_GROUPS[CAPG].owner !== cfg.name;                              // … a member, not its owner: it shows the owner's caption
+const capEl = cfg.caption && !CAPM ? document.createElement('div') : null;   // (a member's own copy of the owner's text gives way to it: the inspect's)
 if (capEl) {
   capEl.className = 'caption';
   const inner = document.createElement('div'); capEl.appendChild(inner);
@@ -1894,6 +1902,18 @@ function capRender(gc) {                    // site 2026-10-09: a CAPTION GROUP'
   put(capEl, 'cpO', 'opacity', gc.on ? '1' : '0');
   put(capEl, 'cpV', 'visibility', gc.held || !!gc.ride && gc.ride.state !== 'home' ? 'visible' : 'hidden');
   put(capEl, 'cpZ', 'translate', gc.held ? CAP_GROUP.z : '');                              // under both moving piles while it is held (the leaving one rides at −.75)
+}
+let capGeo = null;                          // site 2026-10-09: a CAPTION GROUP owner's band (capMeasure(), layoutMeasure()): its type's width, the split's grows and bases
+function capMeasure() {                     // the .caption CSS: ::before | the type (w) | ::after in the band, so its x = before's basis + max(0, band − w − bases) · a / (a + b)
+  const Bf = getComputedStyle(capEl, '::before'), Af = getComputedStyle(capEl, '::after');
+  capGeo = { w: capEl.firstElementChild.offsetWidth, a: parseFloat(Bf.flexGrow) || 0, b: parseFloat(Af.flexGrow) || 0,
+             pa: parseFloat(Bf.flexBasis) || 0, pb: parseFloat(Af.flexBasis) || 0, edge: cfg.caption.edge || 0 };
+}
+function capDx(st) {                        // where the type sits beside member st's open box (its own caption's place) − where it is laid out (this stack's band)
+  const g = capGeo, e = st?.eff, o = G.eff;
+  if (!g || !e || !o || st === self) return 0;
+  const x = band => g.pa + Math.max(0, band - g.w - g.pa - g.pb) * (g.a + g.b > 0 ? g.a / (g.a + g.b) : 0);
+  return x(e.left + g.edge * e.width) - x(o.left + g.edge * o.width);
 }
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 /* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
@@ -2456,13 +2476,7 @@ function filmCtl(F) {
 let OPEN_DX = cfg.openDx || 0;                             // let: the position lab sets it (poslab.js, ?pos; the stack's openDx)
 function layoutSize() {
   Object.assign(G, PG);                                      // the page geometry (pageLayout())
-  if (cfg.openB) { G.B = cfg.openB(G.W, G.H); G.K = G.B / STACK.refBox; G.KV = G.B / FLIP.refBox; }
-  const AL = ALIGN && stacks.find(s => s.name === ALIGN)?.eff;                               // site 2026-10-09: a CAPTION GROUP's member opens with its left edge on the owner's (laid out before it: the stacks' order) —
-  if (AL) {                                                                                   // … and fits between there and the right neighbour's peek, its play button and a button gap included: else smaller (the clip at ≤ 1440 × 900)
-    const a0 = effAspect(effRatios(cards.map(c => c.pic))), w0 = a0 >= 1 ? G.B : G.B * a0;
-    const room = G.W - AL.left - (NB.rest + PLAY.gap) * PG.KV - (playBtn ? (PLAY.gap + PLAY.d) * PG.KV : 0);
-    if (room > 0 && w0 > room) { G.B *= room / w0; G.K = G.B / STACK.refBox; G.KV = G.B / FLIP.refBox; }
-  }   // site 2026-09-30: its own open box (the MACBOOK: the FILM's frame)
+  if (cfg.openB) { G.B = cfg.openB(G.W, G.H); G.K = G.B / STACK.refBox; G.KV = G.B / FLIP.refBox; }   // site 2026-09-30: its own open box (the MACBOOK: the FILM's frame)
   const B = G.B, KB = G.K, KV = G.KV, W = G.W, H = G.H;
   const bRest = G.bRest = G.TH * SIZE;                       // rest stack box (square): side = home-row height (× data-size), bottom = row bottom
   box.style.width = box.style.height = bRest + 'px';
@@ -2473,7 +2487,6 @@ function layoutSize() {
   // ghost). site: the zone nodes are the page's: written by the stack that owns them (placeZones: the active one; the
   // primary at rest)
   const ea = effAspect(effRatios(cards.map(c => c.pic))), ew = ea >= 1 ? B : B * ea, eh = ea >= 1 ? B / ea : B;
-  if (AL) OPEN_DX = (AL.left - (W - ew) / 2) / W;                                            // site 2026-10-09: the CAPTION GROUP's alignment (AL, above)
   const eff = G.eff = { left: (W - ew) / 2 + OPEN_DX * W, top: (H - eh) / 2, width: ew, height: eh, aspect: ea };   // site: OPEN_DX
   const px = ew * FLIP.zonePad, py = eh * FLIP.zonePad;                                        // the hitbox padding (FLIP.zonePad each way)
   const wL = ew * FLIP.zoneL + 2 * px, wR = ew * (1 - FLIP.zoneR) + 2 * px, zt = eff.top - py, zh = eh + 2 * py;
@@ -2515,6 +2528,7 @@ function layoutMeasure() {
   G.iy = gr.bottom - br.bottom;                            // > 0 here: the viewer box ends below the content bottom (no y ≤ 0 clamp)
   targets();
   arrange();                                               // the slot poses, the card sizes, clips and shadows depend on B, K and S
+  if (CAPG && capEl) capMeasure();                         // site 2026-10-09: the CAPTION GROUP's band (capDx())
   render();
 }
 const ownsZones = () => activeStack ? activeStack === self : !!cfg.primary;
@@ -3488,7 +3502,7 @@ const self = {                              // site: what the page sees of this 
   active, step, idle, size: layoutSize, measure: layoutMeasure, placeZones, boot, render,
   expand, collapse, flip, zoneAt, setVHover, hoverTo, setKnob, setNudge,   // setKnob / setNudge: debug (window.__stacks)
   prime, unprime,                                                          // PERF: the click's costly work on the press (the page's pointerdown / pointerup)
-  capGroup: CAPG, capOut, capRender,                                        // site 2026-10-09: the CAPTION GROUP (capGroup(), renderPage(), closeNow())
+  capGroup: CAPG, capOut, capRender, capDx,                                        // site 2026-10-09: the CAPTION GROUP (capGroup(), renderPage(), closeNow())
   audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (the sleeve's; the MACBOOK's cfg.play button too); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
@@ -3984,7 +3998,7 @@ function camera() {
 }
 /* a stack's CAPTION, printed on the table (the .caption CSS): its pile's row slot (as written) ∘ its zoom at p ∘ its zoom at 1⁻¹, as
    one viewport matrix about the viewport origin — the identity when the pile is open */
-function capWrite(e, park, cs = e.st) {     // site 2026-10-09: cs = whose caption; e = the row element whose map it rides (a CAPTION GROUP's: its member's, or null: pinned)
+function capWrite(e, park, own = e.st, dx = 0) {   // site 2026-10-09: own = whose caption; e = the row element whose map it rides (a CAPTION GROUP's: its member's, or null: none); dx = its type's offset in its band (capGroupDx())
   const st = e ? e.st : null, p = st ? st.progress : 0; let v = '';
   if (p > 0 && !park) {
     const M = frameOf(st, p), F = frameOf(st, 1), q = M.k / F.k, a = e.rot * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a), kq = e.k * q;
@@ -3993,7 +4007,8 @@ function capWrite(e, park, cs = e.st) {     // site 2026-10-09: cs = whose capti
     if (Math.abs(kq * cs - 1) > 1e-6 || Math.abs(kq * sn) > 1e-6 || Math.abs(mx) > .005 || Math.abs(my) > .005)
       v = `matrix(${(kq * cs).toFixed(6)}, ${(kq * sn).toFixed(6)}, ${(-kq * sn).toFixed(6)}, ${(kq * cs).toFixed(6)}, ${mx.toFixed(2)}, ${my.toFixed(2)})`;
   }
-  if (cs.capEl._tf !== v) { cs.capEl._tf = v; cs.capEl.style.transform = v; }
+  if (Math.abs(dx) > .005) v = (v ? v + ' ' : '') + `translateX(${dx.toFixed(2)}px)`;    // the offset first (in its band), then the ride
+  if (own.capEl._tf !== v) { own.capEl._tf = v; own.capEl.style.transform = v; }
 }
 /* the NEIGHBOUR PEEK's side shifts of stack s's open framing: the x added to every row element left (L) / right (R) of it, so the
    nearest one's card edge (homeBox(): its cards only, no shadow) stands NB.rest × KV inside the viewport edge */
@@ -4107,9 +4122,9 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     if (CAMERA && CAP_RIDE && e.st?.capEl && !e.st.capGroup) capWrite(e, park);
     if (!!e.pk !== park) { e.pk = park; perfMark((park ? 'park ' : 'unpark ') + (e.el.id || 'tile')); }
   }
-  if (CAMERA && CAP_RIDE) for (const s of stacks) if (s.capEl && s.capGroup) {               // site 2026-10-09: a CAPTION GROUP's caption — its member's map, pinned while held (capGroup())
-    const g = capGroup(s.capGroup), e = g.ride ? elOf(g.ride) : null;
-    capWrite(e, !!e?.pk, s);
+  for (const s of stacks) if (s.capEl && s.capGroup) {                                        // site 2026-10-09: a CAPTION GROUP's caption — its member's map (none while held) + its place beside the member (capGroupDx())
+    const g = capGroup(s.capGroup), e = CAMERA && CAP_RIDE && g.ride ? elOf(g.ride) : null;
+    capWrite(e, !!e?.pk, s, capGroupDx(s, g));
   }
   if (CAMERA) {                                                                               // the name: the camera, about its layer's centre
     const [ox, oy] = RP.hO || [0, 0], id = Math.abs(C.k - 1) < 1e-6 && Math.abs(C.x) < .005 && Math.abs(C.y) < .005;   // the name: the camera, about its layer's centre
