@@ -1350,13 +1350,14 @@ const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
    single pic. the right from the macbook" — scrolling in OPEN = the CAMERA's moves, a click on a peeking neighbour, the owner's "when I
    scroll in zoom in mode, click on right and left"): the NEO part of the row — the single pics right of the MacBook (room, shelves,
    sunroom, inspect, the clip) and the polaroids — shares ONE caption, the polaroids' (CAP_GROUPS; the inspect's own copy of the text
-   gives way to it). While the camera moves between two members the text STAYS: pinned to the viewport (no ride, no fade), over the
-   moving piles (CAP_GROUP.z — the arriving one would slide over it, the leaving one under it). Into the group (a zoom from HOME, a
+   gives way to it). While the camera moves between two members the text STAYS: pinned to the viewport (no ride, no fade), UNDER the
+   moving piles — both slide over it (owner, the same day: "let the pics slide over the text"; it was over them at first): CAP_GROUP.z
+   −.8 px, below the leaving pile's −.75 (rowWrite(): the riding elements) and the arriving one's 0, above the OPEN cover's −1. Into the group (a zoom from HOME, a
    move from the MacBook) it fades in as the camera lands (CAP_FADE); out of it (a close, a move to the MacBook or the CD) it fades out
    from the click, riding the member it leaves (CAP_FADE's out, as before). Every member's open box starts where the owner's front card
    does (layoutSize(): its OPEN_DX), so the text keeps its interval to whichever is open — centred, they ran into it (at 1440 × 900 the
    prints' left edge 380 px, the clip's 312, the text's right edge 385). ?capgroup=0 = every pile as before (the inspect's own caption). */
-const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 .5px' };
+const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 -.8px' };
 const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'polaroids'] } } : {};
 function capGroup(g) {                      // its state now: on (seen), held (a camera move inside the group: pinned), ride (the member whose zoom it rides)
   const m = RP.move, a = activeStack, inG = s => !!s && s.capGroup === g;
@@ -1892,7 +1893,7 @@ function capRender(gc) {                    // site 2026-10-09: a CAPTION GROUP'
   put(capEl, 'cpT', 'transition', gc.on ? capIn : into ? 'none' : CAP_FADE.out);
   put(capEl, 'cpO', 'opacity', gc.on ? '1' : '0');
   put(capEl, 'cpV', 'visibility', gc.held || !!gc.ride && gc.ride.state !== 'home' ? 'visible' : 'hidden');
-  put(capEl, 'cpZ', 'translate', gc.held ? CAP_GROUP.z : '');                              // over the moving piles while it is held
+  put(capEl, 'cpZ', 'translate', gc.held ? CAP_GROUP.z : '');                              // under both moving piles while it is held (the leaving one rides at −.75)
 }
 const floorEl = FLOOR ? cardsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'floor' }), cardsEl.firstChild) : null;   // site: FLOOR
 /* PERF 2026-09-28: a shade is a <div> the card's size with a border-radius and a box-shadow (setShade()). It was an inline SVG — the
