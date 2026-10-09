@@ -1488,6 +1488,18 @@ const LID = { open: 1, close: 1, pick: .9 };   // open / close: × the clip's pa
    it takes the lid from the pose on screen (to()); the hint ends closed on its own. ?lidhint=0: off · ?hintat=MS: the delay. */
 const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'), delay: 800, within: 10000, rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('hintat')); if (Number.isFinite(v)) LID_HINT.delay = clamp(v, 0, 20000); }
+/* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
+   affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. Once it
+   has landed from a zoom in (not a camera move's arrival — the owner's rule for the neighbour nudge: "Only on zoom in"), after `delay`
+   (the lid's 800 ms: the neighbours' nudge is back by then) the take's own start (the hover teaser's motion: the hand's first lift)
+   plays up to `scale` × the hover teaser's turn (4° → 6.4°: the lid's hint rose 1.6 × its hover crack), holds and settles back —
+   up .65 s · hold .15 s · down .6 s, smoothstep each way (the lid hint's timing). Not on its back, not mid-turn, not under a hover
+   (the teaser shows already), never again once the visitor has turned it this visit (they know); a hover or a click takes over from
+   where it is (makeTurn(): T.autoHint). Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
+const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: 1.6, delay: 800, up: .65, hold: .15, down: .6,
+                    rm: matchMedia('(prefers-reduced-motion: reduce)') };
+{ const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
+  const d = parseFloat(pageQuery.get('turnhintat')); if (Number.isFinite(d)) TURN_HINT.delay = clamp(d, 0, 5000); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
   const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
@@ -2249,6 +2261,7 @@ function makeTurn(FR, take, tuning) {
      back turns back over on its own as the page zooms out (the same take, the same edge, at its own pace: it lands at HOME);
      mid-turn, it goes on to land first, then turns back (homing). expand() cancels a pending homing (the print stays as seen). */
   T.home = () => {
+    T.stopAuto();                                                           // site 2026-10-09: the ZOOM-IN HINT ends with the close (the spring takes it back)
     if (T.playing) { T.homing = true; return; }
     if (T.from === 'back') T.start(T.side);
   };
@@ -2260,14 +2273,32 @@ function makeTurn(FR, take, tuning) {
     if (T.playing) return;
     const h = T.hint;
     if (side === h.want) return;
+    T.stopAuto();                                                           // site 2026-10-09: a band's hover takes over the ZOOM-IN HINT from where it is
     h.want = side;
     if (side && (h.side === side || h.t < 1e-3)) { h.side = side; h.target = T.tHint; }
     else h.target = 0;
     T.dirty = true; kick();
   };
-  T.hinting = () => T.hint.t > 0 || T.hint.target > 0 || T.hint.v !== 0;
+  T.hinting = () => !!T.auto || T.hint.t > 0 || T.hint.target > 0 || T.hint.v !== 0;
+  /* the ZOOM-IN HINT (TURN_HINT): armed by enterOpen() after a zoom in; drives the teaser's take time along the lid hint's envelope */
+  T.auto = null; T.autoT = 0; T.turned = false;
+  T.autoHint = () => {
+    if (!TURN_HINT.on || TURN_HINT.rm.matches || T.turned || T.playing || T.from !== 'front' || T.hint.want) return;
+    clearTimeout(T.autoT);
+    T.autoT = setTimeout(() => {
+      T.autoT = 0;
+      if (state !== 'open' || T.turned || T.playing || T.from !== 'front' || T.hint.want || T.hint.t > 0) return;
+      T.auto = { t0: performance.now(), tH: FR.hintTime(take, TURN_HINT.deg ?? TURN_HINT.scale * k.hint), side: take.side };
+      perfMark('turn hint'); T.dirty = true; kick();
+    }, TURN_HINT.delay);
+  };
+  T.stopAuto = () => {                                                      // off, from where it is: the teaser's spring takes it on (back to rest, or to a hover's target)
+    clearTimeout(T.autoT); T.autoT = 0;
+    if (T.auto) { T.auto = null; T.hint.v = 0; T.hint.target = 0; T.dirty = true; kick(); }
+  };
   T.start = side => {
     if (T.playing) return;
+    T.turned = true; clearTimeout(T.autoT); T.autoT = 0; T.auto = null;    // site 2026-10-09: turned once — no more ZOOM-IN HINTs (it continues from the hint's pose, as from the teaser's)
     const h = T.hint, from = h.t > 0 && h.side === side ? h.t : 0;           // continue the teaser's own motion
     T.side = side; T.t = from; T.playing = true; T.dirty = true;
     h.t = 0; h.v = 0; h.target = 0; h.want = 0; h.side = 0;
@@ -2281,6 +2312,17 @@ function makeTurn(FR, take, tuning) {
         if (T.homing) { T.homing = false; if (T.from === 'back') T.start(T.side); }   // landed on its back after the close: back over to the front
       }
       return;
+    }
+    if (T.auto) {                                                                    // site 2026-10-09: the ZOOM-IN HINT — up · hold · down (TURN_HINT), the take's start
+      if (state !== 'open') T.stopAuto();
+      else {
+        const A = T.auto, s = (performance.now() - A.t0) / 1000, U = TURN_HINT.up, Hd = TURN_HINT.hold, Dn = TURN_HINT.down;
+        const ez = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x), g = T.hint;
+        g.side = A.side; g.v = 0; g.target = 0; T.dirty = true;
+        g.t = A.tH * (s < U ? ez(s / U) : s < U + Hd ? 1 : ez(1 - (s - U - Hd) / Dn));
+        if (s >= U + Hd + Dn) { T.auto = null; g.t = 0; g.side = 0; }
+        return;
+      }
     }
     const h = T.hint;
     if (state !== 'open' && h.want) { h.want = 0; h.target = 0; }                   // the teaser only lives in OPEN
@@ -3131,6 +3173,7 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   if (lastX >= 0) setVHover(zoneAt(lastX, lastY) || 0);
   placeNZones();                                                                           // site: the CAMERA's neighbour zones
   nbNudgeLand();                                                                           // site 2026-10-08: the NEIGHBOUR NUDGE — landed protruding: the hold starts
+  if (TURN && !moved) TURN.autoHint();                                                     // site 2026-10-09: the TURN's ZOOM-IN HINT (TURN_HINT) — a zoom in only, not a camera move's arrival
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
