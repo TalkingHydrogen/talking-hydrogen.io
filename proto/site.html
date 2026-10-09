@@ -2777,7 +2777,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
   else if (playBtn) { filmOn = false; syncPlay(); }                                        // site: the MACBOOK's button opens showing play (nothing runs until it is pressed)
   if (film) { film.kill(); film.arm(); }                                                   // site: FILM — its file for this window, its first frame ready (a B still up fades)
-  nbNudgeIn();                                                                             // site 2026-10-08: the NEIGHBOUR NUDGE — the neighbours ride in protruding
+  if (move) nbNudgeMove(); else nbNudgeIn();                                               // site 2026-10-08: the NEIGHBOUR NUDGE — a zoom from HOME rides the neighbours in protruding; a CAMERA move does not
 }
 /* PERF 2026-09-27: the click's costly work, moved to the PRESS (pointerdown on this stack at HOME; the click is its pointerup):
    the viewer clips (setLayout re-rasters the preview cards, ~30 ms on the drawings: sub-pixel at rest scale, as expand()
@@ -3420,7 +3420,7 @@ function renderPage() {
     pput(hdr, 'hdrT', 'transform', `scale(${1 - (1 - ZOOM.desktop.headerScale) * hh})`);
   }
   if (RP.part && RP.part !== activeStack && RP.part.progress === 0) RP.part = null;        // site: PARTING, until the close's p is exactly home
-  if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) RP.move = null;  // site: a CAMERA move is over when both piles are exactly at their ends
+  if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) { RP.move = null; RP.nvFrom = 0; }   // site: a CAMERA move is over when both piles are exactly at their ends (the NUDGE it carried is gone)
   const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV());   // RP.nv: the NUDGE, once a frame
   if (ck !== RP.pv) rowWrite();                                                            // … the other row elements ride the zoom (the CAMERA / PARTING)
   for (const t of tiles) { const th = t.h.value.toFixed(4); if (t._h !== th) { t._h = th; t.style.setProperty('--h', th); } }   // site: the row elements' hover
@@ -3740,8 +3740,9 @@ const tiltOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return
    protruding amount, then retracts"): the zoom IN carries both sides' neighbours to their rest peek + NB.nudge × it (1: the sliver
    doubles) — RP.nv = 1 from the zoom's first frame (expand(): a click's zoom and a CAMERA move's arrival), so they ride in already
    protruding (× p, as the rest shift); from the landing (enterOpen()) it holds NB.nudgehold ms, then goes back over NB.nudgeback ms
-   (ease-in-out). A close takes it down with the zoom (× p) and ends it at HOME; a camera move hands it over (the old sides × (1 − u),
-   the new × u). While it is out the neighbour zones reach its full width (placeNZones()), so a click on what sticks out moves the
+   (ease-in-out). A close takes it down with the zoom (× p) and ends it at HOME. Only a zoom from HOME nudges (owner 2026-10-09: "when
+   I scroll in zoom in mode, click on right and left, when its on the new pic it shouldnt animate that affordance. Only on zoom in"): a
+   CAMERA move doesn't, and a nudge still out when one starts stays with the leaving framing, × (1 − u) (nbNudgeMove()). While it is out the neighbour zones reach its full width (placeNZones()), so a click on what sticks out moves the
    camera there instead of closing. Translate only; the hold needs no frames (a timer wakes the loop for the way back).
    ?nnudge=0: none · ?nnudge= ?nnudgehold= ?nnudgeback= to try others. */
 function nbNudgeIn() { if (!CAMERA || !(NB.nudge > 0)) return; clearTimeout(RP.ntT); RP.nPh = 'in'; perfMark('nudge in'); }
@@ -3752,6 +3753,7 @@ function nbNudgeLand() {
   placeNZones();
 }
 function nbNudgeOff() { clearTimeout(RP.ntT); if (RP.nPh) { RP.nPh = null; placeNZones(); } }
+function nbNudgeMove() { RP.nvFrom = RP.nv || 0; clearTimeout(RP.ntT); RP.nPh = null; }   // a CAMERA move: the nudge's value at the click leaves with the old framing; nothing for the new
 const nudgeRun = () => RP.nPh === 'hold' && performance.now() >= RP.nb0;   // frames only for the way back (the zoom has its own)
 function nudgeV() {
   if (!RP.nPh) return 0;
@@ -3760,7 +3762,8 @@ function nudgeV() {
   if (b < 1) return Math.round((1 - (b < .5 ? 4 * b ** 3 : 1 - (2 - 2 * b) ** 3 / 2)) * 1e4) / 1e4;
   RP.nPh = null; placeNZones(); return 0;                                  // over: the zones back to the rest sliver
 }
-const nudgeOf = (d, e) => { const j = RP.els.indexOf(e); return !RP.nv || !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * RP.nv * NB.nudge * NB.rest * PG.KV; };   // the whole side, inward
+const nudgeDir = (d, e) => { const j = RP.els.indexOf(e); return !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * NB.nudge * NB.rest * PG.KV; };   // the whole side, inward
+const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
@@ -3780,7 +3783,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
       const st = e.st, ps = st ? st.progress : 0, mover = !!st && (st === RP.part || (!!m && st === m.from));
       // the camera ∘ its own zoom⁻¹ (scale kk), + its side's shift; its tilt turns it about its DRAWN centre (where its own zoom put it)
       const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e))
-              + (m ? (1 - u) * nudgeOf(RP.dFrom, e) + u * nudgeOf(RP.dPart, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward
+              + (m ? (1 - u) * (RP.nvFrom || 0) * nudgeDir(RP.dFrom, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward (a move: only the leaving framing's, fading)
               + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * W : 0);   // site: FILM — out of the film's way
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
       const yh = RP.rowTop + e.cy, X = C.k * xh + C.x + d, Y = C.k * yh + C.y;              // its centre on screen
