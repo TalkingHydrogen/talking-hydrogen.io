@@ -185,6 +185,13 @@
   .card .live > img.live-p { left: calc(-100% * var(--vl) / var(--vw)); top: calc(-100% * var(--vt) / var(--vh));   /* the card's image whole, its window on the box (a print: the paper outside, clipped) */
                 width: calc(100% / var(--vw)); height: calc(100% / var(--vh));
                 transform-origin: calc(100% * (var(--vl) + var(--vw) / 2)) calc(100% * (var(--vt) + var(--vh) / 2)); }
+  /* site 2026-10-09: SCROLL IS TIME (the SCRUB note): its two frames over the poster, under the clip — the photo window plus the clip's
+     1 px overscan (--vo): the poster under them is another frame (the cover), so its edge pixels must not show past theirs */
+  .card .scrub { --vo: 1px; position: absolute; left: calc(100% * var(--vl) - var(--vo)); top: calc(100% * var(--vt) - var(--vo));
+                 width: calc(100% * var(--vw) + 2 * var(--vo)); height: calc(100% * var(--vh) + 2 * var(--vo));
+                 z-index: 2; pointer-events: none; opacity: 0; }
+  .card .scrub > video { position: absolute; left: 0; top: 0; display: block; width: 100%; height: 100%; object-fit: fill; }
+  .card .scrub > video + video { opacity: 0; }   /* the upper one: its opacity = the FRAME MIX's fraction (the SCRUB note) */
   /* site 2026-09-30: the MACBOOK's FILM (the FILM note): the B film, IN the row's 3D context at −.875 px — over the OPEN cover (−1),
      under the other row elements (−.75 while the cover is up) and the open pile (0: the card and its play button) — laid out at
      the film's own 3840 × 2160 px and mapped onto the viewport by one matrix (filmWrite()) that puts its laptop on the card's.
@@ -1628,12 +1635,33 @@ const CLIP = { pick: .9 };
    (~210 KB). A zoom in during it finishes it early (the out from where it is, never before the in has run: Apple's
    beginFinishingPlaybackEarly); before it, calls it off. Reduced motion: never. ?live=0 off · ?live=again the scroll-in on every
    entry (tuning) · ?livezoom= ?liveblur= ?liveat= ?livehover= (ms of intent) */
-const LIVE = { on: pageQuery.get('live') !== '0' && !pageQuery.has('film'), again: pageQuery.get('live') === 'again',
+const LIVE = { on: pageQuery.get('live') !== '0' && !pageQuery.has('film') && pageQuery.get('cue') !== 'scroll', again: pageQuery.get('live') === 'again',
                at: .6, dwell: 150, hoverMs: 100, zoom: 1.075, blur: 5, inMs: 1000 / 3, beginMs: 150, outMs: 500, pick: .9, within: 10000,   // Apple's FULL recipe
                rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const q = (k, f, lo, hi) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LIVE[f] = clamp(v, lo, hi); };
   q('livezoom', 'zoom', 1, 1.3); q('liveblur', 'blur', 0, 30); q('liveat', 'at', .05, 1); q('livehover', 'hoverMs', 0, 1000); }
 const liveTween = t => t <= 0 ? 0 : t >= 1 ? 1 : .5 - .5 * Math.cos(t * Math.PI);   // LivePhotosKit's
+/* site 2026-10-09 — SCROLL IS TIME (owner, after the affordance talk — a video's tell with nothing added: "lets try scroll is time").
+   ?cue=scroll only: without it the page is untouched (the LIVE hint as before); with it the LIVE hint is off. A stack with cfg.scrub
+   { base, src ('{w}'), type, sizes, first, last, pin, fps } (NEOFILM_SCRUB) ties its film's TIME to its PLACE in the row: the card's
+   HOME centre on screen x (the row's scroll + its lag spring, as drawn — the CAMERA and PARTING never move it, so its own zoom or a
+   neighbour's holds the frame) against the screen's: u = (x − W/2) / (W/2 + w/2), +1 = its left edge on the screen's right edge
+   (arriving), 0 = centred, −1 = its right edge on the left edge (leaving). Frame = pin − u (pin − first) arriving, pin − u (last − pin)
+   leaving: the row moves, the film moves with it — backwards when it goes back; the row stops, the film stops. The cover (pin 154, the
+   owner's still) is the centred frame; arriving, the film runs from the outdoor shot's first frame (57: the camera swinging round the
+   robot, the man walking in from ~119) to the cover; leaving, on to 251 (the same rate both sides: 97 frames). Its file: frames
+   first … last ALL-INTRA (brew/neofilm/neofilm.py --only scrub: every frame a keyframe, so a seek decodes one frame — in a long GOP
+   it decodes from the last keyframe: the lid clips' 50–130 ms holds), fetched whole as a blob (no seek ever waits on the network) 1.2 s
+   after the page or once the card is within two viewports, its two players set up only while the row rests (a ~150 ms main-thread
+   hitch in WebKit, measured), the CLIP's two kinds (WebKit's graded HEVC, the rest H.264). FRAME MIX (After Effects' Frame
+   Mix): two <video>s over the poster, the lower at frame n, the upper at n + 1 with the fraction for its opacity — a 24 fps film over
+   ~1000 px of travel is a frame per ~10 px, one picture alone would step through a fling's slow tail. Each seeks one frame at a time
+   (the next waits until the last is on screen), leapfrogging: whichever is hidden at the moment takes the next frame. At rest the time
+   eases onto the nearest whole frame (settleTau): no double image left standing. Reduced motion: never (the cover). ?scrubblend=0 no
+   frame mix (the nearest frame) · ?scrubpin= the centred frame · ?scrubx= where the centre is (0 … 1, .5) · ?scrubfrom= ?scrubto= a
+   narrower span than the file's */
+const SCRUB = { on: pageQuery.get('cue') === 'scroll' && !pageQuery.has('film'), blend: pageQuery.get('scrubblend') !== '0',
+                pick: .9, restMs: 90, settleTau: 60, rm: matchMedia('(prefers-reduced-motion: reduce)') };
 let clipKindV = null;                       // 'hevc' | 'h264' — once (canPlayType: a WebKit without HEVC takes the H.264)
 const clipKind = V => clipKindV ||= (() => { const pr = document.createElement('video');
   return (/apple/i.test(navigator.vendor) ? ['hevc', 'h264'] : ['h264']).find(k => V.src[k] && pr.canPlayType(V.type[k])) || 'h264'; })();
@@ -2026,6 +2054,98 @@ if (cfg.live && LIVE.on) {
     finish(); clearTimeout(hT); hov = false; hovOk = false;
     if (seen === 'wait') { clearTimeout(t); seen = LIVE.again ? 'idle' : 'done'; }
   };
+}
+let scrubAt = null, scrubInfo = () => null;   // site 2026-10-09: SCROLL IS TIME (its note, above makeStack()) — rowWrite()'s hook; the probes' view
+if (cfg.scrub && SCRUB.on) {
+  const Sc = cfg.scrub, win = VID ? VID.window : [0, 0, 1, 1], host = cards[0].el, FPS = Sc.fps || 24;
+  const num = (k, d) => { const v = parseFloat(pageQuery.get(k)); return Number.isFinite(v) ? v : d; };
+  const pin = clamp(Math.round(num('scrubpin', Sc.pin)), Sc.first, Sc.last);
+  const lo = clamp(Math.round(num('scrubfrom', Sc.first)), Sc.first, pin), hi = clamp(Math.round(num('scrubto', Sc.last)), pin, Sc.last);
+  const cx = clamp(num('scrubx', .5), 0, 1);
+  const box = host.insertBefore(Object.assign(document.createElement('div'), { className: 'scrub' }), VID ? audio : null);
+  ['vl', 'vt', 'vw', 'vh'].forEach((k, i) => box.style.setProperty('--' + k, win[i]));
+  box.setAttribute('aria-hidden', 'true');
+  const L = [0, 1].map(() => {              // L[0] under (whole), L[1] over (its opacity = the mix): the FRAME MIX
+    const v = box.appendChild(document.createElement('video'));
+    v.preload = 'none'; v.muted = v.defaultMuted = true; v.playsInline = true; v.disablePictureInPicture = true;
+    ['muted', 'playsinline', 'disableremoteplayback'].forEach(a => v.setAttribute(a, ''));
+    const l = { v, ok: false, want: null, have: null, pend: null, busy: false, tB: 0 };
+    v.addEventListener('loadeddata', () => { l.ok = true; wake(); }, { once: true });
+    v.addEventListener('seeked', () => requestAnimationFrame(() => land(l)));   // its frame on screen: the frame after the seek (no requestVideoFrameCallback: the fallback)
+    return l;
+  });
+  const [B, T] = L, sw = {}, sput = (el, k, prop, val) => { if (sw[k] !== val) { sw[k] = val; el.style[prop] = val; } };
+  let armed = false, shown = false, onScr = false, Ft = pin, F = pin, off = 0, a = 0, tMove = -1e9, tPrev = 0, raf = 0, url = null, setUp = false;
+  const setup = () => {                     // the two players on the blob: a ~150 ms main-thread hitch in WebKit (measured) — so only while the row rests
+    if (setUp || !url) return;
+    if (rowActive()) { setTimeout(setup, 250); return; }
+    setUp = true;
+    for (const l of L) { l.v.src = url; l.v.preload = 'auto'; l.v.load(); }
+    perfMark('scrub players');
+  };
+  const arm = () => {                       // its file (this window's), whole, as a blob: every seek is local — after the page (idle), or once the card is within two viewports
+    if (armed || SCRUB.rm.matches) return; armed = true;
+    const pic = IMAGES[0], r = pic.w / pic.h, Bx = G.B || estB();
+    const px = (r >= 1 ? Bx : Bx * r) * win[2] / (G.S || 1) * (devicePixelRatio || 1);   // the HOME card's device px
+    const ws = Sc.sizes.slice().sort((x, y) => x - y);
+    const src = Sc.base + Sc.src[clipKind(Sc)].replace('{w}', ws.find(w => w >= px * SCRUB.pick) || ws[ws.length - 1]);
+    fetch(src).then(res => res.ok ? res.blob() : Promise.reject(new Error(res.status + ' ' + src))).then(b => {
+      url = URL.createObjectURL(b); perfMark('scrub file ' + (b.size / 1e6).toFixed(1) + ' MB');
+      setup();
+    }).catch(err => { armed = false; console.warn('[scrub]', err); });
+  };
+  { const idle = () => setTimeout(arm, 1200); if (document.readyState === 'complete') idle(); else addEventListener('load', idle, { once: true }); }
+  const issue = l => {                      // one seek at a time per video (a lost one: retried after .5 s), to its frame's middle
+    if (!l.ok || l.want == null || l.want === l.have) return;
+    const now = performance.now();
+    if (l.busy && now - l.tB < 500) return;
+    l.busy = true; l.pend = l.want; l.tB = now;
+    l.v.currentTime = (l.pend - Sc.first + .5) / FPS;
+    if (l.v.requestVideoFrameCallback) { const p = l.pend; l.v.requestVideoFrameCallback((t, md) => { if (l.pend === p && Math.abs(md.mediaTime - (p - Sc.first) / FPS) < .5 / FPS) land(l); }); }   // its frame presented
+  };
+  function land(l) {                        // a seek's frame is on screen: mixed in THIS frame, and its next seek goes out now (measured: a seek ~6 ms, so each video can take a frame per display frame)
+    if (!l.busy) return;
+    l.have = l.pend; l.busy = false;
+    if (onScr && !document.hidden) render();
+    wake();
+  }
+  function render() {
+    if (!B.ok || !T.ok) return;
+    const n = SCRUB.blend ? Math.floor(F) : Math.round(F), fr = SCRUB.blend ? F - n : 0;
+    const b = B.have, t = T.have;           // the composite, from the frames they HAVE: n and n + 1 mixed by the fraction, else the nearer one whole
+    if (b === n && t === n + 1) a = fr;
+    else if (b === n + 1 && t === n) a = 1 - fr;
+    else a = t != null && (b == null || Math.abs(t - F) < Math.abs(b - F)) ? 1 : 0;
+    sput(T.v, 'a', 'opacity', String(Math.round(a * 1000) / 1000));
+    if (!shown && (b != null || t != null)) { shown = true; sput(box, 'o', 'opacity', '1'); perfMark('scrub shown'); }   // (at rest the first seek may be the upper one's alone)
+    const p0 = fr < .5 ? n : n + 1, p1 = fr > .002 && n < hi ? 2 * n + 1 - p0 : null, tg = l => l.want ?? l.have;   // the nearer frame first — on the hidden one — then the mix's other
+    if (tg(B) === p0) { if (p1 != null) T.want = p1; }
+    else if (tg(T) === p0) { if (p1 != null) B.want = p1; }
+    else (a >= .5 ? B : T).want = p0;
+    issue(B); issue(T);
+  }
+  function tick(now) {
+    raf = 0;
+    const dt = Math.min(64, now - (tPrev || now)); tPrev = now;
+    const rest = now - tMove >= SCRUB.restMs, goal = rest && SCRUB.blend ? Math.round(Ft) - Ft : 0;   // at rest: the nearest whole frame
+    off = Math.abs(goal - off) < .002 ? goal : off + (goal - off) * (1 - Math.exp(-dt / SCRUB.settleTau));
+    F = clamp(Ft + off, lo, hi);
+    if (onScr && !document.hidden) render();
+    if (!rest || off !== goal) raf = requestAnimationFrame(tick); else tPrev = 0;
+  }
+  const wake = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  scrubAt = (x, w, W) => {                  // rowWrite(): the card's HOME centre on screen, its width, the screen's
+    if (SCRUB.rm.matches) return;
+    const h = w / 2, was = onScr;
+    if (x - h < 3 * W && x + h > -2 * W) arm();
+    onScr = x + h > 0 && x - h < W;
+    const u = x >= cx * W ? (x - cx * W) / (W * (1 - cx) + h) : (x - cx * W) / (W * cx + h);   // +1 arriving on the right edge … −1 leaving off the left
+    const f = u >= 0 ? pin - Math.min(1, u) * (pin - lo) : pin - Math.max(-1, u) * (hi - pin);
+    if (Math.abs(f - Ft) < 1e-4 && was === onScr) return;
+    if (Math.abs(f - Ft) > .02 || was !== onScr) tMove = performance.now();   // its lag spring's last hundredths of a px are rest (the settle starts with the row's stop)
+    Ft = f; wake();
+  };
+  scrubInfo = () => ({ Ft, F, a, shown, onScr, lo, hi, pin, layers: L.map(l => ({ ok: l.ok, have: l.have, want: l.want, busy: l.busy, t: +l.v.currentTime.toFixed(4) })) });
 }
 if (CAST) for (const c of cards) for (const u of cards) if (u !== c) {   // site: CAST — in card c, one .cast per other card u (its shadow on c)
   const el = c.castbox.appendChild(Object.assign(document.createElement('div'), { className: 'cast' }));
@@ -3334,6 +3454,7 @@ const self = {                              // site: what the page sees of this 
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
+  scrubAt(x, w, W) { if (scrubAt) scrubAt(x, w, W); }, get scrub() { return !!scrubAt; }, get scrubInfo() { return scrubInfo(); },   // site: SCROLL IS TIME (rowWrite())
   film, get filmOut() { return film ? film.hideV * p.value : 0; },          // site: FILM — the controller; the neighbours' slide out (rowWrite())
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
   get openDx() { return OPEN_DX; }, set openDx(v) { OPEN_DX = Number.isFinite(+v) ? +v : 0; },   // site 2026-10-06: OPEN_DX for the position lab (poslab.js, ?pos) — a layoutAll() applies it
@@ -3907,6 +4028,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     const t0 = sl - RP.S + (cap > 0 ? cap * Math.tanh(e.o / cap) : e.o), xh = e.cx - sl + t0;
     const eL = (e.eL ?? e.w) + PARK_PX, eR = (e.eR ?? e.w) + PARK_PX;
     const homeOn = xh + eR > 0 && xh - eL < W;
+    if (e.st?.scrub) e.st.scrubAt(xh, e.w, W);                                              // site: SCROLL IS TIME — its film's time from its HOME place
     let tx = t0, ty = 0, k = 1, z = 0, park = false, rt = 0;
     if (CAMERA) {
       const st = e.st, ps = st ? st.progress : 0, mover = !!st && (st === RP.part || (!!m && st === m.from));
@@ -4087,7 +4209,7 @@ function moveTo(b) {
   a.leave(); b.arrive();
   rowPart();
 }
-window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll };   // debug / tuning
+window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
 
 /* ============================================================
    EVENTS (the page's)
@@ -4421,12 +4543,14 @@ const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: 
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
 const NEOFILM_LIVE = { base: '../assets/neofilm/', sizes: [1280, 1920], src: { hevc: 'neofilm-live-{w}-wk.mp4', h264: 'neofilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };   // site 2026-10-09: the LIVE hint (its note) — frames 110 … 154, the man walking in
+const NEOFILM_SCRUB = { base: '../assets/neofilm/', sizes: [1280, 1920], src: { hevc: 'neofilm-scrub-{w}-wk.mp4', h264: 'neofilm-scrub-{w}.mp4' }, type: NEOFILM_CLIP.type,
+                       first: 57, last: 251, pin: 154, fps: 24 };   // site 2026-10-09: SCROLL IS TIME (its note) — ?cue=scroll only; all-intra frames 57 … 251
 if (CLIP_PRINT) $('neofilm').dataset.size = '1';
 stacks.push(makeStack($('neofilm'), CLIP_PRINT
   ? { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
-      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE }
+      floor: { src: '../assets/photo/neofilm-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -.9, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE, scrub: NEOFILM_SCRUB }
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
-      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE,
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE, scrub: NEOFILM_SCRUB,
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
 /* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
