@@ -495,7 +495,8 @@
        2026-10-09 (owner: "pull a clip there thats simmilar to the pic … a thing like a neo clip in the same manner. From basically when the
        pigeon is jumping out and settles … just like a neo preview"): the still is a CLIP now, the NEO's kind — its shot in the Dandelion
        trailer (youtu.be/xIG3IvX9JCY, frames 149 … 238 at 29.97; the still = frame 191, the pigeon settled): the poster, the LIVE hint
-       (168 … 191: the pigeon jumps up and lands on the poster), the whole shot with its sound on the zoom, the button. brew/neofilm/friendsfilm.py
+       (the entire shot, owner: "let it play entire clip" — the first try was 168 … 191, the jump landing on the poster), the whole shot
+       with its sound on the zoom, the button. brew/neofilm/friendsfilm.py
        → assets/friendsfilm/. ?friendsclip=0 = the still as it was -->
   <div class="wrap" id="friends" data-size="1.2" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the still): FRIENDS in BOOT -->
@@ -4669,7 +4670,9 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
 /* site 2026-10-09: … a CLIP now (the markup's comment): the NEO clip's engine as it is — cfg.video (the CLIP note: the shot, frames 149 … 238,
    played from the top on the zoom with its sound, volume = p, the button right of it, the close dissolving back to the poster) and cfg.live
-   (the LIVE hint: 168 … 191, muted, its last frame the poster). One size: the master is YouTube's 720p (brew/neofilm/friendsfilm.py) */
+   (the LIVE hint: the entire shot 149 … 238, muted — its last frame is the pigeon's second settle, not the poster (191), nearly its pose:
+   the out is Apple's return, the held last frame dissolving, blurred, into the key photo). One size: the master is YouTube's 720p
+   (brew/neofilm/friendsfilm.py) */
 const FRIENDS_STILL = pageQuery.get('friendsclip') === '0';
 const FRIENDS_CLIP = { base: '../assets/friendsfilm/', sizes: [1280], window: [0, 0, 1, 1], src: { hevc: 'friendsfilm-{w}-wk.mp4', h264: 'friendsfilm-{w}.mp4' }, type: NEOFILM_CLIP.type };
 const FRIENDS_LIVE = { base: '../assets/friendsfilm/', sizes: [1280], src: { hevc: 'friendsfilm-live-{w}-wk.mp4', h264: 'friendsfilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
