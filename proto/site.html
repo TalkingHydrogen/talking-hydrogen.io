@@ -164,7 +164,7 @@
   .card video.lid { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
   .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
   /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its card's photo window (--vl / --vt / --vw / --vh: its
-     fractions of the card — all of it when plain), over the poster (the clip's first frame); its opacity rides p (songWrite()) */
+     fractions of the card — all of it when plain), over the poster (its cover still: NEOFILM in BOOT); its opacity rides p (songWrite()) */
   /* site 2026-10-08 (owner: "there is a little black like artifact on the video"): --vo, an OVERSCAN past the photo window on every side.
      The clip's layer and the poster painted under it snap their edges differently (measured in WKWebView: ~.5 device px apart), so the
      poster's own edge pixels showed past the clip's — a dark line wherever the first frame is dark (its top right) — gone once the clip
@@ -1590,7 +1590,8 @@ const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBO
    takes the SONG's part — the media API is the same — so it behaves as the CD's song: the zoom starts it from the top (inside the
    click: the gesture; prime() silent on the press), its volume = p, the button right of the card, bottoms aligned (placePlay()),
    pauses / plays it, the close pauses it. Its picture: opacity = p (songWrite()), from its first decoded frame on — the poster at
-   HOME, the clip from the zoom (the same frame at the start: the print starts moving); the close dissolves it back into the poster
+   HOME, the clip from the zoom (the same frame at the start: the print starts moving — or, a cover still, the zoom dissolves it into
+   the clip's start); the close dissolves it back into the poster
    as it flies home, and enterHome() rewinds it unseen. Its file: the smallest of sizes ≥ CLIP.pick × the open photo window's
    device px, chosen at the first hover / press (warmAudio()) — nothing is fetched at BOOT — in the kind for this browser
    (filmweb.py's GRADE law: WebKit shows video code values as sRGB(v ^ 1.961) whatever the tag — measured on this clip's plain
@@ -4265,8 +4266,9 @@ stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: 
                                       floor: { src: '../assets/photo/inspect-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -1, up: -(2018 / 1178 - 1) / 2, hover: -1 },
                                       caption: POL_VAR ? { ...POL_CAPTION, text: POL_VAR.text, split: POL_VAR.split } : POL_CAPTION }));
 /* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note). PLAIN (owner, the same day: "make the vid without the photo borders
-   though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the clip's first frame alone (1920 × 1080,
-   assets/neofilm/neofilm-poster.webp: photoprint.py's photo step, no paper), the clip over all of it; square corners, no border, no
+   though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the poster alone (1920 × 1080, assets/neofilm/neofilm-poster.webp), the clip
+   over all of it — its COVER (owner 2026-10-09: "put ts as a video preview for that short video"): the owner's still of the man and
+   the robot (from their screenshot: sRGB, 16:9 centre crop; not a frame of this cut — the zoom dissolves it into the clip's first); square corners, no border, no
    shadow; straight (rot 0: no print laid on the table — so no hover turn, the hover's lift stays), on the row's baseline; data-size 1.2. OPEN: CLIP_ZOOM × the page's open box (cfg.openB, centred as the
    ghost; the button keeps the page's size; owner: "scale 20% more" → "no i meant scale on zoom, i think we need to zoom in a little more
    on it, since it takes too little of the space"): 1.2, ?clipzoom= to try others.
