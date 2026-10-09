@@ -181,6 +181,7 @@
                 z-index: 2; overflow: hidden; pointer-events: none; opacity: 0; }
   .card .live > img.live-p, .card .live > video.live-v { position: absolute; left: 0; top: 0; z-index: auto; display: block; width: 100%; height: 100%;
                 object-fit: fill; background: none; clip-path: none; }
+  .card .live > video.live-v { opacity: 0; }   /* its opacity = the curve k (the LIVE note) */
   .card .live > img.live-p { left: calc(-100% * var(--vl) / var(--vw)); top: calc(-100% * var(--vt) / var(--vh));   /* the card's image whole, its window on the box (a print: the paper outside, clipped) */
                 width: calc(100% / var(--vw)); height: calc(100% / var(--vh));
                 transform-origin: calc(100% * (var(--vl) + var(--vw) / 2)) calc(100% * (var(--vt) + var(--vh) / 2)); }
@@ -1612,20 +1613,23 @@ const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBO
 const CLIP = { pick: .9 };
 /* site 2026-10-09 — the LIVE hint (owner: "im looking into affordance, I want to let the thing know that its a video not just a static
    image … something a live preview or live photo as apple has it effect, when I first time scroll into it"). A stack with cfg.live
-   { base, src ('{w}'), type, sizes } (NEOFILM_LIVE) has a short MUTED clip whose frame 0 IS its poster (brew/neofilm/neofilm.py
-   --only live: the poster's frame on, 1.5 s — a Live Photo's motion after its key photo). It plays ONCE, the first time the card is
-   LIVE.at of its width on screen for LIVE.dwell ms (rowWrite() → liveSync(): the row's place, no DOM reads), at HOME, nothing open, as
-   Apple's HINT playback (LivePhotosKit JS 1.x's HINT recipe, read 2026-10-09): the motion from the key photo on, zoomed ×1.075 (eased
-   in over .15 s) while the photo goes in .06 s (the same frame: unseen); at the motion's end a .75 s RETURN — its last frame blurs
-   0 → 7.5 px as the photo comes back over it from 7.5 px to sharp, both settling 1.075 → 1. Apple's tween: .5 − .5 cos πt. Blur in
-   screen px at HOME (× G.S in the card's px: a card is laid out at the open box). DOM (the .live CSS): the poster's copy UNDER the
-   motion — the motion fading out over a still photo = Apple's photo fading in over a still motion (both opaque), and the copy is
-   on screen under it all along. Its file: the smallest of sizes ≥ LIVE.pick × the HOME window's device px × the zoom, set when the
-   card comes within a viewport of the screen (~150 KB). A zoom in during it finishes it early (the return from where it is, as
-   Apple's beginFinishingPlaybackEarly); before it, calls it off. A HOVER plays it too (its note in makeStack()). Reduced motion: never.
-   ?live=0 off · ?live=again the scroll-in on every entry (tuning) · ?livezoom= ?liveblur= ?liveat= ?livehover= (ms of intent) */
+   { base, src ('{w}'), type, sizes } (NEOFILM_LIVE) has a short MUTED clip whose LAST frame IS its poster: the motion leading into
+   the key photo (owner, the same day: "adjust the clip playing to be ts guy walking in" — brew/neofilm/neofilm.py --only live:
+   frames 110 … 154, the robot alone a beat, the man walks in, lands on the cover). It plays the first time the card is LIVE.at of
+   its width on screen for LIVE.dwell ms (rowWrite() → liveSync(): the row's place, no DOM reads), at HOME, nothing open — and on
+   a hover (its note in makeStack()). As Apple's FULL playback (LivePhotosKit JS 1.x's FULL recipe, read 2026-10-09: the one for a
+   motion that doesn't start on the photo; its HINT recipe plays from the key photo ON, the first try here): ONE curve k =
+   min(in, out) — in: 0 → 1 over 1/3 s, out: 1 → 0 over the last .5 s; tween .5 − .5 cos πt — and everything rides it: both
+   layers scale 1 + .075 k, the photo blurs 5 k px (screen px at HOME: × G.S in the card's px, a card is laid out at the open box)
+   and its opacity is 1 − k; the motion starts .15 s in and holds its last frame (the poster: the out is a soft settle, not a
+   cut). DOM (the .live CSS): the poster's copy UNDER the motion, the motion's opacity k — the motion fading in / out over the photo
+   = Apple's photo fading out / in over the motion (both opaque) — and the copy is on screen under it all along. Its file: the
+   smallest of sizes ≥ LIVE.pick × the HOME window's device px × the zoom, set when the card comes within a viewport of the screen
+   (~210 KB). A zoom in during it finishes it early (the out from where it is, never before the in has run: Apple's
+   beginFinishingPlaybackEarly); before it, calls it off. Reduced motion: never. ?live=0 off · ?live=again the scroll-in on every
+   entry (tuning) · ?livezoom= ?liveblur= ?liveat= ?livehover= (ms of intent) */
 const LIVE = { on: pageQuery.get('live') !== '0' && !pageQuery.has('film'), again: pageQuery.get('live') === 'again',
-               at: .6, dwell: 150, hoverMs: 100, zoom: 1.075, blur: 7.5, inMs: 60, scaleMs: 150, outMs: 750, pick: .9, within: 10000,
+               at: .6, dwell: 150, hoverMs: 100, zoom: 1.075, blur: 5, inMs: 1000 / 3, beginMs: 150, outMs: 500, pick: .9, within: 10000,   // Apple's FULL recipe
                rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const q = (k, f, lo, hi) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LIVE[f] = clamp(v, lo, hi); };
   q('livezoom', 'zoom', 1, 1.3); q('liveblur', 'blur', 0, 30); q('liveat', 'at', .05, 1); q('livehover', 'hoverMs', 0, 1000); }
@@ -1943,12 +1947,12 @@ if (cfg.live && LIVE.on) {
   const v = box.appendChild(document.createElement('video'));
   v.className = 'live-v'; v.preload = 'none'; v.muted = v.defaultMuted = true; v.playsInline = true; v.disablePictureInPicture = true;
   ['muted', 'playsinline', 'disableremoteplayback'].forEach(a => v.setAttribute(a, ''));
-  let ls = 'idle', by = '', armed = false, raf = 0, t0 = 0, tO = 0, sO = 1;   // the playback — ls: idle | start | play | out; by: 'seen' | 'hover' (a hover's ends early when it leaves)
+  let ls = 'idle', by = '', armed = false, raf = 0, t0 = 0, tX = 0, began = false;   // the playback — ls: idle | play | out; by: 'seen' | 'hover' (a hover's ends early when it leaves); tX: the out's start
   let seen = 'idle', f = 0, t = 0, tW = 0;                                   // the scroll-in trigger — idle | wait | done; the card's share of the screen
   let hov = false, hovOk = true, hT = 0;                                      // the hover: on it; allowed (left since the last zoom: the close lands it under the pointer); its intent timer
   const lwr = {}, lput = (el, k, prop, val) => { if (lwr[k] !== val) { lwr[k] = val; el.style[prop] = val; } };
   const n3 = x => String(Math.round(x * 1000) / 1000);
-  const can = () => !document.hidden && state === 'home' && !activeStack && !blocked() && v.readyState >= 3;   // HOME, nothing open, its clip loaded
+  const can = () => !document.hidden && state === 'home' && !activeStack && !blocked() && v.readyState >= 3 && !v.seeking;   // HOME, nothing open, its clip loaded at its first frame
   const arm = () => {                       // its file (this window's), loading; the poster's copy (the card's own source: cached)
     if (armed) return; armed = true;
     const pic = IMAGES[0], r = pic.w / pic.h, B = G.B || estB();
@@ -1985,46 +1989,38 @@ if (cfg.live && LIVE.on) {
     arm();
     const t1 = performance.now(), go = () => {
       if (!hov) return;
-      if (ls === 'start' || ls === 'play') { by = 'hover'; return; }
+      if (ls === 'play') { by = 'hover'; return; }
       if (ls !== 'idle' || !can()) { if (performance.now() - t1 < LIVE.within) hT = setTimeout(go, 100); return; }
       if (seen !== 'done') { clearTimeout(t); seen = 'done'; }              // seen
       play('hover');
     };
     hT = setTimeout(go, LIVE.hoverMs);
   };
-  function play(who) {
-    by = who; ls = 'start'; perfMark('live start ' + who);
-    if (v.currentTime) v.currentTime = 0;
-    const begin = () => { if (ls !== 'start') return; ls = 'play'; t0 = performance.now(); loop(); };   // its first frame on screen (the poster's)
-    if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(begin);
-    v.addEventListener('playing', () => requestAnimationFrame(() => requestAnimationFrame(begin)), { once: true });   // (no rVFC, or it never fires)
-    v.play().catch(() => { if (ls === 'start') { ls = 'idle'; by = ''; } });
+  function play(who) {                      // from its first frame (end() rewinds it, unseen)
+    by = who; ls = 'play'; began = false; tX = 0; t0 = performance.now(); perfMark('live start ' + who);
+    lput(box, 'o', 'opacity', '1');         // k = 0: the copy IS the card's image, the motion transparent
+    loop();
   }
-  function finish() {                       // early (Apple's beginFinishingPlaybackEarly): playing → the return from here; not on screen yet → off
-    if (ls === 'play') { v.pause(); ls = 'out'; tO = performance.now(); loop(); }
-    else if (ls === 'start') { v.pause(); ls = 'idle'; by = ''; }
+  function finish() {                       // early (Apple's beginFinishingPlaybackEarly): the out from here — never before the in has run
+    if (ls !== 'play') return;
+    v.pause(); ls = 'out'; tX = Math.max(performance.now(), t0 + LIVE.inMs + 10);
   }
-  function loop() { cancelAnimationFrame(raf); raf = requestAnimationFrame(now => { step(now); if (ls === 'play' || ls === 'out') loop(); }); }
+  function loop() { cancelAnimationFrame(raf); raf = requestAnimationFrame(now => { step(now); if (ls !== 'idle') loop(); }); }
   function step(now) {
-    if (ls === 'play') {
-      const e = now - t0; sO = 1 + (LIVE.zoom - 1) * liveTween(e / LIVE.scaleMs);
-      lput(box, 'o', 'opacity', n3(liveTween(e / LIVE.inMs)));
-      lput(v, 'vt', 'transform', `scale(${sO.toFixed(5)})`);
-      if (v.ended) { ls = 'out'; tO = now; }                                  // its last frame held: the RETURN
-    }
-    if (ls === 'out') {
-      const u = liveTween((now - tO) / LIVE.outMs), sc = `scale(${(1 + (sO - 1) * (1 - u)).toFixed(5)})`, b = LIVE.blur * (G.S || 1);
-      lput(box, 'o', 'opacity', '1');
-      lput(v, 'vt', 'transform', sc); lput(v, 'vf', 'filter', u > 0 ? `blur(${(b * u).toFixed(2)}px)` : ''); lput(v, 'vo', 'opacity', n3(1 - u));
-      lput(ph, 'pt', 'transform', sc); lput(ph, 'pf', 'filter', u < 1 ? `blur(${(b * (1 - u)).toFixed(2)}px)` : '');
-      if (u >= 1) end();
-    }
+    if (ls === 'play' && !began && now - t0 >= LIVE.beginMs) { began = true; v.play().catch(() => finish()); }   // the motion starts .15 s in
+    if (ls === 'play' && began && v.ended) { ls = 'out'; tX = Math.max(now, t0 + LIVE.inMs + 10); }   // its last frame (the poster) held: the OUT
+    if (ls === 'out' && now - tX >= LIVE.outMs) { end(); return; }
+    const k = Math.min(liveTween((now - t0) / LIVE.inMs), ls === 'out' ? 1 - liveTween((now - tX) / LIVE.outMs) : 1);
+    const sc = k > 0 ? `scale(${(1 + (LIVE.zoom - 1) * k).toFixed(5)})` : '', b = LIVE.blur * (G.S || 1) * k;
+    lput(v, 'vo', 'opacity', n3(k)); lput(v, 'vt', 'transform', sc);
+    lput(ph, 'pt', 'transform', sc); lput(ph, 'pf', 'filter', b > .01 ? `blur(${b.toFixed(2)}px)` : '');
   }
-  function end() {                          // the copy = the card's image now: the box goes, unseen
+  function end() {                          // k = 0: the copy = the card's image — the box goes, unseen; the motion rewound for the next time
     ls = 'idle'; by = ''; cancelAnimationFrame(raf); v.pause(); perfMark('live end');
     lput(box, 'o', 'opacity', '0');
-    lput(v, 'vt', 'transform', ''); lput(v, 'vf', 'filter', ''); lput(v, 'vo', 'opacity', '');
+    lput(v, 'vt', 'transform', ''); lput(v, 'vo', 'opacity', '0');
     lput(ph, 'pt', 'transform', ''); lput(ph, 'pf', 'filter', '');
+    v.currentTime = 0;
   }
   liveStop = () => {                        // expand(): finish early; the scroll-in trigger off; the hover must leave before it plays again
     finish(); clearTimeout(hT); hov = false; hovOk = false;
@@ -4424,7 +4420,7 @@ const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(p
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
-const NEOFILM_LIVE = { base: '../assets/neofilm/', sizes: [1280, 1920], src: { hevc: 'neofilm-live-{w}-wk.mp4', h264: 'neofilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };   // site 2026-10-09: the LIVE hint (its note)
+const NEOFILM_LIVE = { base: '../assets/neofilm/', sizes: [1280, 1920], src: { hevc: 'neofilm-live-{w}-wk.mp4', h264: 'neofilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };   // site 2026-10-09: the LIVE hint (its note) — frames 110 … 154, the man walking in
 if (CLIP_PRINT) $('neofilm').dataset.size = '1';
 stacks.push(makeStack($('neofilm'), CLIP_PRINT
   ? { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/photo/neofilm-print.webp', w: 2018, h: 1178 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
