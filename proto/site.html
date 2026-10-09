@@ -2328,6 +2328,7 @@ const timing = { t0: 0, done: null };   // ms from the LAST flip click to all sp
 const tnow = () => vnow ?? performance.now();
 let layoutMode = 'home';            // which card treatment the deck cards' clips / shadow geometry carry: 'home' (HOME at rest) | 'viewer' (from the zoom's start to the close's end)
 let scroll0 = 0, delta = 0, pinned = null, hPinned = null, measure = null, hMeasure = null;
+let moved = false;                  // site 2026-10-09: this zoom is a CAMERA move's arrival (expand(move)), not a click at HOME — HOME AIM (closeNow())
 
 if (query.has('p')) pinned  = clamp(parseFloat(query.get('p')) || 0, 0, 1);
 if (query.has('h')) hPinned = clamp(parseFloat(query.get('h')) || 0, 0, 1);
@@ -3052,7 +3053,7 @@ function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
-  state = 'zoom'; delta = 0;
+  state = 'zoom'; delta = 0; moved = !!move;
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
   if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
@@ -3128,8 +3129,37 @@ function collapse() {                       // OPEN → CLOSE (the `viewer:close
   if (pinned !== null || frozen || state !== 'open') return;
   closeNow();
 }
+/* site 2026-10-09 — HOME AIM (owner: "when the video finished playing the mac one it drifted the camera all the way to the neo companion
+   other video"): the row's scroll stays frozen from a click's zoom to HOME, CAMERA moves included, so a pile the camera moved to closed
+   onto the HOME the FIRST click left. Measured (1440 × 820): opened at the inspect print, moved left to the MacBook, its film's landing
+   ended with the laptop 1 903 px off screen and the camera panned ~4 000 px back to the NEO clip (the film's slow landing made it a
+   drift; a click outside did the same, faster). Now, when such a pile's home place is not on screen at that scroll, the close first
+   re-scrolls the frozen row to the pile centred (the row's range clamps it: the MacBook lands on the first screen). At p = 1 the open
+   page does not depend on the scroll (every row element sits at the pile's plane map of the row), so the swap is unseen; p's last
+   sub-pixel is taken first (enterOpen() lands within ZOOM.settlePx). The name does depend on it (it sits at the viewport corner of the
+   HOME it zooms out to), and in OPEN it is on screen in tall windows (390 × 844: y ≈ 200). So it never jumps: on screen at its old place,
+   it stays printed there fading out over the close's first half, then fades in at its new place (p ½ → 0); off screen there and on
+   screen at the new one, it fades in with the close (RP.hAim, rowWrite()). A pile on screen at that HOME closes onto it, as before. */
+function homeAim() {
+  const e = elOf(self);
+  if (!e || !CAMERA || stacks.some(s => s !== self && s.state !== 'home')) return;
+  const sl = RP.sl, W = RP.W, H = RP.H, x = e.cx - sl;
+  if (x - e.w / 2 >= 0 && x + e.w / 2 <= W) return;                                      // on screen there: the zoom reversed
+  const S1 = Math.round(clamp(e.cx - W / 2, 0, RP.M));
+  if (Math.abs(S1 - sl) < 1) return;
+  const rg = document.createRange(); rg.selectNodeContents(hdr.querySelector('.name'));
+  const r = rg.getBoundingClientRect(), dx = G.S * (S1 - sl);                              // the name's glyphs now; the swap moves them k · ΔS
+  const seen = (a, b) => b > 0 && a < W && r.bottom > 0 && r.top < H;
+  const out = seen(r.left, r.right) && +getComputedStyle(hdr).opacity > 0, inn = seen(r.left + dx, r.right + dx);
+  perfMark('home aim ' + cfg.name + ' ' + sl + ' → ' + S1 + (out ? ' name out' : '') + (inn ? ' name in' : ''));
+  if (p.value !== 1) p.jump(1);
+  RP.S = RP.sPrev = RP.sl = S1; scroller.scrollLeft = S1; scroll0 = S1;                   // measureBox() / targets() / rowPart() (closeNow()) re-derive the zoom from here
+  RP.hAim = { d: sl - S1, out, inn, aged: false };                                       // d: the old HOME's corner on the table, from the new one; aged: the new age set (rowWrite())
+  return true;
+}
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
   perfMark('close ' + cfg.name);
+  const aimed = !move && moved && state === 'open' && homeAim();                          // site 2026-10-09: HOME AIM — a pile the camera moved to lands on screen (its note)
   state = 'close';
   if (CAPG) { if (!(move && capGroup(CAPG).held)) capOwner(CAPG)?.capOut(); }             // site 2026-10-09: a CAPTION GROUP's caption — out from the click as well, unless the camera moves on inside the group (it stays)
   else if (capEl) { put(capEl, 'cpT', 'transition', CAP_FADE.out); put(capEl, 'cpO', 'opacity', '0'); }   // site: CAP_FADE — out from the click itself (render() would start it a frame later, with the table already moving)
@@ -3156,6 +3186,7 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
     rowPart();                                                                             // site: the other row elements come back on the close (re-measured)
     row.classList.add('parting');
   }
+  if (aimed) render();                                                                     // (HOME AIM: the item on the new scroll in this same task, with the row)
   startGuard = 2; drive(0, move ? ZOOM.ease.inMs : ZOOM.ease.outMs); kick();              // velocity kept; a CAMERA move: the arriving pile's inMs, so the two p stay mirrored
 }
 function enterHome() {                      // CLOSE → HOME: unlock the page, hover back on (a flight still landing keeps flying, at home scale)
@@ -3171,6 +3202,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
     unlockPage();                                                                          // page scroll unlocked
     scroller.classList.remove('frozen'); row.classList.remove('parting');                  // the row scrolls again
     nbNudgeOff();                                                                          // site 2026-10-08: the NEIGHBOUR NUDGE ends at HOME (a close took it down with the zoom)
+    RP.hAim = null;                                                                        // site 2026-10-09: HOME AIM — the name's fade is over
   }
   homeDue = true;                                                                          // PERF: the home clips + shade layers back at the next idle (idle()): a re-raster, 35–45 ms, kept off the close's last frames and the hover that may start here
   render();
@@ -3445,7 +3477,7 @@ function useNatural(c) {                    // refine a card's ratio from the de
 }
 /* the viewer's open layout without animation: the end state of expand() (?open=1 and the viewer freezes) */
 function openNow() {
-  state = 'open'; delta = 0;
+  state = 'open'; delta = 0; moved = false;
   lidSync();
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: as expand()
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
@@ -4090,6 +4122,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   const cv = up ? String(Math.round((255 - 3 * pv) * 100) / 100) : '';
   if (cv !== RP.cv) { if (!RP.cv !== !cv) perfMark('cover ' + (up ? 'up' : 'down')); RP.cv = cv; cover.style.visibility = up ? 'visible' : ''; if (up) for (const d of cover.children) d.style.backgroundColor = `rgb(${cv}, ${cv}, ${cv})`; }
   const C = CAMERA ? camera() : null, u = m ? m.to.progress : 0;
+  const held = !!RP.hAim && RP.hAim.out && !!RP.part && RP.part.progress >= .5;          // site 2026-10-09: HOME AIM — the name held at its old place (homeAim())
   for (const e of RP.els) {
     const t0 = sl - RP.S + (cap > 0 ? cap * Math.tanh(e.o / cap) : e.o), xh = e.cx - sl + t0;
     const eL = (e.eL ?? e.w) + PARK_PX, eR = (e.eR ?? e.w) + PARK_PX;
@@ -4136,10 +4169,14 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   }
   if (CAMERA) {                                                                               // the name: the camera, about its layer's centre
     const [ox, oy] = RP.hO || [0, 0], id = Math.abs(C.k - 1) < 1e-6 && Math.abs(C.x) < .005 && Math.abs(C.y) < .005;   // the name: the camera, about its layer's centre
-    pput(hdr, 'hdrT', 'transform', id ? '' : `translate(${(C.k * ox + C.x - ox).toFixed(2)}px, ${(C.k * oy + C.y - oy).toFixed(2)}px) scale(${C.k.toFixed(5)})`);
-    pput(hdr, 'hdrO', 'opacity', fo ? String(Math.round((1 - fo) * 1000) / 1000) : '');   // site: FILM — the name leaves with the rest of the page (a tall window keeps it on screen in OPEN)
+    const hx = held ? C.k * RP.hAim.d : 0;                                                  // site 2026-10-09: HOME AIM — still printed at the old HOME's corner
+    pput(hdr, 'hdrT', 'transform', id && !hx ? '' : `translate(${(C.k * ox + C.x - ox + hx).toFixed(2)}px, ${(C.k * oy + C.y - oy).toFixed(2)}px) scale(${C.k.toFixed(5)})`);
+    const A = RP.hAim, ha = A && RP.part ? RP.part.progress : -1;
+    const ho = (1 - fo) * (ha < 0 ? 1 : A.out ? Math.abs(2 * ha - 1) : A.inn ? 1 - ha : 1);   // HOME AIM: out there (p 1 → ½), in at its new corner (½ → 0); or in with the close
+    pput(hdr, 'hdrO', 'opacity', ho < 1 ? String(Math.round(ho * 1000) / 1000) : '');      // site: FILM — the name leaves with the rest of the page (a tall window keeps it on screen in OPEN)
   }
-  ageSync();                                // site: the AGE follows the scroll
+  if (RP.hAim && !held && !RP.hAim.aged) { RP.hAim.aged = true; AGE.i = -1; }              // HOME AIM: the new HOME's age is set, not rolled — the name is out of sight here
+  if (!held) ageSync();                     // site: the AGE follows the scroll (HOME AIM: the old one while the name is held)
   liveSync();                               // site: the LIVE hint — its card on screen
 }
 /* site 2026-10-09: the LIVE hint's eyes (its note): each live stack's share of the screen at its HOME place (the row's rigid scroll + its
