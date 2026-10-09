@@ -491,7 +491,12 @@
        — the boy in the green shirt among the greyed-out figures (the owner's screenshot, 2804 × 1568, "Color LCD" → sRGB; the original in
        All dump/Screenshot 2026-10-08 at 5.20.41 PM.png → assets/still/friends.webp + its srcset sizes, website-perf/mkvariants.py). The NEO
        clip's plain treatment: the bare image, no paper, border or shadow, straight, data-size 1.2, zoomed CLIP_ZOOM × as it. FRIENDS in BOOT;
-       data-age 19, the CD's (the age doesn't change across it) -->
+       data-age 19, the CD's (the age doesn't change across it).
+       2026-10-09 (owner: "pull a clip there thats simmilar to the pic … a thing like a neo clip in the same manner. From basically when the
+       pigeon is jumping out and settles … just like a neo preview"): the still is a CLIP now, the NEO's kind — its shot in the Dandelion
+       trailer (youtu.be/xIG3IvX9JCY, frames 149 … 238 at 29.97; the still = frame 191, the pigeon settled): the poster, the LIVE hint
+       (168 … 191: the pigeon jumps up and lands on the poster), the whole shot with its sound on the zoom, the button. brew/neofilm/friendsfilm.py
+       → assets/friendsfilm/. ?friendsclip=0 = the still as it was -->
   <div class="wrap" id="friends" data-size="1.2" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the still): FRIENDS in BOOT -->
   </div></div>
@@ -4662,9 +4667,19 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
 /* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
-stacks.push(makeStack($('friends'), { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
-                                      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(2804 / 1568 - 1) / 2 },
-                                      openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));
+/* site 2026-10-09: … a CLIP now (the markup's comment): the NEO clip's engine as it is — cfg.video (the CLIP note: the shot, frames 149 … 238,
+   played from the top on the zoom with its sound, volume = p, the button right of it, the close dissolving back to the poster) and cfg.live
+   (the LIVE hint: 168 … 191, muted, its last frame the poster). One size: the master is YouTube's 720p (brew/neofilm/friendsfilm.py) */
+const FRIENDS_STILL = pageQuery.get('friendsclip') === '0';
+const FRIENDS_CLIP = { base: '../assets/friendsfilm/', sizes: [1280], window: [0, 0, 1, 1], src: { hevc: 'friendsfilm-{w}-wk.mp4', h264: 'friendsfilm-{w}.mp4' }, type: NEOFILM_CLIP.type };
+const FRIENDS_LIVE = { base: '../assets/friendsfilm/', sizes: [1280], src: { hevc: 'friendsfilm-live-{w}-wk.mp4', h264: 'friendsfilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
+stacks.push(makeStack($('friends'), FRIENDS_STILL
+  ? { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(2804 / 1568 - 1) / 2 },
+      openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }
+  : { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/friendsfilm/friendsfilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
+      knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: FRIENDS_CLIP, live: FRIENDS_LIVE,
+      openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));
 /* site 2026-10-09: the TRIANGLE BOB print (the markup's comment): the room print's treatment, a tilt of its own (+1.2°: the CD left of it
    leans −2°), on the row's baseline, the hover turning it left as the prints */
 const TRIANGLEBOB = [{ id: 'trianglebob', src: '../assets/photo/trianglebob-print.webp', w: 2018, h: 1648 }];
