@@ -474,9 +474,10 @@
   <!-- site: the empty CD jewel case (owner 2026-09-27: "to the right from the album put cd 1"; ~/Downloads/cd 1.jpg cropped
        to the case, assets/cd/cd-1.webp 924 × 821), 90 % of the row height like the sleeve; a stack of one since 2026-09-27
        (owner: "zoom in to add on the disk too"). 2026-09-29 (owner: "put the album vynyl of dandelion behind the cd image"):
-       ONE pile — the CD in front, the sleeve behind it: DANDELION in BOOT -->
+       ONE pile — the CD in front, the sleeve behind it: DANDELION in BOOT. 2026-10-09 (owner: "remove the the cd"): the CD is GONE — the
+       sleeve alone again, ?cd=1 brings the case back (DAN_CD_ON in BOOT) -->
   <div class="wrap" id="dandelion" data-size=".9" data-age="19"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its two .cards (the CD, the sleeve) are built by the script: DANDELION in BOOT -->
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the sleeve; the CD too with ?cd=1) is built by the script: DANDELION in BOOT -->
   </div></div>
   <!-- site 2026-10-09: a PHOTO PRINT right of the CD stack (owner: "add this as a photo right from the cd on the website"): the TRIANGLE BOB
        title card — the words and the little yellow triangle on white (the owner's screenshot, 1796 × 1450, "Display" → sRGB; the original in
@@ -4731,17 +4732,21 @@ const DANDELION = [
 /* site 2026-10-07 (owner: "for the cd toggle off the vynyl dandelion thing and leave cd only"): the CD ALONE — a pile of one (the
    song went with the sleeve that morning; back on the CD since the same day, below). ?sleeve=1 = the CD + sleeve pile with its song, as before. */
 const DAN_SLEEVE = pageQuery.get('sleeve') === '1';
+/* site 2026-10-09 (owner, after the honesty pass — the empty jewel case was a stock photo of nobody's case: "bet, remove the the cd"): the CD is
+   GONE — the Dandelion pile is the SLEEVE alone again (the 2026-09-26 pile of one: its own rest, rot 3 / up .03, the song and its button the
+   sleeve's). ?cd=1 = the CD alone as 2026-10-07 … 10-09 had it (and ?cd=1&sleeve=1 the CD + sleeve pile). The CD's assets / cdlabel.py stay. */
+const DAN_CD_ON = pageQuery.get('cd') === '1';
 /* site 2026-10-07 (owner: "add a play button the same as on vynyl to cd too"): the song is back, on the CD — the sleeve's own button and
    behaviour (the CD is the pic.song card: the button a child of it, right of the case, bottoms aligned; from the top on every zoom, volume = p,
    paused at HOME). With ?sleeve=1 the sleeve keeps it, as before. */
-const DAN_CD = DAN_SLEEVE ? DANDELION : [{ ...DANDELION[0], song: true }];
+const DAN_CD = !DAN_CD_ON ? [DANDELION[1]] : DAN_SLEEVE ? DANDELION : [{ ...DANDELION[0], song: true }];   // 2026-10-09: the sleeve alone unless ?cd=1
 /* site 2026-10-07 (owner: "add to …?swap=1 ability to modify spacing and text to cd and macbook open"): the CD's caption, the MACBOOK's manner —
    a TEXT caption, title / ½ line / role / 1.5 lines / name, in the band left of the open CD (split 646 : 354, to the case's edge). The text is a
    placeholder (Dandelion / Demo OST / Viktor Dune) until the owner typed theirs on the SWAP page. lock: the LOCK's reference text = that placeholder (the place). */
 const DAN_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nViktor Dune',   // owner 2026-10-07 (typed on the SWAP page, "apply current values"): Dandelion / 1 line / Founder / 3 lines / Alex Tykh, Viktor Dune
                       lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };   // lock: the reference (LOCK) — this placeholder: the owner's text will start where it starts
-stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD
-                                        rest: { rot: -2, up: 0 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',
+stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_CD_ON && DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD (?cd=1&sleeve=1 only)
+                                        rest: DAN_CD_ON ? { rot: -2, up: 0 } : { rot: 3, up: .03 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',   // 2026-10-09: the sleeve's own rest again (the CD's was rot −2 / up 0)
                                         caption: DAN_CAPTION }));
 layoutAll('boot');
 sinkPark(); if (SINK) addEventListener('load', sinkPark);   // the WHEEL SINK: mid-range (the layout is clean here: no extra pass)
