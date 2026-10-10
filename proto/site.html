@@ -1380,6 +1380,21 @@ if (MA.size > 0) { document.documentElement.dataset.masize = ''; document.docume
 const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
                    in: `opacity ${+(pageQuery.get('capin') || 600)}ms cubic-bezier(.42, 0, .58, 1)`,
                    out: `opacity ${+(pageQuery.get('capout') || 150)}ms cubic-bezier(.25, .1, .25, 1)` };
+/* site 2026-10-10, CAP_WAIT — a URL experiment, OFF unless ?capwait (owner: "adding two second delay that it, when you scroll, the text
+   stays where it was, and then it will appear fade in nicely and gently as Johnny Ive or like iOS 7 animation would do. Just fade in
+   after some time. So it's like the focus is on the image itself and not on the text that much … not in your face all the time"):
+   a SCROLL in OPEN (a camera move: a click on a peeking neighbour, THE KEYS) no longer carries the CAPTION GROUP's text. It stays where
+   it was, under both moving piles, and fades out there from the click (capGroup(): pin — no ride, no glide, no CAP_LAG shove); the next
+   pic lands on its own, and `ms` after its landing the text fades in beside it, slow and even: `in` ms of Core Animation's ease-in-out
+   (the 600 ms fade's curve) as a transition-delay on the compositor, so a press during the wait drops it unseen. The MacBook's caption
+   waits the same at a scroll's landing. A flip while the text still waits starts the wait over (capRewait(): it never comes in
+   mid-walk); once it is in, a flip leaves it. A zoom in from the row keeps its own fade (the MacBook's with its lid) unless
+   ?capwaitzoom=1. ?capwait (= 2 s) · ?capwait=T · ?capwaitin=T (1.2 s) — T under 20 = seconds, else ms. Without ?capwait: the glide. */
+const CAP_WAIT = (() => {
+  const t = k => { const v = parseFloat(pageQuery.get(k)); return Number.isFinite(v) && v >= 0 ? (v < 20 ? v * 1000 : v) : null; };
+  const ms = pageQuery.has('capwait') ? t('capwait') ?? 2000 : 0, fade = t('capwaitin') ?? 1200;
+  return { on: ms > 0, ms, in: fade, zoom: pageQuery.get('capwaitzoom') === '1', fade: `opacity ${fade}ms cubic-bezier(.42, 0, .58, 1) ${ms}ms` };
+})();
 /* site 2026-10-09, CAPTION GROUP (owner: "I want the text of the neo 1x left from the polaroids to stay there on scroll till the very last
    single pic. the right from the macbook" — scrolling in OPEN = the CAMERA's moves, a click on a peeking neighbour, the owner's "when I
    scroll in zoom in mode, click on right and left"): the NEO part of the row — the single pics right of the MacBook (room, shelves,
@@ -1426,9 +1441,13 @@ const capLagRun = () => Object.keys(CAP_GROUPS).some(n => CAP_GROUPS[n].lag.o ||
 const capLagKey = () => Object.keys(CAP_GROUPS).map(n => CAP_GROUPS[n].lag.o.toFixed(2)).join(',');   // renderPage()'s check key: a change of the hold-back = a row write
 function capGroup(g) {                      // its state now: on (seen), held (a camera move inside the group: no ride, it glides — capGroupDx()), ride (the member whose zoom it rides)
   const m = RP.move, a = activeStack, inG = s => !!s && s.capGroup === g;
-  if (m && inG(m.from) && inG(m.to)) return { on: true, held: true, ride: null };
+  if (m && inG(m.from) && inG(m.to)) {
+    if (!CAP_WAIT.on) return { on: true, held: true, ride: null };
+    if (m.to.progress >= CAP_FADE.at) return { on: true, held: false, ride: m.to };          // site 2026-10-10, CAP_WAIT: the next pic has landed — beside it the text waits, then fades in (capFadeIn())
+    return { on: false, held: false, ride: m.from, pin: true };                             // … till then it stays where it was, beside the pic it left, fading there under both piles (pin: no ride)
+  }
   if (inG(a)) return { on: (a.state === 'zoom' || a.state === 'open') && a.progress >= CAP_FADE.at, held: false, ride: a };
-  if (m && inG(m.from)) return { on: false, held: false, ride: m.from };                    // leaving the group: out, riding the member it leaves
+  if (m && inG(m.from)) return { on: false, held: false, ride: m.from, pin: CAP_WAIT.on };   // leaving the group: out, riding the member it leaves (CAP_WAIT: staying where it was)
   return { on: false, held: false, ride: null };
 }
 const capOwner = g => stacks.find(s => s.name === CAP_GROUPS[g].owner);
@@ -1978,19 +1997,29 @@ const cards = [];
 let lid = null;                                                            // site: the MACBOOK's lid (makeLid(); a card with pic.lid)
 let lidTail = false;                                                       // site: the close's lid still on its way down (lidSync(): the CLOSE TAIL)
 let capOn = false, capIn = CAP_FADE.in;                                    // site: the caption's fade in — on, and its transition (capFadeIn())
-function capFadeIn() {                      // site 2026-10-08 (CAP_FADE): the MACBOOK's caption ends its fade in with the lid's opening
+function capFadeIn(st) {                    // site 2026-10-08 (CAP_FADE): the MACBOOK's caption ends its fade in with the lid's opening
+  const first = st ? st.capLanding() : capLanding(), mv = st ? st.moved : moved;           // site 2026-10-10 (CAP_WAIT): st = the pile it comes in beside (a CAPTION GROUP's member; none: this one)
+  if (CAP_WAIT.on && first && (mv || CAP_WAIT.zoom)) { capWaitT = performance.now(); return CAP_WAIT.fade; }   // … a scroll's landing: the wait, then the slow fade
   const s = lid ? lid.eta : null;
   return s > .25 ? `opacity ${Math.round(s * 1000)}ms cubic-bezier(.42, 0, .58, 1)` : CAP_FADE.in;
 }
 function capOut() { if (capEl) { put(capEl, 'cpT', 'transition', CAP_FADE.out); put(capEl, 'cpO', 'opacity', '0'); } }   // site: CAP_FADE's out from a click (closeNow(): its own, or its CAPTION GROUP's)
+let capWaitT = 0, capFirst = false;         // site 2026-10-10 (CAP_WAIT): when the landing's delayed fade was set; this visit's first fade in is still to come (expand())
+function capLanding() { const f = capFirst; capFirst = false; return f; }                  // … taken by the visit's first fade in (capFadeIn(): its own, or its CAPTION GROUP owner's) — a later one (the FILM's stop) does not wait
+function capRewait() {                      // CAP_WAIT: a flip while the text still waits — the wait starts over (flip())
+  if (!CAP_WAIT.on || !capEl || !capOn || capIn !== CAP_WAIT.fade || performance.now() - capWaitT >= CAP_WAIT.ms) return;
+  put(capEl, 'cpT', 'transition', 'none'); put(capEl, 'cpO', 'opacity', '0');
+  getComputedStyle(capEl).opacity;                                                         // a style flush: the drop is seen, so the transition below starts anew (it is still at 0)
+  capWaitT = performance.now(); put(capEl, 'cpT', 'transition', capIn); put(capEl, 'cpO', 'opacity', '1');
+}
 function capRender(gc) {                    // site 2026-10-09: a CAPTION GROUP's caption (the owner's) from the group's camera, capGroup() (renderPage(): every frame), not from this stack alone
   const into = gc.held || !!gc.ride && (gc.ride.state === 'zoom' || gc.ride.state === 'open');
-  if (gc.on && !capOn) capIn = capFadeIn();
+  if (gc.on && !capOn) capIn = capFadeIn(gc.ride);
   capOn = gc.on;
   put(capEl, 'cpT', 'transition', gc.on ? capIn : into ? 'none' : CAP_FADE.out);
   put(capEl, 'cpO', 'opacity', gc.on ? '1' : '0');
   put(capEl, 'cpV', 'visibility', gc.held || !!gc.ride && gc.ride.state !== 'home' ? 'visible' : 'hidden');
-  put(capEl, 'cpZ', 'translate', gc.held ? CAP_GROUP.z : '');                              // under both moving piles while it is held (the leaving one rides at −.75)
+  put(capEl, 'cpZ', 'translate', gc.held || gc.pin ? CAP_GROUP.z : '');                   // under both moving piles while it is held (the leaving one rides at −.75) — or pinned (CAP_WAIT)
 }
 let capGeo = null;                          // site 2026-10-09: a CAPTION GROUP owner's band (capMeasure(), layoutMeasure()): its type's width, the split's grows and bases
 function capMeasure() {                     // the .caption CSS: ::before | the type (w) | ::after in the band, so its x = before's basis + max(0, band − w − bases) · a / (a + b)
@@ -2971,6 +3000,7 @@ function resetOrder() { order = knobs.deck.concat(IMAGES.map((_, j) => j).filter
    the new flight's BACK start, which re-seats every card). */
 function flip(dir) {                        // +1 = next (front → back), −1 = prev (back → front); always immediate
   perfMark(dir > 0 ? 'flip next' : 'flip prev');
+  if (CAPG) capOwner(CAPG)?.capRewait(); else capRewait();                                 // site 2026-10-10 (CAP_WAIT): a flip while the caption still waits — its wait starts over
   if (tuckQ) untuck(true);                                // PERF: a flip before the untuck is through (< 200 ms after OPEN): the rest at once
   const o = dir > 0 ? order[0] : order[D - 1];            // the outgoing card: the top card for next, the bottom one for prev
   if (dir > 0) order.push(order.shift()); else order.unshift(order.pop());
@@ -3188,6 +3218,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
   state = 'zoom'; delta = 0; moved = !!move;
+  capFirst = true;                                                                         // site 2026-10-10 (CAP_WAIT): the caption's next fade in is this landing's
   run0 = order[move === -1 && D > 1 ? 1 : 0];                                              // site 2026-10-10: THE KEYS — this visit's run (walk()); arrived from the right (moveTo()'s side −1), the front card ends it
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
   if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
@@ -3681,6 +3712,7 @@ const self = {                              // site: what the page sees of this 
   expand, collapse, flip, zoneAt, setVHover, hoverTo, setKnob, setNudge,   // setKnob / setNudge: debug (window.__stacks)
   prime, unprime,                                                          // PERF: the click's costly work on the press (the page's pointerdown / pointerup)
   capGroup: CAPG, capOut, capRender, capDx,                                        // site 2026-10-09: the CAPTION GROUP (capGroup(), renderPage(), closeNow())
+  capRewait, capLanding, get moved() { return moved; },                                   // site 2026-10-10: CAP_WAIT (capFadeIn(), flip()) — moved: a CAMERA move's arrival
   audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (the sleeve's; the MACBOOK's cfg.play button too); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
@@ -4305,7 +4337,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
     if (!!e.pk !== park) { e.pk = park; perfMark((park ? 'park ' : 'unpark ') + (e.el.id || 'tile')); }
   }
   for (const s of stacks) if (s.capEl && s.capGroup) {                                        // site 2026-10-09: a CAPTION GROUP's caption — its member's map (none while held) + its place beside the member (capGroupDx())
-    const g = capGroup(s.capGroup), e = CAMERA && CAP_RIDE && g.ride ? elOf(g.ride) : null;
+    const g = capGroup(s.capGroup), e = CAMERA && CAP_RIDE && g.ride && !g.pin ? elOf(g.ride) : null;   // pin (CAP_WAIT): where it was, beside the pic it left, not riding it
     capWrite(e, !!e?.pk, s, capGroupDx(s, g));
   }
   if (CAMERA) {                                                                               // the name: the camera, about its layer's centre
