@@ -1503,15 +1503,16 @@ const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. Once it
    has landed from a zoom in (not a camera move's arrival — the owner's rule for the neighbour nudge: "Only on zoom in"), after `delay`
    (the lid's 800 ms: the neighbours' nudge is back by then) the take's own start (the hover teaser's motion: the hand's first lift)
-   plays up to `scale` × the hover teaser's turn, holds and settles back — .35 × 4° = 1.4° (owner 2026-10-10: "make the affordance lift
-   of the first image be more subtle. and super smooth and gentle"; before: .85 × = 3.4°, "make the lift a bit more subtle", and at first
-   1.6 × = 6.4°, as the lid's hint rose 1.6 × its hover crack). The take LIFTS before it turns, so the lift is front-loaded — measured on
-   the composites (the print's edge drift · its top's rise, device px): 6.4° 51 · 15, 3.4° 32 · 9, 1.4° ~16 · 4.5 (half of 3.4°'s).
+   plays up to `scale` × the hover teaser's turn, holds and settles back — .55 × 4° = 2.2° (owner 2026-10-10, after 1.4°: "lil more on
+   hover amount, aka it lifts more, rest is good"; 1.4° = .35 ×, "make the affordance lift of the first image be more subtle. and super
+   smooth and gentle"; before: .85 × = 3.4°, "make the lift a bit more subtle", and at first 1.6 × = 6.4°, as the lid's hint rose 1.6 × its
+   hover crack). The take LIFTS before it turns, so the lift is front-loaded — measured on the composites (the print's edge drift · its
+   top's rise, device px): 6.4° 51 · 15, 3.4° 32 · 9, 2.2° ~24 · 7, 1.4° ~16 · 4.5.
    Up 1 s · hold .2 s · down 1.1 s, SMOOTHERSTEP each way (zero speed AND acceleration at every turn of it: no jolt where it sets off,
    tops out or lands; was the lid hint's .65 · .15 · .6 s smoothstep). Not on its back, not mid-turn, not under a hover
    (the teaser shows already), never again once the visitor has turned it this visit (they know); a hover or a click takes over from
    where it is (makeTurn(): T.autoHint). Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
-const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .35, delay: 800, up: 1, hold: .2, down: 1.1,
+const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .55, delay: 800, up: 1, hold: .2, down: 1.1,
                     rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
   const d = parseFloat(pageQuery.get('turnhintat')); if (Number.isFinite(d)) TURN_HINT.delay = clamp(d, 0, 5000); }
