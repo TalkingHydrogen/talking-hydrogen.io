@@ -4822,7 +4822,12 @@ const DAN_CD = !DAN_CD_ON ? [DANDELION[1]] : DAN_SLEEVE ? DANDELION : [{ ...DAND
    placeholder (Dandelion / Demo OST / Viktor Dune) until the owner typed theirs on the SWAP page. lock: the LOCK's reference text = that placeholder (the place). */
 const DAN_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nViktor Dune',   // owner 2026-10-07 (typed on the SWAP page, "apply current values"): Dandelion / 1 line / Founder / 3 lines / Alex Tykh, Viktor Dune
                       lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };   // lock: the reference (LOCK) — this placeholder: the owner's text will start where it starts
-stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_CD_ON && DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD (?cd=1&sleeve=1 only)
+/* site 2026-10-10 (owner: "also rm the vynyl with music"): the Dandelion pile — the sleeve and its song — is OFF the row: its .wrap leaves
+   the DOM here, before the first layout measures the row (RP.els — the neighbours, the camera, the age roll — come from the DOM). ?vinyl=1
+   brings it back as it was (with ?cd=1 / ?sleeve=1 as before); the sleeve, the song and its caption stay (assets, this block). */
+const DAN_ON = pageQuery.get('vinyl') === '1';
+if (!DAN_ON) $('dandelion').remove();
+else stacks.push(makeStack($('dandelion'), { name: 'dandelion', idp: 'dan-', images: DAN_CD, deck: DAN_CD_ON && DAN_SLEEVE ? [0, 1] : [0], nudge: [[0, 0, 0], [.07, -.06, 5]],   // the sleeve peeks up-right, turned against the CD (?cd=1&sleeve=1 only)
                                         rest: DAN_CD_ON ? { rot: -2, up: 0 } : { rot: 3, up: .03 }, audio: '../assets/dandelion/dt01-drum_variation01-01.mp3',   // 2026-10-09: the sleeve's own rest again (the CD's was rot −2 / up 0)
                                         caption: DAN_CAPTION }));
 /* site 2026-10-09 — the SIGN-OFF IN A RING (owner: "compose this one as the text composed in a circle like what jony ive likes to do
