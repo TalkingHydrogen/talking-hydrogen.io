@@ -1396,24 +1396,26 @@ const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
    ?capgroup=0 = every pile as before (the inspect's own caption). */
 const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 -.8px' };
 const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'polaroids'], lag: { o: 0, v: 0, prev: null } } } : {};
-/* site 2026-10-10 — the glide's INERTIA (owner: "add some delay on when the text on the left is moving when the larger element comes in
-   like neo vid, there must be some kind of physics to that animation, aka similar to scroll inertia … a nice natural delay … just enough
-   not to read robotic sudden quick move, but more like collide impact of a bit"): the ROW's own lag law (ROWPHYS.lag, rowStep(): an
-   element is held back by `amount` of every scroll delta and springs back at hz / zeta) on the caption's type. Each frame its place
-   beside the piles (the smoothstep glide above) moves by d; the type is held back by amount · d and springs back (capLagStep(), under
-   the row's step in frame()): it sets off late and soft, catches up, and lands with a little overshoot — the impact. Only while the
-   camera moves inside the group (held); into or out of the group the place is taken as is (the type fades there).
-   Measured (wkcap 1440 × 900, inspect ↔ clip, 44 px): rigid — sets off ~98 ms after the click, half way 215, lands 315, no overshoot;
-   amount 1 — sets off 164, half way 280, lands 381, overshoots 2.6 px, still by ~615 (amount .7: 131 · 264 · 381 · 1.8 px; zeta .4:
-   5.6 px, still by 765). ?caplag=0 rigid (the 2026-10-09 glide) · ?caplag=AMOUNT · ?caphz= · ?capzeta= */
-const CAP_LAG = { amount: 1, hz: 2.4, zeta: .55 };    // amount 1: the type moves only through the spring (pure inertia); hz / zeta = the row's lag spring
-{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) CAP_LAG[f] = v; }; q('caplag', 'amount'); q('caphz', 'hz'); q('capzeta', 'zeta'); }
+/* site 2026-10-10 — the IMPACT (owner: "add some delay on when the text on the left is moving when the larger element comes in like
+   neo vid, there must be some kind of physics to that animation, aka similar to scroll inertia … a nice natural delay … just enough not
+   to read robotic sudden quick move, but more like collide impact of a bit"; then: "it has to be after the video arrives, now it just
+   shoots when it didnt even land yet"): the type STAYS beside the pile it was with while the camera moves, and only once the arriving
+   pile has landed (its zoom's u ≥ `at` = 1: the frame its ease ends; that step clears the move itself, so capLagStep() tracks the
+   place while the type is held OR beside a member, and the step shows as the move's end) its place steps to beside that one — the ROW's own lag law (ROWPHYS.lag, rowStep(): held back by the move, springing back at hz / zeta) carries the type across:
+   capLagStep() (under the row's step in frame()) holds the type back by the whole step and the spring (the row's hz 2.4 / zeta .55)
+   releases it — a shove from rest into its place, a little past it, back. Only while the camera moves inside the group (held); into or
+   out of the group the place is taken as is (the type fades there). Measured (wkcap 1440 × 900, inspect ↔ clip, 44 px): the pile is
+   still at ~565 ms after the click; the type sets off ~30 ms later, is half way ~100 ms after that, past its place by 2.9 px, still
+   by ~900 ms (zeta .55: 5.5 px, ~1 s; .75: 1.2 px). ?capglide=1 = the 2026-10-09 glide (the type rides the camera's u through a
+   smoothstep, no spring) · ?capat=U the landing (.985 sets off ~65 ms earlier) · ?caphz= ?capzeta= the spring */
+const CAP_LAG = { on: pageQuery.get('capglide') !== '1', at: 1, hz: 2.4, zeta: .65 };   // at 1: the frame the arriving pile's zoom ends (its last 50 ms move < 1 px: still); zeta .65 = 2.9 px past on 44 (the row's .55 = 5.5)
+{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) CAP_LAG[f] = v; }; q('capat', 'at'); q('caphz', 'hz'); q('capzeta', 'zeta'); }
 function capLagStep(dt) {                   // the held-back type's spring (ROWPHYS.lag's integrator), every group, every frame
   const w = 2 * Math.PI * CAP_LAG.hz / 1000, z = CAP_LAG.zeta, n = Math.max(1, Math.ceil(dt)), h = dt / n;
   for (const name of Object.keys(CAP_GROUPS)) {
     const G = CAP_GROUPS[name], L = G.lag, s = capOwner(name); if (!s) continue;
-    const g = capGroup(name), x = capGlideDx(s, g);
-    if (g.held && CAP_LAG.amount) { if (L.prev !== null) L.o -= (x - L.prev) * CAP_LAG.amount; L.prev = x; }   // held back by amount · the place's move (o counters it, as the row's el.o counters dS)
+    const g = capGroup(name), x = capGlideDx(s, g), inG = g.held || (g.on && !!g.ride);   // inside the group: a move between members, or beside one (the move's last zoom step clears RP.move itself, before this runs: the step shows as held → beside)
+    if (CAP_LAG.on && inG) { if (L.prev !== null) L.o -= x - L.prev; L.prev = x; }        // held back by the place's whole step (o counters it, as the row's el.o counters dS)
     else L.prev = null;
     if (!L.o && !L.v) continue;
     for (let i = 0; i < n; i++) { L.v += (-w * w * L.o - 2 * z * w * L.v) * h; L.o += L.v * h; }
@@ -1430,12 +1432,14 @@ function capGroup(g) {                      // its state now: on (seen), held (a
   return { on: false, held: false, ride: null };
 }
 const capOwner = g => stacks.find(s => s.name === CAP_GROUPS[g].owner);
-function capGlideDx(s, g) {                 // the group's type PLACE now (owner s's capDx()): beside the open member, or on its way between two
+function capGlideDx(s, g) {                 // the group's type PLACE now (owner s's capDx()): beside the open member, or, over a move, beside the one it was with until the other has landed (CAP_LAG) — or on its way between them (?capglide=1)
   if (!g.held) return g.ride ? s.capDx(g.ride) : 0;
-  const u = clamp(RP.move.to.progress, 0, 1), k = u * u * (3 - 2 * u);                   // smoothstep of the camera's u: it sets off after the pics, lands with them
+  const u = clamp(RP.move.to.progress, 0, 1);
+  if (CAP_LAG.on) return s.capDx(u < CAP_LAG.at ? RP.move.from : RP.move.to);           // the IMPACT: the step the spring carries (capLagStep())
+  const k = u * u * (3 - 2 * u);                                                           // smoothstep of the camera's u: it sets off after the pics, lands with them
   return mix(s.capDx(RP.move.from), s.capDx(RP.move.to), k);
 }
-function capGroupDx(s, g) {                 // the type's offset as written: its place + the inertia's hold-back (CAP_LAG, capLagStep())
+function capGroupDx(s, g) {                 // the type's offset as written: its place + the impact's hold-back (CAP_LAG, capLagStep())
   return capGlideDx(s, g) + (CAP_GROUPS[s.capGroup]?.lag.o || 0);
 }
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
@@ -3879,7 +3883,7 @@ function frame() {
   for (const s of pageSprings) s.tick(dt);
   for (const s of stacks) s.step(dt, now);
   rowStep(dt);                              // site: the row's scroll + its elements' springs
-  capLagStep(dt);                           // site 2026-10-10: the CAPTION GROUP's type, held back by the glide (CAP_LAG)
+  capLagStep(dt);                           // site 2026-10-10: the CAPTION GROUP's type, shoved by the landing (CAP_LAG)
   renderPage();
   if (anyActive()) rafId = requestAnimationFrame(frame);
   else { rafId = 0; last = 0; for (const s of stacks) s.idle(now); renderPage(); }
