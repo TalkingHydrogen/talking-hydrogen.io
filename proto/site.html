@@ -461,6 +461,15 @@
   <div class="wrap" id="neofilm" data-size="1.2" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): NEOFILM in BOOT -->
   </div></div>
+  <!-- site 2026-10-10: a PHOTO PRINT before the polaroid stack (owner: "add this photo before the polaroid stack"): the TREES — the
+       apple-tree logo exploration, a cluster of black tree marks with the Apple mark among them on white (the owner's screenshot of
+       All dump/tree ai logo.png's bottom cluster; cut from that 5241 px source at the screenshot's framing, 5 : 3, the cluster centred,
+       a stray sliver of the grey tree above it erased), printed as the room print (photoprint.py --long 1920 --border-px 49 →
+       assets/photo/trees-print.webp 2018 × 1250 + its table shadow; the card's white = the paper's, so the print is one sheet).
+       TREES in BOOT; data-size 1; data-age 22, its neighbours' (the age doesn't change across it) -->
+  <div class="wrap" id="trees" data-size="1" data-age="22"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): TREES in BOOT -->
+  </div></div>
   <!-- the row elements besides the stacks: one .tile each; the img's width / height = the image's pixel size (its aspect
        before it loads); --tilt rotates it.
        site: the POLAROIDS are a second STACK (makeStack() below: the drawings stack's engine as its own instance — the same
@@ -4787,6 +4796,12 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
   : { name: 'neofilm', idp: 'nf-', images: [{ id: 'neofilm', src: '../assets/neofilm/neofilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEOFILM_CLIP, live: NEOFILM_LIVE, scrub: NEOFILM_SCRUB,
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
+/* site 2026-10-10: the TREES print (the markup's comment): a pile of one, the photo prints' treatment (POL_KNOBS, castOnly, its own
+   measured table shadow from photoprint.py: fx .03331 fy .05376), rest +1° (the clip left of it leans −.9°, the prints alternate),
+   the hover turn counter-clockwise as every print's, lowered onto the row's baseline by (w/h − 1)/2 */
+const TREES = [{ id: 'trees', src: '../assets/photo/trees-print.webp', w: 2018, h: 1250 }];
+stacks.push(makeStack($('trees'), { name: 'trees', idp: 'tr-', images: TREES, deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                    floor: { src: '../assets/photo/trees-floor.webp', fx: .03331, fy: .05376 }, rest: { rot: 1, up: -(2018 / 1250 - 1) / 2, hover: -1 } }));
 /* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
 /* site 2026-10-09: … a CLIP now (the markup's comment): the NEO clip's engine as it is — cfg.video (the CLIP note: the shot, frames 149 … 238,
