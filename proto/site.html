@@ -1395,7 +1395,33 @@ const CAP_FADE = { at: +(pageQuery.get('capat') || .98),
    (a close, a move to the MacBook or the CD) it fades out from the click, riding the member it leaves (CAP_FADE's out, as before).
    ?capgroup=0 = every pile as before (the inspect's own caption). */
 const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 -.8px' };
-const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'polaroids'] } } : {};
+const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'polaroids'], lag: { o: 0, v: 0, prev: null } } } : {};
+/* site 2026-10-10 — the glide's INERTIA (owner: "add some delay on when the text on the left is moving when the larger element comes in
+   like neo vid, there must be some kind of physics to that animation, aka similar to scroll inertia … a nice natural delay … just enough
+   not to read robotic sudden quick move, but more like collide impact of a bit"): the ROW's own lag law (ROWPHYS.lag, rowStep(): an
+   element is held back by `amount` of every scroll delta and springs back at hz / zeta) on the caption's type. Each frame its place
+   beside the piles (the smoothstep glide above) moves by d; the type is held back by amount · d and springs back (capLagStep(), under
+   the row's step in frame()): it sets off late and soft, catches up, and lands with a little overshoot — the impact. Only while the
+   camera moves inside the group (held); into or out of the group the place is taken as is (the type fades there).
+   Measured (wkcap 1440 × 900, inspect ↔ clip, 44 px): rigid — sets off ~98 ms after the click, half way 215, lands 315, no overshoot;
+   amount 1 — sets off 164, half way 280, lands 381, overshoots 2.6 px, still by ~615 (amount .7: 131 · 264 · 381 · 1.8 px; zeta .4:
+   5.6 px, still by 765). ?caplag=0 rigid (the 2026-10-09 glide) · ?caplag=AMOUNT · ?caphz= · ?capzeta= */
+const CAP_LAG = { amount: 1, hz: 2.4, zeta: .55 };    // amount 1: the type moves only through the spring (pure inertia); hz / zeta = the row's lag spring
+{ const q = (k, f) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) CAP_LAG[f] = v; }; q('caplag', 'amount'); q('caphz', 'hz'); q('capzeta', 'zeta'); }
+function capLagStep(dt) {                   // the held-back type's spring (ROWPHYS.lag's integrator), every group, every frame
+  const w = 2 * Math.PI * CAP_LAG.hz / 1000, z = CAP_LAG.zeta, n = Math.max(1, Math.ceil(dt)), h = dt / n;
+  for (const name of Object.keys(CAP_GROUPS)) {
+    const G = CAP_GROUPS[name], L = G.lag, s = capOwner(name); if (!s) continue;
+    const g = capGroup(name), x = capGlideDx(s, g);
+    if (g.held && CAP_LAG.amount) { if (L.prev !== null) L.o -= (x - L.prev) * CAP_LAG.amount; L.prev = x; }   // held back by amount · the place's move (o counters it, as the row's el.o counters dS)
+    else L.prev = null;
+    if (!L.o && !L.v) continue;
+    for (let i = 0; i < n; i++) { L.v += (-w * w * L.o - 2 * z * w * L.v) * h; L.o += L.v * h; }
+    if (Math.abs(L.o) < .01 && Math.abs(L.v) < 1e-4) L.o = L.v = 0;
+  }
+}
+const capLagRun = () => Object.keys(CAP_GROUPS).some(n => CAP_GROUPS[n].lag.o || CAP_GROUPS[n].lag.v);
+const capLagKey = () => Object.keys(CAP_GROUPS).map(n => CAP_GROUPS[n].lag.o.toFixed(2)).join(',');   // renderPage()'s check key: a change of the hold-back = a row write
 function capGroup(g) {                      // its state now: on (seen), held (a camera move inside the group: no ride, it glides — capGroupDx()), ride (the member whose zoom it rides)
   const m = RP.move, a = activeStack, inG = s => !!s && s.capGroup === g;
   if (m && inG(m.from) && inG(m.to)) return { on: true, held: true, ride: null };
@@ -1404,10 +1430,13 @@ function capGroup(g) {                      // its state now: on (seen), held (a
   return { on: false, held: false, ride: null };
 }
 const capOwner = g => stacks.find(s => s.name === CAP_GROUPS[g].owner);
-function capGroupDx(s, g) {                 // the group's type offset now (owner s's capDx()): beside the open member, or on its way between two
+function capGlideDx(s, g) {                 // the group's type PLACE now (owner s's capDx()): beside the open member, or on its way between two
   if (!g.held) return g.ride ? s.capDx(g.ride) : 0;
   const u = clamp(RP.move.to.progress, 0, 1), k = u * u * (3 - 2 * u);                   // smoothstep of the camera's u: it sets off after the pics, lands with them
   return mix(s.capDx(RP.move.from), s.capDx(RP.move.to), k);
+}
+function capGroupDx(s, g) {                 // the type's offset as written: its place + the inertia's hold-back (CAP_LAG, capLagStep())
+  return capGlideDx(s, g) + (CAP_GROUPS[s.capGroup]?.lag.o || 0);
 }
 const CAP_RIDE = pageQuery.get('capride') !== '0';   // site 2026-09-30 (owner: "anchor it to the background itself like every other element including viktor dune text" — it was appearing "as an overlay on top of everything" that "disappears anchored to the camera when the photo stack is moving away"): the caption RIDES the table again (capWrite(): the 2026-09-28 printed-on-the-table map; its fade stays, the header's); ?capride=0 = 2026-09-29's viewport-pinned fade only
 /* site: the zoom's drive (ZOOM.ease — the iOS 7 timing) and its URL knobs */
@@ -3802,7 +3831,7 @@ let last = 0, rafId = 0;
    integrate the whole stall at once: 0 → 30–40 % of the zoom in one frame) */
 let startGuard = 0;
 const blocked = () => stacks.some(s => s.blocked());       // a debug freeze / pin (the primary's URL) holds the loop, as before
-const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive() || nudgeRun();   // the NEIGHBOUR NUDGE moving (not while it holds)
+const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive() || nudgeRun() || capLagRun();   // the NEIGHBOUR NUDGE moving (not while it holds); the caption's inertia ringing down
 /* FRAME RECORDER (debug, 2026-09-27; designer: "still lags a bit … find what exactly causes it"): every frame of the loop — its
    interval (raw, before maxFrameDt / startGuard), the loop's own script time, and the named steps (perfMark) that ran since
    the frame before — in a ring of PERF.N frames. A slow frame's interval minus its script time is Safari's own work (style,
@@ -3850,6 +3879,7 @@ function frame() {
   for (const s of pageSprings) s.tick(dt);
   for (const s of stacks) s.step(dt, now);
   rowStep(dt);                              // site: the row's scroll + its elements' springs
+  capLagStep(dt);                           // site 2026-10-10: the CAPTION GROUP's type, held back by the glide (CAP_LAG)
   renderPage();
   if (anyActive()) rafId = requestAnimationFrame(frame);
   else { rafId = 0; last = 0; for (const s of stacks) s.idle(now); renderPage(); }
@@ -3873,7 +3903,8 @@ function renderPage() {
   }
   if (RP.part && RP.part !== activeStack && RP.part.progress === 0) RP.part = null;        // site: PARTING, until the close's p is exactly home
   if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) { RP.move = null; RP.nvFrom = 0; }   // site: a CAMERA move is over when both piles are exactly at their ends (the NUDGE it carried is gone)
-  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV());   // RP.nv: the NUDGE, once a frame
+  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV())   // RP.nv: the NUDGE, once a frame
+           + '|' + capLagKey();                                                              // site 2026-10-10: the caption's inertia ringing down after the move (CAP_LAG): the row writes on
   if (ck !== RP.pv) rowWrite();                                                            // … the other row elements ride the zoom (the CAMERA / PARTING)
   for (const t of tiles) { const th = t.h.value.toFixed(4); if (t._h !== th) { t._h = th; t.style.setProperty('--h', th); } }   // site: the row elements' hover
   pput(backdrop, 'bd', 'opacity', String(v));
@@ -4426,6 +4457,7 @@ function moveTo(b) {
   rowPart();
 }
 window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
+window.__cap = { groups: CAP_GROUPS, lag: CAP_LAG, group: capGroup, glide: capGlideDx };   // site 2026-10-10: the CAPTION GROUP's glide + inertia (debug / tuning)
 
 /* ============================================================
    EVENTS (the page's)
