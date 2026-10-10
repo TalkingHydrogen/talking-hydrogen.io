@@ -1500,8 +1500,10 @@ const LID = { open: 1, close: 1, pick: .9 };   // open / close: × the clip's pa
 const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'), delay: 800, within: 10000, rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('hintat')); if (Number.isFinite(v)) LID_HINT.delay = clamp(v, 0, 20000); }
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
-   affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. Once it
-   has landed from a zoom in (not a camera move's arrival — the owner's rule for the neighbour nudge: "Only on zoom in"), after `delay`
+   affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
+   time it has landed in OPEN — a zoom in from HOME or a camera move's arrival from another open pile (owner 2026-10-10: "lift up
+   affordance to play all the time when Im zooming in on it, even wehn im scrolling on it from the zoomed in view from other ones. Even
+   after the hover click"; before, a zoom in only, once per visit) — after `delay`
    (the lid's 800 ms: the neighbours' nudge is back by then) the take's own start (the hover teaser's motion: the hand's first lift)
    plays up to `scale` × the hover teaser's turn, holds and settles back — .55 × 4° = 2.2° (owner 2026-10-10, after 1.4°: "lil more on
    hover amount, aka it lifts more, rest is good"; 1.4° = .35 ×, "make the affordance lift of the first image be more subtle. and super
@@ -1509,9 +1511,11 @@ const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'
    hover crack). The take LIFTS before it turns, so the lift is front-loaded — measured on the composites (the print's edge drift · its
    top's rise, device px): 6.4° 51 · 15, 3.4° 32 · 9, 2.2° ~24 · 7, 1.4° ~16 · 4.5.
    Up 1 s · hold .2 s · down 1.1 s, SMOOTHERSTEP each way (zero speed AND acceleration at every turn of it: no jolt where it sets off,
-   tops out or lands; was the lid hint's .65 · .15 · .6 s smoothstep). Not on its back, not mid-turn, not under a hover
-   (the teaser shows already), never again once the visitor has turned it this visit (they know); a hover or a click takes over from
-   where it is (makeTurn(): T.autoHint). Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
+   tops out or lands; was the lid hint's .65 · .15 · .6 s smoothstep). Not on its back, not mid-turn. ONE hint per landing: a band's
+   hover (the teaser) or a click (the turn) takes over from where it is; a hover that comes BEFORE it (the pointer sits in a band after
+   the click) does not cancel it but defers it — it stays due and plays `delay` after the teaser has eased back to rest; a turn ends
+   this landing's hint (they turned it: the next landing hints again). Was: never again once turned this visit.
+   Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
 const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .55, delay: 800, up: 1, hold: .2, down: 1.1,
                     rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
@@ -2289,32 +2293,39 @@ function makeTurn(FR, take, tuning) {
     if (T.playing) return;
     const h = T.hint;
     if (side === h.want) return;
-    T.stopAuto();                                                           // site 2026-10-09: a band's hover takes over the ZOOM-IN HINT from where it is
+    T.takeAuto();                                                           // site 2026-10-09: a band's hover takes over a RUNNING ZOOM-IN HINT from where it is (2026-10-10: a pending one stays due)
     h.want = side;
     if (side && (h.side === side || h.t < 1e-3)) { h.side = side; h.target = T.tHint; }
     else h.target = 0;
     T.dirty = true; kick();
   };
   T.hinting = () => !!T.auto || T.hint.t > 0 || T.hint.target > 0 || T.hint.v !== 0;
-  /* the ZOOM-IN HINT (TURN_HINT): armed by enterOpen() after a zoom in; drives the teaser's take time along the lid hint's envelope */
-  T.auto = null; T.autoT = 0; T.turned = false;
+  /* the ZOOM-IN HINT (TURN_HINT): armed by enterOpen() at every landing in OPEN (a zoom in, a camera move's arrival — owner 2026-10-10:
+     "play all the time"); drives the teaser's take time along the lid hint's envelope. `autoDue` = this landing's hint has not played
+     yet: the timer fires it if the print is at rest, else (the pointer is in a band: the teaser is up) it stays due and re-arms the
+     delay when the teaser lands back at rest (step()). A turn (T.start) or the close (T.home) ends it for this landing. */
+  T.auto = null; T.autoT = 0; T.autoDue = false;
   T.autoHint = () => {
-    if (!TURN_HINT.on || TURN_HINT.rm.matches || T.turned || T.playing || T.from !== 'front' || T.hint.want) return;
-    clearTimeout(T.autoT);
-    T.autoT = setTimeout(() => {
-      T.autoT = 0;
-      if (state !== 'open' || T.turned || T.playing || T.from !== 'front' || T.hint.want || T.hint.t > 0) return;
-      T.auto = { t0: performance.now(), tH: FR.hintTime(take, TURN_HINT.deg ?? TURN_HINT.scale * k.hint), side: take.side };
-      perfMark('turn hint'); T.dirty = true; kick();
-    }, TURN_HINT.delay);
+    if (!TURN_HINT.on || TURN_HINT.rm.matches || T.playing || T.from !== 'front') return;
+    clearTimeout(T.autoT); T.autoDue = true;
+    T.autoT = setTimeout(() => { T.autoT = 0; T.fireAuto(); }, TURN_HINT.delay);
   };
-  T.stopAuto = () => {                                                      // off, from where it is: the teaser's spring takes it on (back to rest, or to a hover's target)
-    clearTimeout(T.autoT); T.autoT = 0;
+  T.fireAuto = () => {                                                      // the due hint, now — only on a print at rest in OPEN (else it stays due)
+    if (!T.autoDue || state !== 'open' || T.playing || T.from !== 'front') return;
+    const h = T.hint; if (h.want || h.t > 0 || h.target > 0 || h.v !== 0) return;
+    T.autoDue = false;
+    T.auto = { t0: performance.now(), tH: FR.hintTime(take, TURN_HINT.deg ?? TURN_HINT.scale * k.hint), side: take.side };
+    perfMark('turn hint'); T.dirty = true; kick();
+  };
+  T.takeAuto = () => {                                                      // a RUNNING hint, off from where it is: the teaser's spring takes it on (back to rest, or to a hover's target)
     if (T.auto) { T.auto = null; T.hint.v = 0; T.hint.target = 0; T.dirty = true; kick(); }
+  };
+  T.stopAuto = () => {                                                      // off for this landing: pending, due or running
+    clearTimeout(T.autoT); T.autoT = 0; T.autoDue = false; T.takeAuto();
   };
   T.start = side => {
     if (T.playing) return;
-    T.turned = true; clearTimeout(T.autoT); T.autoT = 0; T.auto = null;    // site 2026-10-09: turned once — no more ZOOM-IN HINTs (it continues from the hint's pose, as from the teaser's)
+    T.stopAuto();                                                           // site 2026-10-09: turned — this landing's ZOOM-IN HINT is over (it continues from the hint's pose, as from the teaser's); 2026-10-10: the next landing hints again
     const h = T.hint, from = h.t > 0 && h.side === side ? h.t : 0;           // continue the teaser's own motion
     T.side = side; T.t = from; T.playing = true; T.dirty = true;
     h.t = 0; h.v = 0; h.target = 0; h.want = 0; h.side = 0;
@@ -2344,7 +2355,11 @@ function makeTurn(FR, take, tuning) {
     if (state !== 'open' && h.want) { h.want = 0; h.target = 0; }                   // the teaser only lives in OPEN
     if (h.t > 0 || h.target > 0 || h.v !== 0) {
       FR.hintStep(h, Math.min(dt, 34) / 1000, k.hintSpeed); T.dirty = true;
-      if (h.t <= 1e-4 && h.target === 0) { h.t = 0; h.v = 0; if (h.want) { h.side = h.want; h.target = T.tHint; } else h.side = 0; }
+      if (h.t <= 1e-4 && h.target === 0) {
+        h.t = 0; h.v = 0;
+        if (h.want) { h.side = h.want; h.target = T.tHint; }
+        else { h.side = 0; if (T.autoDue && !T.autoT && state === 'open') T.autoHint(); }   // site 2026-10-10: the teaser landed with the hint still due: the delay runs again from here
+      }
     }
   };
   T.draw = () => {
@@ -2931,6 +2946,18 @@ function flip(dir) {                        // +1 = next (front → back), −1 
   timing.t0 = t; timing.done = null;
   kick();
 }
+/* site 2026-10-10 — THE KEYS (owner: "make that I can scrool through photos in zoomed in view with arrows on keyboard"): in OPEN
+   ← / → walk the row one picture at a time — a pile's cards first (its flips), then the camera moves on to the neighbour (the
+   page's keyStep()). A visit walks the pile's D cards as one run: zoomed in from HOME or arrived from the left (→), its front card
+   opens the run; arrived from the right (←), its front card ends it, so ← goes on through the cards behind it. A close leaves the
+   pile as it was seen (closeNow()), so a walk back retraces the same cards in reverse. */
+let run0 = 0;                               // the card (IMAGES index) that opens this visit's run
+function walk(dir) {                        // ±1 → true: a flip took the step; false: no card left that way (the camera's turn)
+  if (state !== 'open' || frozen || D < 2) return false;
+  const at = (D - order.indexOf(run0)) % D;                 // the visit's place in its run: the flips from run0 to the front card
+  if (dir > 0 ? at >= D - 1 : at <= 0) return false;
+  flip(dir); return true;
+}
 /* the apex geometry of the outgoing card o against the pile (every card not in the hand). The pile does not move: nothing
    re-seats before the BACK start, so its cards are taken at their seat targets (+ peek) — and, for a card still springing
    home from an earlier flight (a click during BACK), at its current pose (with its decaying tilt / lift / spin) if that sticks
@@ -3119,6 +3146,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
   state = 'zoom'; delta = 0; moved = !!move;
+  run0 = order[move === -1 && D > 1 ? 1 : 0];                                              // site 2026-10-10: THE KEYS — this visit's run (walk()); arrived from the right (moveTo()'s side −1), the front card ends it
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
   if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
@@ -3189,7 +3217,8 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   if (lastX >= 0) setVHover(zoneAt(lastX, lastY) || 0);
   placeNZones();                                                                           // site: the CAMERA's neighbour zones
   nbNudgeLand();                                                                           // site 2026-10-08: the NEIGHBOUR NUDGE — landed protruding: the hold starts
-  if (TURN && !moved) TURN.autoHint();                                                     // site 2026-10-09: the TURN's ZOOM-IN HINT (TURN_HINT) — a zoom in only, not a camera move's arrival
+  if (TURN) TURN.autoHint();                                                               // site 2026-10-09: the TURN's ZOOM-IN HINT (TURN_HINT); 2026-10-10: at every landing — a camera move's arrival too (owner: "even when I'm scrolling on it from the zoomed in view from other ones")
+  keyLand();                                                                               // site 2026-10-10: THE KEYS — a press kept from the flight in
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
@@ -3269,6 +3298,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
     scroller.classList.remove('frozen'); row.classList.remove('parting');                  // the row scrolls again
     nbNudgeOff();                                                                          // site 2026-10-08: the NEIGHBOUR NUDGE ends at HOME (a close took it down with the zoom)
     RP.hAim = null;                                                                        // site 2026-10-09: HOME AIM — the name's fade is over
+    keyQ = 0;                                                                              // site 2026-10-10: THE KEYS — a press kept for a landing that never came
   }
   homeDue = true;                                                                          // PERF: the home clips + shade layers back at the next idle (idle()): a re-raster, 35–45 ms, kept off the close's last frames and the hover that may start here
   render();
@@ -3543,7 +3573,7 @@ function useNatural(c) {                    // refine a card's ratio from the de
 }
 /* the viewer's open layout without animation: the end state of expand() (?open=1 and the viewer freezes) */
 function openNow() {
-  state = 'open'; delta = 0; moved = false;
+  state = 'open'; delta = 0; moved = false; run0 = order[0];
   lidSync();
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: as expand()
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
@@ -3612,7 +3642,8 @@ const self = {                              // site: what the page sees of this 
   audio, playBtn, capEl, get songOn() { return !!playBtn && songUp(); }, get playHole() { return playSlot || playBtn; },                                                   // site: the song and its button (the sleeve's; the MACBOOK's cfg.play button too); the caption (null but for the polaroids)
   get zoom() { return { ix: G.ix + delta, iy: G.iy, S: G.S }; },           // site: the item's open translate and scale (the CAMERA / PARTING)
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
-  homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: () => expand(true),   // site: the CAMERA's neighbour peek and move
+  homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: side => expand(side || true),   // site: the CAMERA's neighbour peek and move (side: ±1, the way the camera goes)
+  walk, get flying() { return preBack(); },                                 // site 2026-10-10: THE KEYS — a step in OPEN; a flip in the air (a held key's repeats wait)
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
@@ -4381,7 +4412,8 @@ function moveTo(b) {
   perfMark('move ' + a.name + ' → ' + b.name);
   setNHover(0); b.protrude(0, 0, 0);                                                        // its cards back into its pile (on the PEEK spring, under the move)
   RP.move = { from: a, to: b };
-  a.leave(); b.arrive();
+  const side = RP.els.findIndex(e => e.st === b) < RP.els.findIndex(e => e.st === a) ? -1 : 1;   // b's side of a in the row (THE KEYS: which end of its run it arrives at)
+  a.leave(); b.arrive(side);
   rowPart();
 }
 window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
@@ -4475,6 +4507,34 @@ for (const z of [nzL, nzR]) {                                                   
   z.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && nHov === side) setNHover(0); });
   z.addEventListener('click', e => e.stopPropagation());
 }
+/* site 2026-10-10 — THE KEYS (the stack's walk() note): ← / → in OPEN = the pile's next card that way (a flip, as its zone's click),
+   else the neighbour on that side (moveTo(), as a click on its sliver). A press while the camera flies (a zoom in, a move) is kept —
+   the last one — and taken at the landing (keyLand(), enterOpen()); a held key's repeats wait for the last step to land, so holding
+   → walks on one picture at a time. While the FILM plays an arrow stops it, as a click does. Off on the labs that own the arrows
+   (?type, ?pos, ?swap) and with ?keys=0. */
+const KEYS = pageQuery.get('keys') !== '0' && !['type', 'pos', 'swap'].some(k => pageQuery.has(k));
+var keyQ = 0;                               // the press kept for the landing: ±1, 0 none (var: a stack's enterOpen() / enterHome() may run before this line)
+function keyStep(dir) {
+  const a = activeStack;
+  keyQ = 0;
+  if (!a || a.state === 'close' || a.frozen) return;                                       // closing to HOME: nothing to walk to
+  if (a.state !== 'open') { keyQ = dir; return; }                                          // zooming in / the camera moving: at the landing
+  if (a.walk(dir)) return;                                                                 // a card left that way: the flip took the step
+  const b = nbOf(dir);
+  if (!b || b.blocked()) return;                                                           // the row's end
+  if (b.state !== 'home') { keyQ = dir; requestAnimationFrame(keyLand); return; }          // still closing (the last move's other end): a frame later
+  moveTo(b);
+}
+function keyLand() { if (keyQ) keyStep(keyQ); }
+if (KEYS) addEventListener('keydown', e => {
+  if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;   // ⌘← / ⌥← stay the browser's
+  const a = activeStack, t = e.target;
+  if (!a || e.defaultPrevented || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  e.preventDefault();
+  const f = filmGuard(); if (f) { f.stop(); return; }
+  if (e.repeat && (a.state !== 'open' || RP.move || a.flying)) return;
+  keyStep(e.key === 'ArrowRight' ? 1 : -1);
+});
 
 /* site 2026-09-30: FILM — while the film plays every click / tap on the page is the film's: it stops it (owner: "any click will stop
    the video"), and nothing else sees it (the viewer's close routing, the neighbour zones, a press's prime) — window capture, first.
