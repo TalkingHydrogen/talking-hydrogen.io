@@ -191,6 +191,8 @@
   .card .live > img.live-p, .card .live > video.live-v { position: absolute; left: 0; top: 0; z-index: auto; display: block; width: 100%; height: 100%;
                 object-fit: fill; background: none; clip-path: none; }
   .card .live > video.live-v { opacity: 0; }   /* its opacity = the curve k (the LIVE note) */
+  /* site 2026-10-11: the CLIP BLEND (the BLEND note) reuses these rules — a second .live box (.live.blend, the poster's copy alone, no
+     motion) under the clip: its copy scales and blurs under the arriving film, the box clipping the scale's overrun */
   .card .live > img.live-p { left: calc(-100% * var(--vl) / var(--vw)); top: calc(-100% * var(--vt) / var(--vh));   /* the card's image whole, its window on the box (a print: the paper outside, clipped) */
                 width: calc(100% / var(--vw)); height: calc(100% / var(--vh));
                 transform-origin: calc(100% * (var(--vl) + var(--vw) / 2)) calc(100% * (var(--vt) + var(--vh) / 2)); }
@@ -516,7 +518,13 @@
        trailer (youtu.be/xIG3IvX9JCY, frames 149 … 238 at 29.97; the still = frame 191, the pigeon settled): the poster, the LIVE hint
        (the entire shot, owner: "let it play entire clip" — the first try was 168 … 191, the jump landing on the poster), the whole shot
        with its sound on the zoom, the button. brew/neofilm/friendsfilm.py
-       → assets/friendsfilm/. ?friendsclip=0 = the still as it was -->
+       → assets/friendsfilm/. ?friendsclip=0 = the still as it was.
+       2026-10-11 (owner: "pull the video and put it on the website for that video of dandelion"): the zoom plays the WHOLE TRAILER (78 s,
+       frames 6 … 2340 of YouTube's 720p — the best it serves), its sound with it; the poster (the pigeon settled, 191) is not its first frame
+       (the white title card), so it starts and ends with the CLIP BLEND (owner: "do that it blends like it blends now for apple live
+       preview when it plays the video since it will be a rough going from the preview image to the first frame of the vid") — the LIVE
+       hint's recipe: the poster recedes, blurred, under the arriving film; at the film's end the key photo settles back. The LIVE hint stays
+       the pigeon shot. ?blend=0 = the plain dissolve -->
   <div class="wrap" id="friends" data-size="1.2" data-age="18"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the still): FRIENDS in BOOT -->
   </div></div>
@@ -1711,7 +1719,7 @@ const filmOpenB = (W, H) => FILM.geom.open.sx * filmFrameW(W, H);   // the MACBO
    click: the gesture; prime() silent on the press), its volume = p, the button right of the card, bottoms aligned (placePlay()),
    pauses / plays it, the close pauses it. Its picture: opacity = p (songWrite()), from its first decoded frame on — the poster at
    HOME, the clip from the zoom (the same frame at the start: the print starts moving — or, a cover still, the zoom dissolves it into
-   the clip's start); the close dissolves it back into the poster
+   the clip's start — or, blend: true, the CLIP BLEND does, its note below); the close dissolves it back into the poster
    as it flies home, and enterHome() rewinds it unseen. Its file: the smallest of sizes ≥ CLIP.pick × the open photo window's
    device px, chosen at the first hover / press (warmAudio()) — nothing is fetched at BOOT — in the kind for this browser
    (filmweb.py's GRADE law: WebKit shows video code values as sRGB(v ^ 1.961) whatever the tag — measured on this clip's plain
@@ -1741,6 +1749,18 @@ const LIVE = { on: pageQuery.get('live') !== '0' && !pageQuery.has('film') && pa
 { const q = (k, f, lo, hi) => { const v = parseFloat(pageQuery.get(k)); if (Number.isFinite(v)) LIVE[f] = clamp(v, lo, hi); };
   q('livezoom', 'zoom', 1, 1.3); q('liveblur', 'blur', 0, 30); q('liveat', 'at', .05, 1); q('livehover', 'hoverMs', 0, 1000); }
 const liveTween = t => t <= 0 ? 0 : t >= 1 ? 1 : .5 - .5 * Math.cos(t * Math.PI);   // LivePhotosKit's
+/* site 2026-10-11 — the CLIP BLEND (owner: "do that it blends like it blends now for apple live preview when it plays the video since it
+   will be a rough going from the preview image to the first frame of the vid"). A cfg.video with blend: true (FRIENDS_CLIP: the whole
+   Dandelion trailer; its first frame the white title card, its poster the pigeon shot) starts and ends as a Live Photo's playback does
+   (the LIVE hint's recipe, the same numbers: LIVE.zoom / blur / inMs / outMs and their ?live… knobs): one curve bk, 0 = the poster,
+   1 = the film. IN (inMs, from the film's FIRST PRESENTED FRAME — requestVideoFrameCallback, else 'playing' + a frame — and never at
+   HOME: prime()'s silent start waits for the zoom): the film's opacity = bk × p; under it the POSTER'S COPY (a .live box: the photo
+   window, clipped; the card's own image stays as it is) scales 1 + .075 bk and blurs 5 bk screen px (÷ the item's scale s: card px) —
+   the picture recedes into blur as the film arrives on it; the film itself stays at 1 (Apple crops its 3 s motion ×1.075 for the whole
+   play; a 78 s film cropped would be wrong). OUT (outMs): at the film's end its last frame (the black after the logo card) is held and
+   dissolves back into the key photo, which sharpens and settles — then the film rewinds unseen (bk 0: a press plays it again, IN again);
+   the close runs the OUT too, under the zoom out (p × bk: the poster is sharp again at HOME). A pause / play mid-film: no blend (the
+   picture is the film's). Without blend: the CLIP as before (the NEO: its opacity = p, the zoom's dissolve). */
 /* site 2026-10-09 — SCROLL IS TIME (owner, after the affordance talk — a video's tell with nothing added: "lets try scroll is time").
    ?cue=scroll only: without it the page is untouched (the LIVE hint as before); with it the LIVE hint is off. A stack with cfg.scrub
    { base, src ('{w}'), type, sizes, first, last, pin, fps } (NEOFILM_SCRUB) ties its film's TIME to its PLACE in the row: the card's
@@ -1794,8 +1814,9 @@ const REST = cfg.rest || null;                              // site: the HOME-on
 const VID = cfg.video || null;                               // site 2026-10-08: the CLIP (its note, above makeStack())
 const audio = cfg.audio ? new Audio() : VID ? clipEl(VID) : null;   // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it — or the CLIP's <video> (the same media API)
 if (cfg.audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
-function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { if (VID) audio.src = clipSrc(); audio.preload = 'auto'; audio.load(); } }
+function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { if (VID) { audio.src = clipSrc(); blendArm(); } audio.preload = 'auto'; audio.load(); } }
 let clipFrame = false;                                       // site: CLIP — it has shown a frame (loadeddata): from then its opacity rides p
+let blendIn = () => {}, blendOut = () => {}, blendHome = () => {}, blendArm = () => {}, blendWrite = () => {}, blendK = () => 1;   // site 2026-10-11: the CLIP BLEND (its note; the block after the LIVE hint's) — expand()'s; closeNow()'s and the film's end; enterHome()'s and unprime()'s; warmAudio()'s; songWrite()'s
 function clipSrc() {                                         // site: CLIP — its file for this window: the smallest ≥ CLIP.pick × the open photo window's device px
   const pic = IMAGES[0], r = pic.w / pic.h, B = G.B || estB(), px = (r >= 1 ? B : B * r) * VID.window[2] * (devicePixelRatio || 1);
   const ws = VID.sizes.slice().sort((a, b) => a - b);
@@ -1879,7 +1900,7 @@ let songG = 1, songT = 1, songRaf = 0, songLast = 0, songHeld = false;
 function songWrite() {                      // render() and the fade: the volume and the button's opacity
   const v = clamp(p.value, 0, 1);
   if (audio) { const vol = Math.round(v * songG * 1000) / 1000; if (audio.volume !== vol) audio.volume = vol; }   // site: the song rises with the zoom, falls with the close
-  if (VID) put(audio, 'clipO', 'opacity', clipFrame ? String(Math.round(v * 1000) / 1000) : '0');   // site: CLIP — the picture rides p: the poster at HOME, the clip in OPEN (the same first frame: the print starts moving)
+  if (VID) { put(audio, 'clipO', 'opacity', clipFrame ? String(Math.round(v * blendK() * 1000) / 1000) : '0'); blendWrite(); }   // site: CLIP — the picture rides p: the poster at HOME, the clip in OPEN (the same first frame: the print starts moving); × the BLEND's curve (its note: a film that does not start on its poster)
   if (playBtn) {                            // site: its button — the header's fade, mirrored
     const o = film?.btnOff ? 0 : Math.round((1 - easeOutQuad(clamp((1 - v) / ZOOM.timing.header.end, 0, 1))) * songG * (film ? 1 - film.hideV : 1) * 1000) / 1000;   // site: FILM — its button rides the cursor while the film plays (a touch: it fades out)
     const px = film?.proxyOn;                                                               // site: FILM — its stand-in over the film shows it meanwhile
@@ -2191,6 +2212,51 @@ if (cfg.live && LIVE.on) {
     finish(); clearTimeout(hT); hov = false; hovOk = false;
     if (seen === 'wait') { clearTimeout(t); seen = LIVE.again ? 'idle' : 'done'; }
   };
+}
+if (VID && VID.blend) {                                      // site 2026-10-11: the CLIP BLEND (its note, above makeStack())
+  const win = VID.window, host = cards[0].el, im = cards[0].img;
+  const box = host.insertBefore(Object.assign(document.createElement('div'), { className: 'live blend' }), audio);   // after the LIVE hint's box, under the clip
+  ['vl', 'vt', 'vw', 'vh'].forEach((k, i) => box.style.setProperty('--' + k, win[i]));
+  box.setAttribute('aria-hidden', 'true');
+  const bp = box.appendChild(Object.assign(document.createElement('img'), { className: 'live-p', alt: '', draggable: false, decoding: 'async' }));
+  let bk = 0, from = 0, to = 0, t0 = 0, dur = 1, raf = 0, armed = false, seen = false;   // bk: the curve (0 the poster … 1 the film); seen: a frame of the film presented since its last rewind
+  const bwr = {}, bput = (el, k, prop, val) => { if (bwr[k] !== val) { bwr[k] = val; el.style[prop] = val; } };
+  blendK = () => bk;
+  blendArm = () => {                        // the poster's copy (the card's own source: cached) — warmAudio(): the first hover / press
+    if (armed) return; armed = true;
+    bp.sizes = im.sizes; if (im.srcset) bp.srcset = im.srcset; bp.src = im.getAttribute('src') || srcsetOf(IMAGES[0]).src;
+    bp.decode?.().catch(() => {});
+  };
+  blendWrite = () => {                      // the copy under the film: scaled and blurred by bk (songWrite() writes the film's opacity = bk × p, and calls this)
+    const v = clamp(p.value, 0, 1), s = G.S ? 1 / G.S + (1 - 1 / G.S) * v : 1, b = LIVE.blur / s * bk;   // LIVE.blur screen px → card px (render()'s item scale)
+    bput(box, 'o', 'opacity', bk > 0 && (bk < 1 || v < 1) ? '1' : '0');                 // under an opaque film: nothing to show (its layer dropped)
+    bput(bp, 't', 'transform', bk > 0 ? `scale(${(1 + (LIVE.zoom - 1) * bk).toFixed(5)})` : '');
+    bput(bp, 'f', 'filter', b > .01 ? `blur(${b.toFixed(2)}px)` : '');
+  };
+  function go(target, ms) {                 // bk → target (LivePhotosKit's tween) from where it is, at the full run's speed
+    if (to === target && (raf || bk === target)) return;
+    from = bk; to = target; t0 = performance.now(); dur = Math.max(1, ms * Math.abs(target - bk));
+    perfMark('blend ' + (target ? 'in' : 'out') + ' ' + cfg.name);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(step);
+  }
+  function step(now) {
+    const u = clamp((now - t0) / dur, 0, 1);
+    bk = from + (to - from) * liveTween(u);
+    songWrite();                                                                          // the film's opacity and the copy (the page's loop may be idle)
+    if (u < 1) { raf = requestAnimationFrame(step); return; }
+    raf = 0;
+    if (to === 0 && audio.ended) { audio.currentTime = 0; seen = false; }                 // the film's end, dissolved away: back to its first frame, unseen (opacity 0) — a press plays it again
+  }
+  const presented = () => { seen = true; blendIn(); };
+  const watch = () => {                     // a play: the IN at its next presented frame, if it is over the poster (bk 0) and the zoom has begun
+    if (audio.requestVideoFrameCallback) audio.requestVideoFrameCallback(presented);
+    else audio.addEventListener('playing', () => requestAnimationFrame(() => requestAnimationFrame(presented)), { once: true });
+  };
+  audio.addEventListener('play', watch);
+  audio.addEventListener('ended', () => { if (state !== 'home') blendOut(); });
+  blendIn = () => { if (seen && state !== 'home' && !audio.paused && to !== 1) go(1, LIVE.inMs); };   // expand() (prime() started it at HOME: its frame is there); presented()
+  blendOut = () => go(0, LIVE.outMs);                                                     // the film's end; closeNow(): under the zoom out
+  blendHome = () => { cancelAnimationFrame(raf); raf = 0; bk = from = to = 0; seen = false; blendWrite(); };   // enterHome() / unprime(): the poster, at once (p = 0: unseen)
 }
 let scrubAt = null, scrubInfo = () => null;   // site 2026-10-09: SCROLL IS TIME (its note, above makeStack()) — rowWrite()'s hook; the probes' view
 if (cfg.scrub && SCRUB.on) {
@@ -3216,6 +3282,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
     audio.volume = 0; if (audio.paused || audio.currentTime > .25) audio.currentTime = 0;
     if (songG) { if (audio.paused) audio.play().catch(syncPlay); } else if (!audio.paused) audio.pause();
     syncPlay();
+    blendIn();                                                                             // site 2026-10-11: the CLIP BLEND's IN, if its frame is there already (prime()); else at its first presented frame
   }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
   else if (playBtn) { filmOn = false; syncPlay(); }                                        // site: the MACBOOK's button opens showing play (nothing runs until it is pressed)
   if (film) { film.kill(); film.arm(); }                                                   // site: FILM — its file for this window, its first frame ready (a B still up fades)
@@ -3239,7 +3306,7 @@ function unprime() {
   primed = false;
   if (state !== 'home' || activeStack === self) return;
   setLayout('home'); shadeLayers(false); render();
-  if (audio) { audio.pause(); audio.currentTime = 0; }
+  if (audio) { audio.pause(); audio.currentTime = 0; blendHome(); }
 }
 function enterOpen() {                      // ZOOM → OPEN: the zones go live; the native cursor (resize arrows on the zones) replaces the disc
   perfMark('open ' + cfg.name);
@@ -3295,6 +3362,7 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
   perfMark('close ' + cfg.name);
   const aimed = !move && moved && state === 'open' && homeAim();                          // site 2026-10-09: HOME AIM — a pile the camera moved to lands on screen (its note)
   state = 'close';
+  blendOut();                                                                              // site 2026-10-11: the CLIP BLEND's OUT, under the zoom out (its note)
   if (CAPG) capOwner(CAPG)?.capOut();                                                      // site 2026-10-09: a CAPTION GROUP's caption — out from the click as well (a move inside the group too: CAP_WAIT)
   else if (capEl) { put(capEl, 'cpT', 'transition', CAP_FADE.out); put(capEl, 'cpO', 'opacity', '0'); }   // site: CAP_FADE — out from the click itself (render() would start it a frame later, with the table already moving)
   lidSync();                                                                               // site: … and closes, slowly, from the close's first frame (LID)
@@ -3329,7 +3397,7 @@ function enterHome() {                      // CLOSE → HOME: unlock the page, 
   lidSync();
   if (activeStack === self) activeStack = null;                                            // site: every stack at HOME again (unless the CAMERA moved on to another)
   wrap.classList.remove('active');
-  if (audio) { audio.pause(); if (VID && audio.currentTime) audio.currentTime = 0; }       // site: the song ends with the close (its volume is ~0 by now); CLIP: back to its first frame (the poster's), unseen
+  if (audio) { audio.pause(); if (VID && audio.currentTime) audio.currentTime = 0; blendHome(); }   // site: the song ends with the close (its volume is ~0 by now); CLIP: back to its first frame (the poster's), unseen; the BLEND at 0
   else if (playBtn && filmOn) { filmOn = false; if (typeof cfg.play === 'function') cfg.play(false); syncPlay(); }   // site: the MACBOOK's film stops with the close
   if (film && !film.owns) film.disarm();                                                   // site: FILM — no layer at HOME
   if (!activeStack) {
@@ -4851,13 +4919,18 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
       openB: (W, H) => CLIP_ZOOM * Math.min(FLIP.boxVh * H, FLIP.boxVw * W) * ZOOM.viewScale }));   // = CLIP_ZOOM × pageLayout()'s B, before the first layout too (estB())
 /* site 2026-10-08: the BORDERLESS PIC (the markup's comment): a pile of one with the plain NEO clip's look — square corners, no border, no
    shadow, straight (rot 0: no hover turn, the hover's lift stays), on the row's baseline; its open box CLIP_ZOOM × the page's, as the clip's */
-/* site 2026-10-09: … a CLIP now (the markup's comment): the NEO clip's engine as it is — cfg.video (the CLIP note: the shot, frames 149 … 238,
-   played from the top on the zoom with its sound, volume = p, the button right of it, the close dissolving back to the poster) and cfg.live
-   (the LIVE hint: the entire shot 149 … 238, muted — its last frame is the pigeon's second settle, not the poster (191), nearly its pose:
-   the out is Apple's return, the held last frame dissolving, blurred, into the key photo). One size: the master is YouTube's 720p
-   (brew/neofilm/friendsfilm.py) */
+/* site 2026-10-09: … a CLIP now (the markup's comment): the NEO clip's engine as it is — cfg.video (the CLIP note: played from the top on
+   the zoom with its sound, volume = p, the button right of it, the close dissolving back to the poster) and cfg.live (the LIVE hint: the
+   entire shot 149 … 238, muted — its last frame is the pigeon's second settle, not the poster (191), nearly its pose: the out is Apple's
+   return, the held last frame dissolving, blurred, into the key photo). One size: the master is YouTube's 720p (brew/neofilm/friendsfilm.py).
+   2026-10-11 (owner: "pull the video and put it on the website for that video of dandelion … do that it blends like it blends now for apple
+   live preview when it plays the video since it will be a rough going from the preview image to the first frame of the vid"): the zoom's
+   film is the WHOLE TRAILER (frames 6 … 2340 of YouTube's 720p, the best it serves: after its 6 black frames, to the "BY ACCIDENTAL TREE"
+   card's last frame, where its sound has died; 78 s — until then the pigeon shot), and blend: true — the CLIP BLEND (its note): the poster
+   dissolves into the film's first frame (the white title card) as a Live Photo's playback starts, and back at its end */
 const FRIENDS_STILL = pageQuery.get('friendsclip') === '0';
-const FRIENDS_CLIP = { base: '../assets/friendsfilm/', sizes: [1280], window: [0, 0, 1, 1], src: { hevc: 'friendsfilm-{w}-wk.mp4', h264: 'friendsfilm-{w}.mp4' }, type: NEOFILM_CLIP.type };
+const FRIENDS_CLIP = { base: '../assets/friendsfilm/', sizes: [1280], window: [0, 0, 1, 1], src: { hevc: 'friendsfilm-{w}-wk.mp4', h264: 'friendsfilm-{w}.mp4' }, type: NEOFILM_CLIP.type,
+                       blend: pageQuery.get('blend') !== '0' };   // site 2026-10-11: the whole trailer; the CLIP BLEND at its start and end (?blend=0: the plain dissolve on p, as the NEO)
 const FRIENDS_LIVE = { base: '../assets/friendsfilm/', sizes: [1280], src: { hevc: 'friendsfilm-live-{w}-wk.mp4', h264: 'friendsfilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
 stacks.push(makeStack($('friends'), FRIENDS_STILL
   ? { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
