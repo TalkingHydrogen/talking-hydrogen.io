@@ -1859,11 +1859,14 @@ if (playBtn) {
   playBtn.addEventListener('click', e => {
     e.stopPropagation();
     if (state !== 'open') return;
-    if (film) { film.play(); return; }                                                   // site 2026-09-30: the MACBOOK — the FILM (the button fades; a click anywhere stops it)
-    if (!audio) { filmOn = !filmOn; if (typeof cfg.play === 'function') cfg.play(filmOn); }   // site: the MACBOOK — the glyph toggles; the hook gets the state
-    else if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
-    syncPlay();
+    playPress();
   });
+}
+function playPress() {                      // its button's press: the click — or SPACE (the stack's playKey(), the page's KEYS)
+  if (film) { film.play(); return; }                                                     // site 2026-09-30: the MACBOOK — the FILM (the button fades; a click anywhere stops it)
+  if (!audio) { filmOn = !filmOn; if (typeof cfg.play === 'function') cfg.play(filmOn); }   // site: the MACBOOK — the glyph toggles; the hook gets the state
+  else if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
+  syncPlay();
 }
 /* site 2026-09-29 (owner: "play/ pause vynyl only when its in view"): in a pile with a pic.song card (the sleeve behind the
    CD) the song and its button belong to THAT card — they play / show only while it is the front card (order[0]). A flip to
@@ -3681,6 +3684,11 @@ const self = {                              // site: what the page sees of this 
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: side => expand(side || true),   // site: the CAMERA's neighbour peek and move (side: ±1, the way the camera goes)
   walk, get flying() { return preBack(); },                                 // site 2026-10-10: THE KEYS — a step in OPEN; a flip in the air (a held key's repeats wait)
+  playKey(go) {                                                             // site 2026-10-11: SPACE — true: it has a button there to press (OPEN, shown); go: press it (playPress())
+    if (!playBtn || state !== 'open' || !songUp() || playBtn.style.display === 'none') return false;
+    if (go) playPress();
+    return true;
+  },
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
@@ -4572,6 +4580,16 @@ if (KEYS) addEventListener('keydown', e => {
   const f = filmGuard(); if (f) { f.stop(); return; }
   if (e.repeat && (a.state !== 'open' || RP.move || a.flying)) return;
   keyStep(e.key === 'ArrowRight' ? 1 : -1);
+});
+/* site 2026-10-11 (owner: "space on keyboard to play the video"): SPACE in OPEN = the open pile's play button, as its click (the
+   stack's playKey()) — the MacBook's film (while it plays, space stops it: the FILM's own key guard, below, takes it first), the
+   NEO clip's and the friends clip's play ↔ pause. A held space presses once. No button there (a print, the polaroids), HOME, the
+   zoom's flight, a focused control: the page's own space, as before. */
+if (KEYS) addEventListener('keydown', e => {
+  if (e.key !== ' ' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  const a = activeStack, t = e.target;
+  if (!a || e.defaultPrevented || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(t.tagName)) return;   // a focused button: its own space (a click)
+  if (a.playKey(!e.repeat)) e.preventDefault();
 });
 
 /* site 2026-09-30: FILM — while the film plays every click / tap on the page is the film's: it stops it (owner: "any click will stop
