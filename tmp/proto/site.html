@@ -3214,7 +3214,7 @@ function tfBegin(dir) {
     c.hand = true; plan(j, 1, t); c.hand = false;                                          // the click's own apex (its clearance against the pile)…
     const F = flight; flight = f0;
     for (const m of [...c.flight, c.ps]) m.jump(m.value);                                  // … and none of its OUT: the finger drives the channels
-    tf = { dir, j, c, apex: F.exApex, tilt: F.tilt, spin: F.spin, arcY: F.arcY, size: F.size, s0: c.ps.value, outE, liftE, tiltE, s: 0, q: 0 };
+    tf = { dir, j, c, apex: F.exApex, tilt: F.tilt, spin: F.spin, arcY: F.arcY, size: F.size, room: F.room, s0: c.ps.value, outE, liftE, tiltE, s: 0, q: 0 };   // room: the PHONE FIT's (null elsewhere)
   } else {
     const j = order[D - 1], c = cards[j], s1 = slots[0]?.size ?? 1, tilt = -k.tilt;
     const ho = bboxW(c, c.pr.target + tilt + k.spin, s1 * k.lift) / 2, x0 = Math.min(-ho, -(G.gcx + c.px.target + c.pk.target + ho) - 2);   // just past the left edge
@@ -3229,12 +3229,12 @@ function tfMove(d) {                        // d: the finger's x from the lock (
   const c = f.c, k = knobs, W = G.W || viewer.clientWidth;
   if (f.dir > 0) {
     let x = Math.min(0, d);
-    if (x < f.apex) x = f.apex - rubberBand(f.apex - x, W);                                // past the apex: the rubber band
+    if (x < f.apex) x = f.apex - (f.room == null ? rubberBand(f.apex - x, W) : f.room > .5 ? rubberBand(f.apex - x, Math.min(W, f.room)) : 0);   // past the apex: the rubber band — the PHONE FIT's never past the screen's edge (its asymptote: the room left there)
     const q = f.apex < 0 ? clamp(x / f.apex, 0, 1) : 1, s = invEase(f.outE, q);
     c.ex.jump(x); c.tl.jump(f.tilt * f.tiltE.e(s)); c.sc.jump(1 + (k.lift - 1) * f.liftE.e(s));
     if (f.spin || c.sp.value) c.sp.jump(f.spin * f.outE.e(s));
     if (f.arcY || c.ey.value) c.ey.jump(f.arcY * f.outE.e(s));
-    if (k.sizeInOut !== 'back') c.ps.jump(f.s0 + (f.size - f.s0) * f.liftE.e(s));
+    if (k.sizeInOut !== 'back' || f.size !== f.s0) c.ps.jump(f.s0 + (f.size - f.s0) * f.liftE.e(s));   // (the PHONE FIT: it shrinks as it leaves)
     f.q = q; f.s = s;
   } else {
     let x = f.x0 + Math.max(0, d);
@@ -3252,7 +3252,7 @@ function tfEnd(commit, v = 0, instant = false) {   // v: the finger's x velocity
   const rest = () => { for (const m of [c.ex, c.tl, c.sp, c.ey]) m.jump(0); c.sc.jump(1); c.ps.jump(f.s0); };
   if (instant) { rest(); if (f.dir < 0) zOrder = order.slice(); kick(); return; }
   if (f.dir > 0 && commit) {
-    c.ex.velocity = Math.min(0, v);
+    c.ex.velocity = f.q < 1 ? Math.min(0, v) : 0;                                           // site 2026-10-15: at / past its apex the finger's push is not carried on (it would bow the way back to the apex further out first)
     flip(1);                                                                               // the order, CAP_WAIT, the song: the click's (it plans the OUT from here)
     const Tr = Math.max(90, (1 - f.s) * outMs());                                          // the OUT's time left
     for (const m of [...c.flight, c.ps]) if (m.tw && m.tw.kind === 'out') { const lim = 4 * Math.abs(m.tw.d); m.tw.T = Tr; m.tw.end = t + Tr; m.tw.m0 = clamp(m.velocity * Tr, -lim, lim); }
@@ -3284,15 +3284,29 @@ function tfcStep() {                        // the cancelled prev is off screen 
    uses the rotated, lifted bounding box at its apex size: a tucked card flies small; with sizeInOut out / split the apex size
    is its destination's / halfway). Sets the OUT tweens on o's ex, ey, sc, tl, sp (and ps with sizeInOut out / split) only:
    ex, ey, sp on outEase; sc (and ps) on liftEase, tl on tiltEase ('asOut' = outEase). */
+/* site 2026-10-15 — the PHONE FIT (the landscape row only; owner, on his iPhone: "when I swipe sometimes it's going out of the very
+   left border instead of under the image stack … slow drag causes it, while a fast swipe gets it under the stack"). The apex law
+   above clears the whole pile at the card's apex size; a phone's open pile fills the middle of a narrow screen, so for most cards
+   that apex lay past the screen's edge (iPhone 15 Pro landscape: the concept art up to 98 pt out, the paintings 162 pt — half the
+   card). A click or a fast swipe crosses it in a frame or two; a SLOW drag let go short of it replayed the OUT's fast tail from rest
+   (≤ 125 ms for the half still to go), so the card shot off out of the left edge before it came back under. On the phone row the
+   flying card now shrinks on its way out (it goes to the back: smaller is further, "under"; the tuck it lands in is .62), just enough
+   for its apex to clear the pile INSIDE the screen: its far edge max(FIT.pad, the safe area) from the edge (a size floor, FIT.floor
+   of its tuck, only for a pathological layout). The finger's drag shrinks it on the same clock (tfMove), its rubber band past the
+   apex never reaches the edge, and a let-go at / past the apex carries no push outward (tfEnd). Nothing changes where the apex fits
+   already, on a desktop (no __mobile) or in the portrait feed (its pile fills the width: no apex fits there). ?pilefit=0: off (A/B). */
+const FIT = { pad: 12, floor: .5, on: pageQuery.get('pilefit') !== '0' };
+const fitRow = () => FIT.on && !!window.__mobile?.on && !isFeed();
 function plan(o, dir, t) {
   const k = knobs, c = cards[o], gap = k.gap * G.KV, lift = k.lift, T = outMs();
   const side = dir < 0 ? dir : (k.dir === 'same' ? dir : -dir), tilt = side * k.tilt, spin = k.spin;   // prev: the pressed side, where it peeked
   const outE = easeNamed(k.outEase, k.outPow), liftE = k.liftEase === 'asOut' ? outE : easeNamed(k.liftEase, k.outPow),
         tiltE = k.tiltEase === 'asOut' ? outE : easeNamed(k.tiltEase, k.outPow);
   const s0 = c.ps.target, s1 = slots[order.indexOf(o)]?.size ?? s0;                 // its seat size now / its destination slot's
-  const sA = k.sizeInOut === 'out' ? s1 : k.sizeInOut === 'split' ? s0 + (s1 - s0) / 2 : s0;   // its size at the apex
-  const xo = c.px.target + c.pk.target, ho = bboxW(c, c.pr.target + tilt + spin, sA * lift) / 2, pile = order.filter(j => !cards[j].hand);
-  let S = 0, exApex = c.ex.target, edge = null, overflow = 0;
+  let sA = k.sizeInOut === 'out' ? s1 : k.sizeInOut === 'split' ? s0 + (s1 - s0) / 2 : s0;   // its size at the apex
+  const xo = c.px.target + c.pk.target, pile = order.filter(j => !cards[j].hand);
+  let ho = bboxW(c, c.pr.target + tilt + spin, sA * lift) / 2;
+  let S = 0, exApex = c.ex.target, edge = null, overflow = 0, room = null, fit = 0;
   if (pile.length) {
     const far = (a, b) => (side < 0 ? b.e < a.e : b.e > a.e) ? b : a;                   // the extreme edge on the travel side
     const edgeAt = (cc, x, rot, s) => x + side * bboxW(cc, rot, s) / 2;                  // that side's edge of a pile card
@@ -3300,18 +3314,30 @@ function plan(o, dir, t) {
       return far({ j, e: edgeAt(cc, cc.px.target + cc.pk.target, cc.pr.target, cc.ps.target) },
                  { j, e: edgeAt(cc, cc.px.value + cc.pk.value + cc.ex.value, cc.pr.value + cc.tl.value + cc.sp.value, cc.ps.value * cc.sc.value) }); }).reduce(far);
     edge = IMAGES[f.j].id;
-    S = Math.max(0, side < 0 ? xo + ho + gap - f.e : f.e + gap - (xo - ho));
-    exApex = side * S * k.reach;
-    const ox = G.gcx + xo + exApex;                                          // o's centre at the apex, viewport px
-    overflow = Math.max(0, side < 0 ? ho - ox : ox + ho - G.W) / (2 * ho);   // fraction of o's width beyond the viewer's edge
+    const apexAt = () => {
+      S = Math.max(0, side < 0 ? xo + ho + gap - f.e : f.e + gap - (xo - ho));
+      exApex = side * S * k.reach;
+      const ox = G.gcx + xo + exApex;                                        // o's centre at the apex, viewport px
+      overflow = Math.max(0, side < 0 ? ho - ox : ox + ho - G.W) / (2 * ho); // fraction of o's width beyond the viewer's edge
+      room = side < 0 ? ox - ho : G.W - ox - ho;                             // its far edge's distance inside the viewer's edge (the PHONE FIT)
+    };
+    apexAt();
+    const pad = fitRow() ? Math.max(FIT.pad, (window.__mobile.safe?.() || {})[side < 0 ? 'l' : 'r'] || 0) : 0;
+    if (pad && S > 0 && room < pad) {                                        // the PHONE FIT: its apex past (or too near) the screen's edge
+      const R = k.reach, per = ho / sA;                                      // the half box is linear in the size
+      const half = m => (side < 0 ? G.gcx + xo * (1 - R) + R * (f.e - gap) - m : G.W - m - G.gcx - xo * (1 - R) - R * (f.e + gap)) / (1 + R);   // the widest half box whose apex edge stays m inside
+      const sMin = Math.min(sA, slots[dir > 0 ? D - 1 : 0]?.size ?? sA);   // its tuck (or its seat, if smaller)
+      const sF = Math.min(sA, Math.max(half(pad) / per, FIT.floor * sMin));
+      if (sF < sA) { fit = +(sA - sF).toFixed(4); sA = sF; ho = per * sF; apexAt(); }
+    }
   }
   const arcY = k.arcY * G.KV;
   c.ex.tween(exApex, T, outE, t); c.sc.tween(lift, T, liftE, t); c.tl.tween(tilt, T, tiltE, t);
   if (arcY !== 0 || c.ey.value !== 0 || !c.ey.done) c.ey.tween(arcY, T, outE, t);   // the zero channels stay at rest when unused
   if (spin !== 0 || c.sp.value !== 0 || !c.sp.done) c.sp.tween(spin, T, outE, t);
-  if (k.sizeInOut !== 'back') c.ps.tween(sA, T, liftE, t);
+  if (k.sizeInOut !== 'back' || fit) c.ps.tween(sA, T, liftE, t);           // the PHONE FIT: the size on its way out too
   flight = { id: c.pic.id, dir, side, tilt, spin, S: +S.toFixed(2), reach: k.reach, exApex: +exApex.toFixed(2), arcY: +arcY.toFixed(2),
-             size: +sA.toFixed(4), edge, overflow: +overflow.toFixed(4),
+             size: +sA.toFixed(4), edge, overflow: +overflow.toFixed(4), fit, room: fitRow() && room != null ? +room.toFixed(2) : null,
              pile: pile.map(j => IMAGES[j].id), hand: order.filter(j => cards[j].hand).map(j => IMAGES[j].id) };
 }
 /* the z swap (at outMs · apexAt): nothing overlaps the outgoing card now — new depth. The motion does not change here. */
@@ -5337,6 +5363,11 @@ if (window.__mobile?.on) TOUCH = (() => {
   }
   function hRelease(v, cancel) {
     const d = g.x - g.lx, fd = g.dir > 0 ? -1 : 1, along = v * fd;                          // fd: the finger's direction for this step
+    if (!g.kind) {                           // site 2026-10-15: locked on its LAST move (a quick flick over a busy frame: down, one move, up) — nothing was held, so it was dropped; a flick still steps, as a 'flick' does
+      const m = d || v, dir = m < 0 ? 1 : -1;
+      if (!cancel && m && Math.sign(v) === Math.sign(m) && Math.abs(v) >= TC.flick && kindOf(g.a, dir) !== 'end') keyStep(dir);   // ('end': the row's / the feed's pile end — nothing, as its rubber band would)
+      return;
+    }
     const commit = !cancel && along > -TC.back && (Math.abs(d) >= Math.min(TC.commit * RP.W, TC.commitMax) || along >= TC.flick);
     const a = g.a;
     if (g.kind === 'flip') { a.tfEnd(commit, v); return; }
