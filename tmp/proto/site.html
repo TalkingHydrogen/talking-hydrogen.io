@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=e15d75e."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=690fa3a."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -638,7 +638,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=e15d75e"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=690fa3a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1967,6 +1967,19 @@ function clipSrc() {                                         // site: CLIP — i
 const playBtn = audio || cfg.play ? document.createElement('button') : null;
 let filmOn = false;                                         // site 2026-09-30: a cfg.play stack's (the MACBOOK's) own state — its button toggles it (cfg.play(on) is the hook; the screen's film is not wired yet)
 const mediaOn = () => audio ? !audio.paused : filmOn;
+/* PHONE 2026-10-15 — TAP BACK (owner: "no buttons on the videos, no play pause. Just tap on the video itself once, and it will retract
+   aka scale down a bit, press again and it will come back forward"): a phone's CLIP has no disc (the html.phone .play.vid CSS); a tap
+   on the picture still plays ↔ pauses it (the TOUCH block's openTap(): the item → playKey()), and a pause the tap made RETRACTS the
+   whole picture (the .hover node: the card, its film, its shadows) about its centre to TAP_BACK.s, a play brings it forward again —
+   Apple Music's paused artwork. One spring (TAP_BACK: response ≈ .36 s, ζ ≈ .8, the forward a touch of bounce), × p in render() (1 at
+   HOME however it was left); a film's END is no pause (the poster comes back forward). ?tapback= the retracted scale (1 = off). */
+const TAP_BACK = { s: clamp(parseFloat(pageQuery.get('tapback')) || .9, .5, 1), spring: { tension: 300, friction: 28, mass: 1, precision: 1e-4 } };
+const tapBack = VID && window.__mobile?.on ? new Spring({ ...TAP_BACK.spring, value: 1 }) : null;
+function tapBackSync() {                    // playPress(): retracted while a tap holds it paused
+  if (!tapBack) return;
+  const to = songHeld && audio.paused ? TAP_BACK.s : 1;
+  if (tapBack.target !== to) { tapBack.set(to); kick(); }
+}
 function syncPlay() { if (!playBtn) return; const on = mediaOn(); playBtn.classList.toggle('playing', on); playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
 /* site: its caption (the .caption CSS): page space, in the viewer; the lines, then the credits */
 const CAPG = Object.keys(CAP_GROUPS).find(g => CAP_GROUPS[g].members.includes(cfg.name)) || null;   // site 2026-10-09: its CAPTION GROUP (the note at CAP_GROUP)
@@ -2013,7 +2026,7 @@ function placeCaption(eff, H) {
   capEl.style.setProperty('--cap-pb', Math.max(0, H - (eff.top + eff.height) - (lh - base)) + 'px');
 }
 if (playBtn) {
-  playBtn.className = 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();
+  playBtn.className = VID ? 'play vid' : 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();   // .vid: a CLIP's (no disc on a phone: TAP BACK)
   item.appendChild(playBtn);
   if (audio) for (const ev of ['play', 'pause', 'ended']) audio.addEventListener(ev, syncPlay);
   playBtn.addEventListener('click', e => {
@@ -2027,7 +2040,7 @@ function playPress() {                      // its button's press: the click —
   if (!audio) { filmOn = !filmOn; if (typeof cfg.play === 'function') cfg.play(filmOn); }   // site: the MACBOOK — the glyph toggles; the hook gets the state
   else if (mutedOnly && audio.muted && !audio.paused) { mutedOnly = false; audio.muted = false; }   // FEED / touch (spec 05 §2.4.3): a start the browser refused with sound plays muted — this tap unmutes it
   else if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
-  syncPlay();
+  syncPlay(); tapBackSync();
 }
 let mutedOnly = false;                      // touch: this clip's last start was refused with sound (NotAllowedError) and plays muted
 function audioStart() {                     // expand(): the clip / song from the gesture — touch: a refused start plays muted (the next tap on it unmutes)
@@ -2666,6 +2679,7 @@ const p     = new Motion(ZOOM.spring);                      // master progress 0
 const drive = (to, ms) => ZOOM_SPRING ? p.set(to) : p.tween(to, ms, ZOOM_EASE, null, 'zoom');   // from the current value + velocity (Motion)
 const hover = new Spring(STACK.spring);                     // home hover progress h 0..1 (spec 02 §4)
 const springs = [p, hover];                                 // site: the cursor's and the row elements' springs are the page's (pageSprings)
+if (tapBack) springs.push(tapBack);                         // PHONE 2026-10-15: TAP BACK (its note at TAP_BACK)
 
 /* ---------- state ---------- */
 const G = {};                       // geometry, computed by layout(); read-only inside the loop
@@ -3358,6 +3372,7 @@ let liftC = null;
 function liftable() {
   if (state !== 'open' || frozen || !G.eff || film || lid || flipActive() || tfc) return false;
   if (TURN && (TURN.playing || TURN.from !== 'front')) return false;
+  if (tapBack && tapBack.value !== 1) return false;                                   // PHONE: TAP BACK — not while a paused clip is retracted (the copy is the pose's, unretracted)
   if (VID && audio && (!audio.paused || (clipFrame && blendK() > 0 && (VID.blend || audio.currentTime > .05)))) return false;   // the film's frame over the poster (a plain clip's first frame IS its poster)
   return true;
 }
@@ -3649,6 +3664,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   if (audio) {                                                                            // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
     if (songRaf) { cancelAnimationFrame(songRaf); songRaf = 0; }
     songHeld = false; songG = songT = songUp() ? 1 : 0;                                    // only if its card is the front one (a pile: the sleeve behind the CD)
+    if (tapBack) tapBack.jump(1);                                                          // PHONE: TAP BACK — every open starts forward
     audio.volume = 0; if (audio.paused || audio.currentTime > .25) audio.currentTime = 0;
     if (TOUCH && VID) { mutedOnly = false; audio.muted = false; }                          // touch: the last leave's mute lifted, inside this gesture (a refused start plays muted: audioStart())
     if (songG) { if (audio.paused) audioStart(); } else if (!audio.paused) audio.pause();
@@ -3927,7 +3943,8 @@ function render() {
   const y = G.iy * v;
   const s = 1 / G.S + (1 - 1 / G.S) * v;
   put(item, 'item', 'transform', `translate3d(${x}px, ${y}px, 0) scale(${s})`);
-  put(hoverEl, 'hover', 'transform', `scale(${1 + (knobs.hoverScale - 1) * hw})`);        // stack.html's hover scale (× (1 − p): 1 at p = 1, no snap)
+  const tb = tapBack ? 1 - (1 - tapBack.value) * v : 1, fp = tb !== 1 && cards[order[0]].pose;   // PHONE: TAP BACK × p (a paused clip retracted) — about its card's centre (its last pose: a pile of one, at rest)
+  put(hoverEl, 'hover', 'transform', (fp ? `translate(${fp.X * (1 - tb)}px, ${fp.Y * (1 - tb)}px) ` : '') + `scale(${(1 + (knobs.hoverScale - 1) * hw) * tb})`);   // stack.html's hover scale (× (1 − p): 1 at p = 1, no snap)
   const alpha = c => clamp(mix(kc(c, 'shadow'), kc(c, 'vshadow'), v), 0, 1);              // a preview card's shadow alpha, linear in p (a compositor-only change while promoted: shadeLayers)
   for (let i = 0; i < D; i++) {
     const c = cards[order[i]], sl = slots[i];

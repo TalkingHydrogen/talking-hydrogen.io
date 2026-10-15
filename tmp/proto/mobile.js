@@ -134,6 +134,7 @@
   html.phone .play { background: transparent; }
   html.phone .play::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--play-gray); }
   html.phone .play svg { width: 43.3%; height: 43.3%; }
+  html.phone .play.vid { display: none; }   /* 2026-10-15 (owner: "no buttons on the videos"): a clip has no disc — a tap on its picture plays ↔ pauses it (site.html's TAP BACK) */
   /* captions: the phone's type size; landscape (side mode) keeps the band, off the notch */
   html.phone .caption { font-size: var(--cap-fs, 15px); }
   html.phone .caption::before { flex-basis: var(--cap-safe, 0px); }
