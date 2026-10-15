@@ -1,0 +1,40 @@
+{
+ "default": "take-002",
+ "takes": [
+  {
+   "id": "take-002",
+   "file": "take-002.json",
+   "label": "take-002 \u00b7 2.31 s \u00b7 150\u00b0/s \u00b7 y-flip",
+   "synthetic": false,
+   "added": "2026-09-29 20:01"
+  },
+  {
+   "id": "take-001",
+   "file": "take-001.json",
+   "label": "take-001 \u00b7 2.42 s \u00b7 155\u00b0/s \u00b7 y-flip",
+   "synthetic": false,
+   "added": "2026-09-29 20:00"
+  },
+  {
+   "id": "synth-basic",
+   "file": "synth-basic.json",
+   "label": "synthetic \u00b7 over the long side (stand-in until a real take)",
+   "synthetic": true,
+   "added": "2026-09-29 17:31"
+  },
+  {
+   "id": "synth-fast",
+   "file": "synth-fast.json",
+   "label": "synthetic \u00b7 over the long side, fast",
+   "synthetic": true,
+   "added": "2026-09-29 17:31"
+  },
+  {
+   "id": "synth-end-over",
+   "file": "synth-end-over.json",
+   "label": "synthetic \u00b7 over the short side",
+   "synthetic": true,
+   "added": "2026-09-29 17:31"
+  }
+ ]
+}

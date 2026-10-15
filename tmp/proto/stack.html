@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>viktor dune</title>
+<style>
+  :root { --em: 20px; }
+  html, body { margin: 0; }                              /* the page scrolls: the viewer (100 vh), then the tuning panel */
+  body {
+    background: #fff; color: #8e8e93;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -.011em; -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+  }
+  html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+  /* the viewer: the first 100 vh of the page, in normal flow — the tuning panel below it is reached by scrolling. It clips
+     its content and is the home row's horizontal scroll container (was: body; programmatic only now, and with one item
+     maxScrollX = 0). While the zoom is open, expand() scrolls the page to the top and locks it (html overflow hidden), so
+     the viewer IS the viewport: the fixed nodes (.row.locked, .cursor) and the absolute ones (.hdr-root, .ghost, .back)
+     share one frame; every measurement in layout() is a difference between nodes inside the viewer, so it is scroll-proof. */
+  .viewer { position: relative; height: 100vh; overflow: hidden; }
+  .hdr-root, .row, .ghost, .back { font-size: var(--em); }   /* grid em = 20 * C(scale) */
+
+  /* header: absolute (in the viewer) wrapper the size of the content box; the name sits at its top-left.
+     Fade + scale(.9925) are applied to .hdr about the centre of the content box. */
+  .hdr-root { position: absolute; pointer-events: none; }
+  .hdr { width: 100%; height: 100%; transform-origin: 50% 50%; will-change: opacity, transform; }
+  .hdr .name { font-size: 1em; font-weight: 500; line-height: 1.2; color: #8e8e93; }
+
+  /* home row: flex, bottom-aligned, starts at content left; fixed + translate(-scrollLeft) while open */
+  .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; }
+  .row.locked { position: fixed; }                      /* the viewport = the viewer while open (page scroll locked at 0) */
+  .wrap { position: relative; z-index: 20; flex: none; }
+  .box { position: relative; }                          /* b x b: the rest stack box, the rect that is measured */
+  /* the animated node: laid out at the EXPANDED stack-box size (B x B), centred at the bottom of .box,
+     shown at rest as scale(1/S) about bottom-centre. Transform order, outer to inner:
+       .item  zoom translate/scale (about bottom-centre)
+       .hover hover scale 1 + (hoverScale-1)·h  (about the point 18·K px below the box centre; K = B / 340)
+       .card  per-card translate/rotate (about the card's own centre)                                  */
+  .item { position: absolute; bottom: 0; left: 50%; transform-origin: bottom center; will-change: transform; }
+  .hover { position: absolute; inset: 0; will-change: transform; }
+  .cards { position: absolute; inset: 0; }              /* the stack box: hover + click target */
+  /* .card is the transformed node. The squircle clip sits on the img; the shadow is an inline SVG behind it (.shade:
+     the same outline, feGaussianBlur'd) — a box-shadow on the clipped node would be clipped away, one on the wrapper
+     would stay rectangular, and a CSS drop-shadow filter is re-applied by the compositor every frame (measured 27 ms
+     frames vs 16 during the zoom in headless Chrome). The SVG is plain layer content: painted once, free per frame.
+     Print border (`border` knob > 0): the card gets .print, its ::before is the white paper — the outer squircle (--paper,
+     written by arrange()) between the shade and the img — and the img is inset by the border with its own smaller clip. */
+  .card { position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%; transform: translateZ(0); }
+  .card.fan { will-change: transform; }
+  .card img { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; background: #fff; }   /* clip-path (+ print inset) set inline */
+  .card::before { content: ''; display: none; position: absolute; inset: 0; z-index: 1; background: #fff; clip-path: var(--paper, none); }
+  .card.print::before { display: block; }
+  .card .shade { position: absolute; display: block; pointer-events: none; }                                       /* sized by arrange() */
+
+  .text { white-space: nowrap; line-height: 1.45; color: #8e8e93; }   /* stays at the grid em so the 7.5em gap is grid-relative */
+  .text > div { font-size: .75em; }
+  .text .title { font-weight: 600; }
+  .text .date { margin-top: .5em; }
+  /* inside the item the text column hangs off the stack box's left edge (7.5em gap), vertically centred;
+     it scales with the box and is invisible at rest */
+  .item > .text { position: absolute; right: 100%; top: 0; bottom: 0; margin-right: 7.5em;
+                  display: flex; flex-direction: column; justify-content: center;
+                  opacity: 0; will-change: opacity; transform: translateZ(0); }
+
+  /* hidden copy of the expanded layout: used ONLY to measure the target stack-box rect */
+  .ghost { position: absolute; visibility: hidden; pointer-events: none; }
+  .slot { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: flex-end; }   /* 150vw */
+  .centerer { display: flex; justify-content: center; align-items: center; height: 100%; }               /* min-width = gallery content width */
+  .inner { display: flex; align-items: center; }
+  .inner > .text { margin-right: 7.5em; }
+  .gimg { flex: none; }
+
+  /* back button: 6em x 6em top-left, own spring, inner opacity .3 -> 1 on hover */
+  .back { position: absolute; left: 0; top: 0; z-index: 200; width: 6em; height: 6em; margin: 0; padding: 0;
+          border: 0; background: none; display: flex; align-items: center; justify-content: center;
+          opacity: 0; pointer-events: none; will-change: opacity; -webkit-appearance: none; }
+  .back-inner { display: block; width: .55em; height: 1.2em; opacity: .3; }
+  .back-inner svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  /* custom cursor: root follows the pointer directly; scale / press / visibility layers are springs */
+  .cursor { position: fixed; left: 0; top: 0; width: 50px; height: 50px; z-index: 1000; pointer-events: none;
+            will-change: transform; display: none; }
+  html.custom-cursor .cursor { display: block; }
+  .cursor-scale, .cursor-down { width: 100%; height: 100%; transform-origin: center; }
+  .cursor-disc { width: 50px; height: 50px; border-radius: 50%; transform-origin: center;
+                 -webkit-backdrop-filter: invert(30%) blur(10px); backdrop-filter: invert(30%) blur(10px);
+                 opacity: 0; transform: scale(.1); will-change: opacity, transform; }
+
+  /* ===== TEMPORARY knob panel (#knobs): below the viewer, in normal flow — scroll down to reach it (it never overlaps
+     the stack). Delete this CSS block, the #knobs element and the "TEMP knob panel" script block once the values are
+     final; the knob defaults then become the constants. ===== */
+  .knobs { box-sizing: border-box; padding: 16px 14px 20px;
+           display: flex; flex-wrap: wrap; gap: 3px 16px; align-items: center; justify-content: center;
+           font: 12px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           letter-spacing: 0; color: #8e8e93; background: #fff; }
+  .knobs label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .knobs input[type=range] { width: 84px; margin: 0; }
+  .knobs input[type=number] { width: 4.6em; }
+  .knobs input[type=checkbox] { margin: 0; }
+  .knobs .val { min-width: 3.4em; text-align: right; font-variant-numeric: tabular-nums; }
+  .knobs button, .knobs select, .knobs input[type=number] { font: inherit; color: inherit; margin: 0; }
+  /* deck picker: one thumbnail per image; selected = full opacity + slot badge (1 = front), unselected dimmed */
+  .knobs .deck { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .knobs .deck .pick { position: relative; padding: 0; border: 0; background: none; line-height: 0; opacity: .35; transition: opacity .15s; }
+  .knobs .deck .pick.on { opacity: 1; }
+  .knobs .deck .pick img { display: block; height: 44px; width: auto; border-radius: 4px; }
+  .knobs .deck .pick .n { position: absolute; left: 3px; top: 3px; display: none; min-width: 14px; height: 14px; padding: 0 4px; box-sizing: border-box;
+                          border-radius: 7px; background: rgba(29,29,31,.82); color: #fff; font-size: 9px; font-weight: 600; line-height: 14px; text-align: center; }
+  .knobs .deck .pick.on .n { display: block; }
+  /* nudges: one compact row per shown slot — "slot n" + dx / dy / rot number inputs ADDED to the seeded rest pose; a non-zero input is dark */
+  .knobs .nudges { display: inline-flex; align-items: center; gap: 3px 10px; white-space: nowrap; flex-wrap: wrap; }
+  .knobs .nudges .slotrow { display: inline-flex; align-items: center; gap: 4px; }   /* not ".row": that is the home row */
+  .knobs .nudges .slotrow .sl { min-width: 2.9em; }
+  .knobs .nudges input[type=number] { width: 4.2em; }
+  .knobs .nudges input[type=number].set { color: #1d1d1f; }
+  html.custom-cursor .knobs, html.custom-cursor .knobs * { cursor: auto !important; }
+  html.custom-cursor .knobs .deck .pick { cursor: pointer !important; }
+</style>
+</head>
+<body>
+
+<div class="viewer" id="viewer">                      <!-- the viewer: the first 100 vh; everything but the tuning panel -->
+<div class="hdr-root" id="hdrRoot"><div class="hdr" id="hdr"><div class="name">viktor dune</div></div></div>
+
+<main class="row" id="row">
+  <div class="wrap"><div class="box" id="box">
+    <div class="item" id="item">
+      <div class="text" id="text">
+        <div class="title">2018 drawings</div>
+        <div class="subtitle">Pencil, ink, paint</div>
+        <div class="date">2018</div>
+      </div>
+      <div class="hover" id="hover">
+        <div class="cards" id="cards"></div>            <!-- .card elements are built by the script, back-most first -->
+      </div>
+    </div>
+  </div></div>
+</main>
+
+<section class="ghost" id="ghost" aria-hidden="true">
+  <div class="slot" id="slot"><div class="centerer" id="centerer"><div class="inner">
+    <div class="text">
+      <div class="title">2018 drawings</div>
+      <div class="subtitle">Pencil, ink, paint</div>
+      <div class="date">2018</div>
+    </div>
+    <div class="gimg" id="gimg"></div>
+  </div></div></div>
+</section>
+
+<button class="back" id="back" data-clickable aria-label="Back">
+  <span class="back-inner" id="backInner"><svg viewBox="0 0 10 22" fill="none" stroke="#1d1d1f" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,1 1,11 9,21"/></svg></span>
+</button>
+
+<div class="cursor" id="cursor" aria-hidden="true"><div class="cursor-scale" id="cursorScale"><div class="cursor-down" id="cursorDown"><div class="cursor-disc" id="cursorDisc"></div></div></div></div>
+</div>
+
+<!-- TEMPORARY: tuning panel below the viewer (scroll down), filled by the "TEMP knob panel" script block. Delete this element with that block. -->
+<div class="knobs" id="knobs"></div>
+
+<script>
+/* Prototype part 2: the part-1 click-to-zoom (spec/01-zoom-in.md, proto/zoom.html) with the single image replaced
+ * by a hover-reactive card stack (spec/02-hover-stack.md). One item, vanilla JS, no libraries.
+ *
+ * The shared (zoomable) element is a SQUARE stack box: every card is contain-fitted into it and centred on the same
+ * point. Rest box side = the home-row height (TH); open box side = the content height (as the part-1 open image), so
+ * the zoom ratio S is unchanged. Hover: spring h (150/25) → component scale 1 + (hoverScale-1)·h about a point
+ * 18·K px below the box centre, plus the directional ramp below. Hover is disabled while p's target is 1.
+ *
+ * Motion model (this revision): the seeded pile (rest offsets/rotations, next paragraph) is REST-ONLY — applied at
+ * h = p = 0 and never scaled by h or p. (The old spread_i multiplier scaled each card's random rest offset — random sign,
+ * y component — on hover, which is where the diagonal drift came from; it is gone, together with the spreadMul knob.)
+ * Hover and the open state move the cards ONLY along a signed, depth-ordered ramp — two hands pushing a pile of photos
+ * apart: front cards slide left, back cards right — added to the rest values. With g = max(h, p) (the spread stays
+ * while open, matching the spec-03 open layout), per slot i:
+ *   dir(i)  = clamp((i − pivot) / ((N−1)/2), −1, +1)      pivot 1.5 by default (clamped to N−1); with 3 cards slot 1 → −.5, slot 2 → +.5; frontLock pins slot 0 at 0
+ *   ramp(i) = dir(i) · (1 + hoverDepth · i / (N−1))        depth gain toward the back: the back-most slot moves (1+hoverDepth)× the front
+ *   x_i     = restX_i   + g · spreadX   · box · ramp(i)
+ *   y_i     = restY_i   + g · spreadY   · box · ramp(i)
+ *   rot_i   = restRot_i + g · spreadRot · ramp(i)
+ * arrange() computes ramp(i) and the per-slot shift at g = 1 once per knob change; the frame loop only multiplies by g.
+ * With spreadY = spreadRot = 0 (default) the motion is purely horizontal. The rest layout (g = 0) never depends on
+ * hoverDepth / spreadX / spreadY / spreadRot / pivot / frontLock. Slot i is the position in the DISPLAYED deck order
+ * (the deck picker / `front` change the sources, not the slots), so the ramp always runs front → back on screen. The deck
+ * (`knobs.deck`: an ordered list of 2–8 IMAGES indices, front first; default [0,2,6]) says WHICH images are shown and in
+ * what order: N = deck.length slots are shown (the other card nodes are display:none — out of the layout, the hover hit
+ * area and the frame loop), every per-slot formula above uses N = deck.length, and the PRNG draws are per slot index, so a
+ * slot keeps its rest position whatever image sits in it and however the deck grows or shrinks. pivot is clamped to N−1.
+ *
+ * Pile layout (rest only): the spec-02 fan (slots 1–3: dx −9.3/+17.7/+15.2 px, rot −.2/+.5/+.4° on a 340 box)
+ * is kept as an additive base; on top of it every back card gets a seeded, deterministic variation (mulberry32):
+ *   size   1 − sizeVar·u                       (front card = 1)
+ *   rot    base + rotVar·(2u−1)·depth          degrees
+ *   x, y   base + posVar·box·(2u−1)·depth      independent draws
+ * where depth = 1 on slot 1 falling linearly to `falloff` on the back-most slot (1 = no falloff). The front card is
+ * the zoom target and stays at size 1, offset 0, rotation 0. Nudges (knobs.nudge, the `nudge` rows): per slot a hand-set
+ * [dx, dy, drot] (dx, dy as fractions of the box, drot in degrees) ADDED to the seeded rest pose after the draws — the seed's pile
+ * stays as it is, and a nudge is keyed by slot, so it survives a deck change. Rest only: like the seeded offsets it scales with
+ * the box and is never touched by h or p (the ramp is added on top). Slot 0 may be nudged too, but it is the zoom target: its
+ * nudge moves the open image by the same fraction of the box. All of this is computed ONCE per knob change / layout
+ * by arrange(); the frame loop only writes transforms. Corners: the Apple continuous-curvature squircle
+ * (brew/squircle-fit/grow-vs-carve.html unifiedOutline2, as ported into index.html for the chat bubbles) as a
+ * clip-path in the card's own px, so it scales with the card through the zoom; the radius knob is in REST px.
+ * Print border (`border` knob, rest px, scaled like the radius): the card keeps its size, outline and shadow; a white
+ * paper (.card::before, the outer outline) shows and the img is inset by the border on every side — the same inset all
+ * round, like a photo print — with its own squircle of radius max(0, radius − border) (square below .5 px). The card's
+ * aspect is the image's, so the inset box is cover-filled (crop < 1 %). border = 0 is the previous rendering exactly.
+ * Shadow: an inline SVG of the same outline behind each image, Gaussian-blurred (spec geometry dy 1, sigma 2, i.e. the
+ * fitted `0 1px 4px`), fill-opacity = the shadow knob; static layer content, nothing per frame.
+ *
+ * Knobs (temporary panel #knobs below the viewer — scroll down; every knob is also a URL param, e.g. ?radius=14&sizeVar=.3&seed=7):
+ *   radius border sizeVar rotVar posVar falloff hoverScale hoverDepth spreadX spreadY spreadRot pivot frontLock shadow seed deck front nudge
+ *   — see KNOB_DEFS for ranges/defaults (frontLock is a checkbox, URL param 0/1; pivot 1.5 by default, clamped to N−1 by arrange()).
+ *   deck: the picker row of the eight thumbnails — click an unselected one to append it to the deck (back), a selected one
+ *   to remove it (never below 2); badge = slot (1 = front); "reset" restores [0,2,6]. URL ?deck=0,3,5,6 (IMAGES indices,
+ *   front first; repeats / out-of-range ignored); copy-values writes "deck":[0,3,5,6]. ?cards=N is kept as an alias: the
+ *   default order, first N (ignored when deck= is given).
+ *   front: rotates within the deck (the select lists only the deck's images; choosing one makes it slot 0), so knobs.front
+ *   is always deck[0]. Without deck= in the URL, ?front=N keeps its old meaning: the full list rotated so N is in front.
+ *   nudge: one row per shown slot ("slot n", 0-based as in the URL / copy-values; badge = n + 1) with dx / dy (fraction of the box,
+ *   step .005) and rot (degrees, step .5) number inputs, applied live; "clear nudges" zeroes all eight slots.
+ *   URL ?nudge=dx,dy,rot;dx,dy,rot;… (slots in order, missing = 0; ?nudge= empty = the pure seeded layout); copy-values writes
+ *   "nudge":[[dx,dy,rot],…] with the trailing all-zero slots trimmed. Keyed by slot: a nudge survives deck changes and is simply
+ *   not applied while its slot is not shown.
+ *
+ * Debug hooks
+ *   ?p=0.5       pin the master spring at p (no animation, interaction disabled) — for screenshots.
+ *                The back-button and text-gate springs are pinned at the same value (they start with p).
+ *   ?h=1         pin the hover spring at h (0..1); pointer enter/leave are ignored.
+ *   ?front=N     image N (0-based, see IMAGES) in front (e.g. a portrait card) — see the deck / front knobs above.
+ *   ?auto=1      expand 500 ms after load; console.log the ms from trigger to settle
+ *                (first frame < 1 px from the target rect) and to spring `done` (precision 1e-4).
+ *   ?autohover=1 set the hover target to 1 at 500 ms after load (then back to 0); console.log settle ms
+ *                (first frame < 1 px from the hover geometry) and spring `done` ms for both directions.
+ *   window.__zoom = { expand, collapse, spring (master p), hover (hover spring), springs, layout, arrange, geom, cards,
+ *                     knobs, setKnob, setDeck, setNudge, clearNudges, serializeNudge, parseNudge }
+ *
+ * Desktop only: the spec's mobile branch (column-reverse stack, header scale .945) is not implemented.
+ * No page flipping (spec 03) yet.
+ */
+(() => {
+'use strict';
+
+const SHOW_CURSOR = true;                                   // custom 50 px cursor (spec section 5); false = native cursor
+
+/* The images the deck is picked from: IMAGES indices are what ?deck=, ?front= and the picker refer to. Natural sizes of the
+   2000 px files; refined on load. */
+const ASSETS = '../assets/drawings/';
+const IMAGES = [
+  { id: 'painting-17', w: 2000, h: 1432 },
+  { id: 'drawing-04',  w: 1346, h: 2000 },
+  { id: 'painting-16', w: 2000, h: 1430 },
+  { id: 'drawing-05',  w: 1336, h: 2000 },
+  { id: 'drawing-01',  w: 2000, h: 1335 },
+  { id: 'drawing-06',  w: 1339, h: 2000 },
+  { id: 'drawing-09',  w: 2000, h: 1332 },
+  { id: 'painting-18', w: 2000, h: 1411 },
+];
+const DEFAULT_DECK = [0, 2, 6];                             // IMAGES indices, front first: painting-17, painting-16, drawing-09
+/* Nudges of the seed-1432 pile (owner: "pic 2 a bit to the left; the back one rotated right past the horizontal, ~4°").
+   Per slot [dx, dy, drot] ADDED to the seeded rest pose (dx / dy = fraction of the box, drot = degrees), slots 0 … 7 (missing = 0):
+     slot 1 dx:   −0.03 of the box (−14.3 px at the 477 px rest box) to the left of its seeded x (−0.0306 of the box)
+     slot 2 drot: seed 1432 gives −1.3643° → +5.4 (the delta to +4°, rounded to 0.1°) makes the final rest rotation +4.04° (clockwise)
+   Slot 0 (the front card, the zoom target) is left at 0. */
+const DEFAULT_NUDGE = [[0, 0, 0], [-0.03, 0, 0], [0, 0, 5.4]];
+const NUDGE_RANGE = [[-.5, .5, .005], [-.5, .5, .005], [-45, 45, .5]];   // dx, dy, drot: min / max / step of the number inputs (URL values are clamped to it)
+
+/* spec 02 constants; px values are for the 340 px reference box and are multiplied by K = box / 340 */
+const STACK = {
+  refBox: 340,
+  slots: [ { dx: 0, rot: 0 }, { dx: -9.3, rot: -.2 }, { dx: 17.7, rot: .5 }, { dx: 15.2, rot: .4 } ],   // front, C2, C3, C4 (rest); dy = 0
+  shadow: { y: 1, sigma: 2 },                              // spec: box-shadow 0 1px 4px = gaussian sigma 2 (blur radius / 2); alpha = the `shadow` knob (.10)
+  hover: { originYOffset: 18 },                            // hover-scale origin 18 px below the box centre; the scale itself is a knob
+  spring: { tension: 150, friction: 25, mass: 1, precision: .05 },   // spec §4: critically damped, snaps at ~95 % (~385 ms)
+};
+
+/* Tunables. `def` are the current defaults; every key is accepted as a URL param and shown in the temporary panel. */
+const KNOB_DEFS = [
+  { key: 'radius',     label: 'radius px',   min: 0,  max: 60,  step: 1,    def: 1 },      // squircle radius, CSS px AT REST
+  { key: 'border',     label: 'border px',   min: 0,  max: 40,  step: 1,    def: 0 },      // print border: white paper, img inset on every side, CSS px AT REST (0 = edge to edge)
+  { key: 'sizeVar',    label: 'size var',    min: 0,  max: .5,  step: .01,  def: .04 },    // back-card size 1 − sizeVar·u
+  { key: 'rotVar',     label: 'rot var °',   min: 0,  max: 15,  step: .1,   def: 2 },      // ± degrees
+  { key: 'posVar',     label: 'pos var',     min: 0,  max: .2,  step: .005, def: .065 },   // ± fraction of the box, x and y
+  { key: 'falloff',    label: 'depth',       min: .3, max: 1,   step: .01,  def: 1 },      // variation multiplier at the back-most slot
+  { key: 'hoverScale', label: 'hover scale', min: 1,  max: 1.3, step: .01,  def: 1.05 },   // component scale at h = 1
+  { key: 'hoverDepth', label: 'hover depth', min: 0,  max: 3,   step: .05,  def: .95 },    // ramp depth gain: ramp(i) = dir(i)·(1 + hoverDepth·i/(N−1)); the back-most slot moves (1+hoverDepth)× the front one
+  { key: 'spreadX',    label: 'spread x',    min: 0,  max: .3,  step: .005, def: .03 },    // directional ramp: x shift at dir = ±1 (before the depth gain), fraction of the box (front → left, back → right)
+  { key: 'spreadY',    label: 'spread y',    min: -.2, max: .2, step: .005, def: 0 },      // y shift at dir = ±1, fraction of the box (negative = back cards drift up); 0 = purely horizontal
+  { key: 'spreadRot',  label: 'spread rot °',min: -10, max: 10, step: .1,   def: 1.4 },    // rotation at dir = ±1: right-going cards +spreadRot, left-going −spreadRot
+  { key: 'pivot',      label: 'pivot',       min: 0,  max: IMAGES.length - 1, step: .5, def: 1.5 },   // the slot where dir = 0; lower = more of the deck goes right; arrange() clamps it to N − 1 (N = deck size)
+  { key: 'frontLock',  label: 'front lock',  type: 'bool',   def: 1 },                    // 1 = slot 0 gets dir = 0 (the front card stays put)
+  { key: 'shadow',     label: 'shadow',      min: 0,  max: 1,   step: .01,  def: .33 },    // drop-shadow alpha
+  { key: 'seed',       label: 'seed',        type: 'int',    def: 1432 },
+  { key: 'deck',       label: 'deck',        type: 'deck',   def: DEFAULT_DECK },            // WHICH images are shown, front first (the picker row); N = deck.length. URL ?deck=0,3,5,6; ?cards=N = the first N of the natural order
+  { key: 'front',      label: 'front',       type: 'select', def: 0 },                        // IMAGES index of slot 0; the select lists the deck's images, choosing one rotates the deck so it is in front
+  { key: 'nudge',      label: 'nudge',       type: 'nudge',  def: DEFAULT_NUDGE },            // per-slot [dx, dy, drot] ADDED to the seeded rest pose — see DEFAULT_NUDGE. URL ?nudge=0,0,0;-0.03,0,0;0,0,5.4
+];
+
+const ZOOM = {
+  desktop: { fontSize: 20, minScale: .3, windowBreakWidth: 1300, windowBreakHeight: 1000, windowMinWidth: 380, windowMinHeight: 300,
+             minHMargin: 35, maxHMargin: 150, minVMargin: 35, maxVMargin: 130,
+             contentMinWidth: 400, contentMaxWidth: 1000, contentMinHeight: 200, contentMaxHeight: 740,
+             timelineHeight: 530, headerScale: .9925 },
+  galleryWidthMultiplier: 1.5,
+  spring:  { tension: 300, friction: 35, mass: 1, precision: .0001 },       // master p, text gate, back button
+  timing:  { header: { start: 0, end: .333 }, galleryContent: { start: .333, end: 1 }, backButton: { start: .5, end: 1 } },
+  backButtonOpacity: .3,
+  cursor:  { size: 50, scaleSmall: .5, scaleDown: .9, edge: 10,
+             scaleSpring: { tension: 150.93265, friction: 19.56007, clamp: true },
+             downSpring:  { tension: 129.69176, friction: 8.24223,  clamp: true },
+             visSpring:   { tension: 170, friction: 26 } },
+  maxFrameDt: 64, clickMaxMove: 2, dismissMaxMove: 5,
+};
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp  = (t, a, b) => clamp(a + t * (b - a), a, b);
+const easeOutQuad = t => 1 - (1 - t) * (1 - t);
+const easeInExpo  = t => t === 0 ? 0 : Math.pow(2, 10 * (t - 1));
+const Z = (p, r, out0, out1, ease) => out0 + (out1 - out0) * ease(clamp((p - r.start) / (r.end - r.start), 0, 1));
+
+/* mulberry32: tiny seeded PRNG, uniform [0,1) — the pile layout is a pure function of the seed */
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+                 t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+
+/* ============================================================
+   Apple squircle. unifiedOutline2 and its helpers are a verbatim
+   port of brew/squircle-fit/grow-vs-carve.html (via the chat-bubble
+   block at the bottom of website/index.html) — the corner is a
+   curvature ramp kappa(s) marched into an outline, blending the two
+   eye-matched 1:1 presets (brew/squircle-fit/RESEARCH.md §7) from
+   geometry alone: pill = smoothing 60%, G4; panel = tail 100%,
+   concentration 4%, G4. Squircle.path(W, H, r) returns an SVG path
+   string for clip-path: path(...) in the element's own px.
+   ============================================================ */
+const Squircle = (() => {
+    const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+    const lerp =(a,b,t)=>a+(b-a)*t;
+    function smoothstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+    function smootherstep(t){ t=clamp(t,0,1); return t*t*t*(t*(t*6-15)+10); }
+    function easeRamp(t,name){
+        if(name==="G2") return clamp(t,0,1);
+        if(name==="G4") return smootherstep(t);
+        return smoothstep(t);
+    }
+    function rampFullness(p,ease){
+        if(ease==="G2") return 1/(p+1);
+        if(ease==="G4") return 6/(5*p+1)-15/(4*p+1)+10/(3*p+1);
+        return 3/(2*p+1)-2/(3*p+1);
+    }
+    function marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter){
+        kOuter=kOuter||0;
+        const HP=Math.PI/2, I=rampFullness(p,ease);
+        const Tin=Math.max(0,HP-Tout-m*K*Lm);
+        const Li=Tin /(K*(m+(1-m)*I));
+        const outAvg=kOuter+(K-kOuter)*I;
+        const Lo=outAvg>1e-9 ? Tout/outAvg : 0;
+        const segs=[];
+        if(Lm>1e-9) segs.push(["mid",Lm]);
+        if(Li>1e-9) segs.push(["in", Li]);
+        if(Lo>1e-9) segs.push(["out",Lo]);
+        const L=Lm+Li+Lo||1;
+        let th=HP,x=0,y=0;
+        const pts=[[0,0]];
+        for(let s=0;s<segs.length;s++){
+            const kind=segs[s][0],len=segs[s][1];
+            const cnt=Math.max(16,Math.round(len/L*N)),ds=len/cnt;
+            for(let i=0;i<cnt;i++){
+                const t=(i+0.5)/cnt;
+                const k = kind==="mid" ? m*K
+                        : kind==="in"  ? m*K+(1-m)*K*easeRamp(Math.pow(t,p),ease)
+                        :                kOuter+(K-kOuter)*easeRamp(Math.pow(1-t,p),ease);
+                const dth=k*ds;
+                th+=dth/2; x+=Math.cos(th)*ds; y+=Math.sin(th)*ds; th+=dth/2;
+                pts.push([x,y]);
+            }
+        }
+        return {pts:pts,ex:x,ey:y};
+    }
+    function geomM(W,H,r){
+        const r0=Math.min(r,W/2,H/2);
+        return 1-smoothstep((1-2*r0/Math.min(W,H))/0.30);
+    }
+    function unifiedOutline2(cx,cy,W,H,r,carve,ease,mOverride){
+        ease=ease||"G4";
+        const HP=Math.PI/2, half=H/2;
+        const r0=Math.min(r,W/2,H/2);
+        const m=(mOverride==null)?geomM(W,H,r):clamp(mOverride,0,1);
+        const rampShare=clamp(lerp(1.00,0.60,m)*(carve==null?1:carve),0,1);
+        const conc=lerp(0.04,0.00,m);
+        const p=conc<=1e-9?1:1+conc*8;
+        function fitH(Tout,kOuter,N){
+            let K=1/r0;
+            K*=Math.max(1, marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey/half);
+            const LmMax=m>1e-4 ? 0.94*(HP-Tout)/(m*K) : H*8;
+            let Lm=0;
+            if(marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey < half-1e-6){
+                let lo=0,hi=Math.min(H*3,LmMax);
+                for(let it=0;it<24;it++){
+                    const md=(lo+hi)/2;
+                    if(marchQuadrant(K,m,md,Tout,p,ease,260,kOuter).ey<half) lo=md; else hi=md;
+                }
+                Lm=(lo+hi)/2;
+            }
+            const Q=marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter);
+            const sc=Q.ey>1e-6 ? half/Q.ey : 1;
+            return {pts:Q.pts,sc:sc,exr:-Q.ex*sc,K:K};
+        }
+        const Tout=Math.min(rampShare*HP*(1+m)/2, HP*0.96);
+        let kOuter=0;
+        let F=fitH(Tout,0,260);
+        if(F.exr>W/2){
+            let lo=0,hi=(1/r0)*0.999;
+            for(let it=0;it<24;it++){
+                const md=(lo+hi)/2;
+                if(fitH(Tout,md,160).exr>W/2) lo=md; else hi=md;
+            }
+            kOuter=(lo+hi)/2;
+        }
+        F=fitH(Tout,kOuter,2000);
+        const sc=F.sc;
+        const q=F.pts.map(pt=>[pt[0]*sc, pt[1]*sc]);
+        const TR=q.map(pt=>[ W/2+pt[0], pt[1]]);
+        const TL=TR.map(pt=>[-pt[0], pt[1]]).reverse();
+        const BL=TR.map(pt=>[-pt[0],-pt[1]]);
+        const BR=TR.map(pt=>[ pt[0],-pt[1]]).reverse();
+        return TR.concat(TL,BL,BR).map(pt=>[cx+pt[0], cy-pt[1]]);
+    }
+    // Ramer-Douglas-Peucker: keep the fewest vertices that stay within eps px
+    function simplify(pts,eps){
+        const keep=new Uint8Array(pts.length); keep[0]=1; keep[pts.length-1]=1;
+        const stack=[[0,pts.length-1]];
+        while(stack.length){
+            const [i0,i1]=stack.pop();
+            const a=pts[i0], c=pts[i1];
+            const dx=c[0]-a[0], dy=c[1]-a[1], len=Math.hypot(dx,dy);
+            let best=-1, bd=eps;
+            for(let i=i0+1;i<i1;i++){
+                const b=pts[i];
+                // a closed loop starts and ends on the same point: fall back to point distance
+                const d=len>1e-9 ? Math.abs((b[0]-a[0])*dy-(b[1]-a[1])*dx)/len : Math.hypot(b[0]-a[0],b[1]-a[1]);
+                if(d>bd){ bd=d; best=i; }
+            }
+            if(best>0){ keep[best]=1; stack.push([i0,best],[best,i1]); }
+        }
+        const out=[];
+        for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+        return out;
+    }
+    function path(W,H,r){
+        const pts=simplify(unifiedOutline2(W/2,H/2,W,H,r),0.02);
+        return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
+    }
+    return { path };
+})();
+
+/* 1:1 port of react-spring's integrator (spec 9.1). Units: tension/friction/mass; velocity in units/ms; dt in ms. */
+class Spring {
+  constructor({ tension = 170, friction = 26, mass = 1, precision, restVelocity, clamp = false, value = 0, onChange } = {}) {
+    Object.assign(this, { tension, friction, mass, precision, restVelocity, clamp, onChange });
+    this.value = this.from = this.target = value; this.velocity = 0; this.done = true;
+  }
+  set(target, { velocity } = {}) {                 // mid-flight retargets keep the current velocity
+    this.target = target; this.from = this.value;
+    if (this.done && velocity !== undefined) this.velocity = velocity;
+    this.done = false; return this;
+  }
+  jump(value) { this.value = this.from = this.target = value; this.velocity = 0; this.done = true; this.onChange?.(value); return this; }
+  setVelocity(v) { this.velocity = v; this.done = false; return this; }
+  get isDone() { return this.done; }
+  tick(dt) {
+    if (this.done) return false;
+    const to = this.target, from = this.from;
+    const precision = this.precision || (from === to ? 0.005 : Math.min(1, Math.abs(to - from) * 0.001));
+    const restVelocity = this.restVelocity || precision / 10;
+    const bounce = this.clamp ? 0 : undefined;
+    const dirUp = from === to ? this.velocity > 0 : from < to;
+    let pos = this.value, vel = this.velocity, finished = false;
+    for (let i = 0, n = Math.ceil(dt); i < n; i++) {
+      if (Math.abs(vel) <= restVelocity) { finished = Math.abs(to - pos) <= precision; if (finished) break; }
+      if (bounce !== undefined && (pos === to || (pos > to) === dirUp)) { vel = -vel * bounce; pos = to; }
+      vel += (-this.tension * 1e-6 * (pos - to) + -this.friction * 1e-3 * vel) / this.mass;
+      pos += vel;
+    }
+    const changed = pos !== this.value;
+    this.value = pos; this.velocity = vel;
+    if (finished) { this.value = to; this.velocity = 0; this.done = true; }
+    if (changed || finished) this.onChange?.(this.value);
+    return changed;
+  }
+}
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const SVG = 'http://www.w3.org/2000/svg';
+const hdrRoot = $('hdrRoot'), hdr = $('hdr'), row = $('row'), box = $('box'), item = $('item'), text = $('text');
+const hoverEl = $('hover'), cardsEl = $('cards');
+const ghost = $('ghost'), slot = $('slot'), centerer = $('centerer'), gimg = $('gimg');
+const backEl = $('back'), backInner = $('backInner');
+const cursorEl = $('cursor'), cursorScaleEl = $('cursorScale'), cursorDownEl = $('cursorDown'), cursorDisc = $('cursorDisc');
+const viewer = $('viewer');                                 // the first 100 vh: the frame of every layout value below
+const knobsEl = $('knobs');                                 // TEMP panel root (may be deleted; every use is null-safe)
+
+const query = new URLSearchParams(location.search);
+const D = IMAGES.length;                                    // card nodes built (one per slot); the first knobs.deck.length (= N) of them are shown
+
+/* nudge: [[dx, dy, drot] × D] ⇄ "dx,dy,rot;dx,dy,rot;…" (slots in order; a missing / malformed value = 0; "" = no nudges).
+   knobs.nudge always holds all D slots, values clamped to NUDGE_RANGE; a slot ≥ deck.length is kept but not applied. */
+const normNudge = arr => Array.from({ length: D }, (_, i) => [0, 1, 2].map(k => { const v = +(arr?.[i]?.[k]); return Number.isFinite(v) ? clamp(v, NUDGE_RANGE[k][0], NUDGE_RANGE[k][1]) : 0; }));
+const parseNudge = str => normNudge(String(str).split(';').map(t => t.split(',').map(parseFloat)));
+const trimNudge = nd => { let n = nd.length; while (n > 0 && nd[n - 1].every(v => v === 0)) n--; return nd.slice(0, n); };   // without the trailing all-zero slots (copy-values / URL)
+const serializeNudge = nd => trimNudge(nd).map(sl => sl.join(',')).join(';');
+
+/* knobs: defaults, overridden by URL params of the same name (deck: parsed below) */
+const knobs = {};
+for (const d of KNOB_DEFS) {
+  let v = d.def;
+  if (d.type === 'nudge') v = query.has(d.key) ? parseNudge(query.get(d.key)) : normNudge(d.def);
+  else if (d.type !== 'deck' && query.has(d.key)) {
+    const q = d.type ? parseInt(query.get(d.key)) : parseFloat(query.get(d.key));
+    if (Number.isFinite(q)) v = d.type === 'bool' ? (q ? 1 : 0) : d.type ? q : clamp(q, d.min, d.max);
+  }
+  knobs[d.key] = v;
+}
+/* deck: IMAGES indices, front first, 2 … D, no repeats. ?deck=i,j,k wins (?front=N then rotates it so N is in front, if N is
+   in it); else, with ?front= or ?cards= given, the natural order 0 … 7 rotated by ?front=N, first N = ?cards (default
+   DEFAULT_DECK.length) — exactly what ?front= / ?cards= meant before the picker (?front=3 → 3,4,5); with none of the three,
+   DEFAULT_DECK. knobs.front is always deck[0]. */
+const parseDeck = str => { const out = []; for (const t of String(str).split(',')) { const v = parseInt(t); if (v >= 0 && v < D && !out.includes(v)) out.push(v); }
+                           return out.length >= 2 ? out : null; };
+const rotateTo = (dk, v) => { const k = dk.indexOf(v); return k > 0 ? dk.slice(k).concat(dk.slice(0, k)) : dk.slice(); };
+{
+  const front0 = ((Math.round(knobs.front) % D) + D) % D;
+  let dk = query.has('deck') ? parseDeck(query.get('deck')) : null;
+  if (dk) dk = rotateTo(dk, front0);
+  else if (query.has('cards') || query.has('front')) {
+    const q = parseFloat(query.get('cards')), n = Number.isFinite(q) ? clamp(Math.round(q), 2, D) : DEFAULT_DECK.length;
+    dk = Array.from({ length: n }, (_, i) => (front0 + i) % D);
+  }
+  else dk = DEFAULT_DECK.slice();
+  knobs.deck = dk; knobs.front = dk[0];
+}
+
+/* cards[i]: slot i (0 = front, D-1 = back-most). DOM order back-most first = z-order; every back card is transformed.
+   All D nodes are built; slot i shows IMAGES[knobs.deck[i]] (setDeck swaps the sources live); arrange() shows slots
+   0 … deck.length−1 and display:none's the rest (no layout, no hit area; their img has no src until the deck grows). */
+const srcFor = (pic, i) => ASSETS + pic.id + (i === 0 ? '.jpg' : '-thumb.jpg');   // full size in front, 800 px thumbs behind
+const cards = [];
+for (let i = 0; i < D; i++) {
+  const pic = i < knobs.deck.length ? IMAGES[knobs.deck[i]] : null;
+  const el = document.createElement('div'), img = document.createElement('img');
+  el.className = 'card' + (i >= 1 ? ' fan' : '');
+  el.style.zIndex = D - i;
+  if (pic) img.src = srcFor(pic, i);
+  img.alt = ''; img.draggable = false;
+  // shadow: <svg class=shade><defs><filter><feGaussianBlur/></filter></defs><path/></svg>, behind the img (in-flow, positioned)
+  const svg = document.createElementNS(SVG, 'svg'), defs = document.createElementNS(SVG, 'defs'),
+        filter = document.createElementNS(SVG, 'filter'), blur = document.createElementNS(SVG, 'feGaussianBlur'),
+        shadePath = document.createElementNS(SVG, 'path');
+  svg.setAttribute('class', 'shade'); svg.setAttribute('aria-hidden', 'true');
+  filter.id = 'shade' + i; filter.appendChild(blur); defs.appendChild(filter); svg.appendChild(defs);
+  shadePath.setAttribute('fill', '#000'); shadePath.setAttribute('filter', `url(#shade${i})`); svg.appendChild(shadePath);
+  el.appendChild(svg); el.appendChild(img);
+  cards.push({ el, img, pic, slot: i, w: 0, h: 0, size: 1, dx: 0, dy: 0, rot: 0, dir: 0, ramp: 0, sx: 0, sy: 0, srot: 0, fan: i >= 1,
+               clipKey: '', pathD: '', shade: svg, shadeBlur: blur, shadePath });
+}
+for (let i = D - 1; i >= 0; i--) cardsEl.appendChild(cards[i].el);
+
+/* ---------- springs ---------- */
+const p     = new Spring(ZOOM.spring);                      // master progress 0..1
+const back  = new Spring(ZOOM.spring);                      // back button, mapped [.5,1] -> [0,1]
+const gate  = new Spring(ZOOM.spring);                      // per-project text gate (1 once the item has been opened)
+const hover = new Spring(STACK.spring);                     // hover progress h 0..1 (spec 02 §4)
+const backHover   = new Spring(ZOOM.cursor.scaleSpring);                  // 0..1, back inner opacity .3 -> 1
+const cursorScale = new Spring({ ...ZOOM.cursor.scaleSpring, value: 1 }); // 1 / .5 over [data-clickable]
+const cursorDown  = new Spring({ ...ZOOM.cursor.downSpring,  value: 1 }); // 1 / .9 while pressed
+const cursorVis   = new Spring(ZOOM.cursor.visSpring);                    // 0..1 -> opacity, scale .1 -> 1
+const springs = [p, back, gate, hover, backHover, cursorScale, cursorDown, cursorVis];
+
+/* ---------- state ---------- */
+const G = {};                       // geometry (spec 2), computed by layout(); read-only inside the loop
+let open = false, scroll0 = 0, delta = 0, pinned = null, hPinned = null, measure = null, hMeasure = null;
+let recheckHover = false, lastX = -1, lastY = -1;
+
+if (query.has('p')) pinned  = clamp(parseFloat(query.get('p')) || 0, 0, 1);
+if (query.has('h')) hPinned = clamp(parseFloat(query.get('h')) || 0, 0, 1);
+
+/* ---------- layout: all sizing + measurement, never in the frame loop ---------- */
+function layout() {
+  const W = viewer.clientWidth, H = viewer.clientHeight, K = ZOOM.desktop;   // the viewer's box (= the viewport in the first 100 vh)
+  let wMin = K.windowMinWidth, hMin = K.windowMinHeight, cwMin = K.contentMinWidth, chMin = K.contentMinHeight,
+      hmMin = K.minHMargin, vmMin = K.minVMargin;
+  if (H < K.windowMinHeight) { hMin = 0; chMin = 0; vmMin = 0; }
+  if (W < K.windowMinWidth)  { wMin = 0; cwMin = 0; hmMin = 0; }
+  const bx = clamp((W - wMin) / (K.windowBreakWidth  - wMin), 0, 1);
+  const by = clamp((H - hMin) / (K.windowBreakHeight - hMin), 0, 1);
+  const scale = Math.min(bx, by);
+  const C = H < K.windowMinHeight ? scale : K.minScale + (1 - K.minScale) * scale;
+  const em = K.fontSize * C;
+  const hMargin = lerp(bx, hmMin, K.maxHMargin), vMargin = lerp(by, vmMin, K.maxVMargin);
+  const contentH = Math.min(lerp(bx, chMin, K.contentMaxHeight), H - 2 * vMargin);   // cross-wired, as in the bundle
+  const contentW = Math.min(lerp(by, cwMin, K.contentMaxWidth),  W - 2 * hMargin);
+  const contentLeft = (W - contentW) / 2, contentTop = (H - contentH) / 2, contentBottom = contentTop + contentH;
+  const galleryLeft = hMargin, galleryW = W - 2 * hMargin;
+  const TH = K.timelineHeight * C;
+  const bRest = TH;                          // rest stack box (square): side = home-row height, bottom = row bottom
+  const bOpen = contentH;                    // expanded stack box (square): side = content height (part-1 open image height)
+  const KB = bOpen / STACK.refBox;           // spec-02 px (340 box) -> expanded-frame px
+  const padRight = (W - contentW) / 2;
+  Object.assign(G, { W, H, bx, by, scale, C, em, hMargin, vMargin, contentW, contentH, contentLeft, contentTop, contentBottom,
+                     galleryLeft, galleryW, TH, bRest, bOpen, K: KB, padRight });
+
+  // writes
+  document.documentElement.style.setProperty('--em', em + 'px');
+  hdrRoot.style.cssText = `left:${contentLeft}px;top:${contentTop}px;width:${contentW}px;height:${contentH}px`;
+  row.style.top = (contentBottom - TH) + 'px'; row.style.height = TH + 'px';
+  row.style.paddingLeft = contentLeft + 'px'; row.style.paddingRight = padRight + 'px';
+  box.style.width = box.style.height = bRest + 'px';
+  item.style.width = item.style.height = bOpen + 'px'; item.style.marginLeft = (-bOpen / 2) + 'px';
+  hoverEl.style.transformOrigin = `50% ${bOpen / 2 + STACK.hover.originYOffset * KB}px`;
+  ghost.style.cssText = `left:${galleryLeft}px;top:${contentTop}px;width:${galleryW}px;height:${contentH}px`;
+  slot.style.width = (ZOOM.galleryWidthMultiplier * W) + 'px';
+  centerer.style.minWidth = galleryW + 'px';
+  gimg.style.width = gimg.style.height = bOpen + 'px';
+
+  // measure (the only getBoundingClientRect calls in the file)
+  const br = box.getBoundingClientRect(), gr = gimg.getBoundingClientRect();
+  const sl = open ? scroll0 : viewer.scrollLeft;          // row is translated by -scroll0 while locked
+  G.boxCx = br.left + br.width / 2 + sl;                   // unscrolled centre of the home-row container
+  G.gcx = gr.left + gr.width / 2;                          // ghost slot 0 → strip offset 0
+  G.S  = gr.height / br.height;                            // = bOpen / bRest
+  G.iy = gr.bottom - br.bottom;                            // 0 on desktop
+  G.maxScrollX = Math.max(0, br.right + sl + padRight - W);
+  targets();
+  arrange();                                               // per-card sizes/offsets/clips depend on bOpen, K and S
+  render();
+}
+function targets() { G.ix = G.gcx - (G.boxCx - scroll0); }   // box.x in the screen frame at expand time
+
+/* ---------- arrange: the pile. Per-card static layout from the knobs + seed; once per knob change / layout, never
+   per frame. Everything is in the expanded frame (card px): offsets are scaled by the box, the clip radius by S. */
+function arrange() {
+  const B = G.bOpen, KB = G.K, S = G.S || 1, k = knobs, sh = STACK.shadow;
+  const N = k.deck.length, pivot = Math.min(k.pivot, N - 1);   // N = cards shown; the ramp spans slots 0 … N−1, pivot clamped into it
+  const rnd = mulberry32(k.seed | 0);
+  const sigma = sh.sigma * KB, sy = sh.y * KB, pad = Math.ceil(3 * sigma + sy);   // shadow blur + offset, expanded-frame px
+  for (let i = 0; i < D; i++) {
+    const c = cards[i];
+    c.el.style.display = i < N ? '' : 'none';               // slots ≥ N: out of the layout, the hit area and the frame loop
+    if (i >= N) continue;
+    const u = [rnd(), rnd(), rnd(), rnd()];                 // 4 draws per SLOT (size, rot, x, y): the pile does not depend on which images the deck holds
+    const depth = i <= 1 ? 1 : 1 - (1 - k.falloff) * (i - 1) / (N - 2);   // 1 on slot 1 … falloff on the back-most slot
+    const sl = STACK.slots[i] || { dx: 0, rot: 0 };
+    if (i === 0) { c.size = 1; c.dx = c.dy = c.rot = 0; }  // the front card is the zoom target: untouched at rest
+    else {                                                 // rest-only randomness: dx/dy/rot are never scaled by h or p
+      c.size = 1 - k.sizeVar * u[0];
+      c.rot  = sl.rot + k.rotVar * (2 * u[1] - 1) * depth;
+      c.dx   = sl.dx * KB + k.posVar * B * (2 * u[2] - 1) * depth;
+      c.dy   = k.posVar * B * (2 * u[3] - 1) * depth;
+    }
+    const nd = k.nudge[i];                                   // hand nudge ADDED to the seeded rest pose (rest only; scales with the box like the seeded offsets)
+    c.dx += nd[0] * B; c.dy += nd[1] * B; c.rot += nd[2];
+    // directional ramp (the ONLY hover/open motion): dir −1 at the front … +1 at the back, 0 at `pivot`; frontLock pins
+    // slot 0 at 0; the depth gain 1 + hoverDepth·i/(N−1) makes the back-most slot move (1+hoverDepth)× the front one.
+    // sx/sy/srot are the shift at g = 1 (expanded-frame px / degrees) ADDED to the rest values; render() multiplies by g = max(h, p).
+    c.dir  = (k.frontLock && i === 0) ? 0 : clamp((i - pivot) / ((N - 1) / 2), -1, 1);
+    c.ramp = c.dir * (1 + k.hoverDepth * i / (N - 1));
+    c.sx   = k.spreadX * B * c.ramp; c.sy = k.spreadY * B * c.ramp; c.srot = k.spreadRot * c.ramp;
+    c.fan  = i >= 1 || c.dx !== 0 || c.dy !== 0 || c.rot !== 0 || c.sx !== 0 || c.sy !== 0 || c.srot !== 0;   // the front card is only transformed when a nudge or the ramp moves it
+    c.el.classList.toggle('fan', c.fan);
+    if (!c.fan) c.el.style.transform = '';                          // back to the CSS rest transform (translateZ(0))
+    // contain-fit into the box (× size factor), centred; offsets/rotation are applied about the card's own centre
+    const r = c.pic.w / c.pic.h, w = (r >= 1 ? B : B * r) * c.size, h = (r >= 1 ? B / r : B) * c.size;
+    c.w = w; c.h = h;
+    c.el.style.width = w + 'px'; c.el.style.height = h + 'px';
+    c.el.style.margin = `${-h / 2}px 0 0 ${-w / 2}px`;
+    // squircle clip in the card's own px: `radius` / `border` are rest px, the card is shown at 1/S at rest → ·S here.
+    // Print border b > 0: the card's ::before (white, the outer outline via --paper) shows and the img is inset by b on
+    // every side with its own squircle, radius − b (square when < .5 px); at b = 0 nothing extra is written (old rendering).
+    const rad = k.radius * S, b = Math.min(k.border * S, Math.min(w, h) / 2 - 1), key = `${w.toFixed(2)}|${h.toFixed(2)}|${rad.toFixed(3)}|${b.toFixed(3)}`;
+    if (c.clipKey !== key) {
+      c.clipKey = key;
+      c.pathD = rad >= .5 ? Squircle.path(w, h, rad) : `M0 0H${w}V${h}H0Z`;
+      const iw = w - 2 * b, ih = h - 2 * b, irad = Math.max(0, rad - b);
+      const imgD = b > 0 ? (irad >= .5 ? Squircle.path(iw, ih, irad) : '') : (rad >= .5 ? c.pathD : '');
+      c.img.style.cssText = (b > 0 ? `margin:${b}px;width:${iw}px;height:${ih}px;` : '') + (imgD ? `clip-path:path("${imgD}")` : '');
+      c.el.classList.toggle('print', b > 0);
+      if (b > 0) c.el.style.setProperty('--paper', rad >= .5 ? `path("${c.pathD}")` : 'none'); else c.el.style.removeProperty('--paper');
+    }
+    // shadow: the same outline, blurred, behind the img; the svg overhangs the card by `pad` on every side
+    c.shade.style.cssText = `left:${-pad}px;top:${-pad}px;width:${w + 2 * pad}px;height:${h + 2 * pad}px;display:${k.shadow > 0 ? 'block' : 'none'}`;
+    c.shade.setAttribute('viewBox', `0 0 ${w + 2 * pad} ${h + 2 * pad}`);
+    c.shadeBlur.setAttribute('stdDeviation', sigma);
+    c.shadePath.setAttribute('d', c.pathD);
+    c.shadePath.setAttribute('transform', `translate(${pad} ${pad + sy})`);
+    c.shadePath.setAttribute('fill-opacity', k.shadow);
+  }
+}
+
+/* change one knob live: static layout is recomputed (arrange), then the current spring values are re-rendered */
+function setKnob(key, value) {
+  if (key === 'front') { setFront(Math.round(value)); return; }
+  if (key === 'deck')  { setDeck(value); return; }
+  knobs[key] = value;
+  if (key !== 'hoverScale') arrange();                          // hoverScale is read live by render()
+  render();
+}
+let onDeck = null;                          // TEMP panel hook: called after every deck change (badges, front select)
+let onNudge = null;                         // TEMP panel hook: called after every nudge change (the rows follow knobs.nudge)
+function setNudge(slot, comp, value) {      // hand nudge, live: slot 0 … D−1, comp 0 | 1 | 2 = dx | dy (fraction of the box) | drot (degrees), ADDED to the seeded rest pose
+  slot = Math.round(slot); comp = Math.round(comp);
+  if (!(slot >= 0 && slot < D) || !NUDGE_RANGE[comp] || !Number.isFinite(value)) return;
+  knobs.nudge[slot][comp] = clamp(value, NUDGE_RANGE[comp][0], NUDGE_RANGE[comp][1]);
+  arrange(); render(); onNudge?.();
+}
+function clearNudges() { knobs.nudge = normNudge(null); arrange(); render(); onNudge?.(); }   // every slot back to [0, 0, 0] = the pure seeded pile
+function setDeck(list) {                    // list: IMAGES indices, front first (2 … D, repeats / out-of-range dropped). Swap sources, keep the slot layout; live
+  const dk = list.filter((v, i) => v >= 0 && v < D && list.indexOf(v) === i);
+  if (dk.length < 2) return;
+  knobs.deck = dk; knobs.front = dk[0];
+  for (let i = 0; i < dk.length; i++) {                    // hidden slots (≥ deck.length) keep their old src: display:none, never read
+    const c = cards[i], pic = IMAGES[dk[i]];
+    if (c.pic === pic) continue;
+    c.pic = pic;
+    c.img.addEventListener('load', () => useNatural(c), { once: true });
+    c.img.src = srcFor(pic, i);
+  }
+  arrange(); render(); onDeck?.();
+  // the hit area (box + fanned cards) may have changed under a still pointer: re-evaluate hover where it last was
+  if (lastX >= 0) hoverTo(document.elementFromPoint(lastX, lastY)?.closest('.cards') ? 1 : 0);
+}
+function setFront(v) {                      // rotate the deck so IMAGES[v] is in front (ignored if v is not in the deck)
+  if (knobs.deck.includes(v)) setDeck(rotateTo(knobs.deck, v));
+}
+
+/* ---------- expand / collapse (spec 6) ---------- */
+function expand() {
+  if (pinned !== null || open) return;
+  open = true; delta = 0; recheckHover = false;
+  scroll0 = viewer.scrollLeft;
+  targets();
+  scrollTo(0, 0); document.documentElement.style.overflow = 'hidden';                    // page to the top, then locked while open: the viewer IS the viewport
+  row.classList.add('locked'); row.style.transform = `translate3d(${-scroll0}px,0,0)`;   // freeze the native scroll
+  backEl.style.pointerEvents = 'auto';
+  if (hPinned === null && hover.target !== 0) hover.set(0);                              // hover off while opening; the fan stays via max(h, p)
+  gate.set(1); p.set(1); back.set(1); kick();
+}
+function collapse() {
+  if (pinned !== null || !open) return;
+  open = false;
+  const o = clamp(G.boxCx - G.W / 2, 0, G.maxScrollX);                                    // re-centre the row on the item
+  delta = o - scroll0;
+  row.classList.remove('locked'); row.style.transform = '';
+  viewer.scrollTo(o, 0);
+  document.documentElement.style.overflow = '';                                           // page scroll unlocked (the panel below is reachable again)
+  backEl.style.pointerEvents = 'none';
+  backHover.set(0); cursorScale.set(1);
+  recheckHover = true;                                                                     // hover re-enabled; re-evaluated once p settles
+  p.set(0); back.set(0); kick();                                                           // same spring, velocity kept
+}
+
+/* ---------- hover (spec 02): binary state, no cursor-position dependence ---------- */
+function hoverTo(t) {
+  if (hPinned !== null || pinned !== null || open) return;                                 // disabled while p's target is 1
+  if (hover.target !== t) { hover.set(t); kick(); }
+}
+
+/* ---------- frame loop: one loop, all springs, transforms + opacity only ---------- */
+let last = 0, rafId = 0;
+function frame(now) {
+  const dt = last ? Math.min(ZOOM.maxFrameDt, now - last) : 16.667;
+  last = now;
+  let active = false;
+  for (const s of springs) { s.tick(dt); if (!s.isDone) active = true; }
+  render();
+  if (measure) {
+    if (measure.settle == null && (1 - p.value) * measure.px < 1) measure.settle = now - measure.t0;
+    if (p.isDone) {
+      console.log(`[zoom] auto: settle ${Math.round(measure.settle ?? now - measure.t0)} ms (< 1 px from target rect); ` +
+                  `spring done ${Math.round(now - measure.t0)} ms (precision 1e-4)`);
+      measure = null;
+    }
+  }
+  if (hMeasure) {
+    if (hMeasure.settle == null && Math.abs(hover.target - hover.value) * hMeasure.px < 1) hMeasure.settle = now - hMeasure.t0;
+    if (hover.isDone) {
+      console.log(`[stack] autohover ${hMeasure.dir}: settle ${Math.round(hMeasure.settle ?? now - hMeasure.t0)} ms (< 1 px, travel ${hMeasure.px.toFixed(1)} px); ` +
+                  `spring done ${Math.round(now - hMeasure.t0)} ms (precision ${STACK.spring.precision})`);
+      const px = hMeasure.px;
+      hMeasure = null;
+      if (hover.value === 1) setTimeout(() => { hMeasure = { t0: performance.now(), px, dir: 'leave' }; hover.set(0); kick(); }, 300);
+    }
+  }
+  if (recheckHover && p.isDone && !open) {                                                 // after a collapse: is the pointer over the box?
+    recheckHover = false;
+    if (lastX >= 0 && document.elementFromPoint(lastX, lastY)?.closest('.cards')) { hoverTo(1); active = active || !hover.isDone; }
+  }
+  if (active) rafId = requestAnimationFrame(frame); else { rafId = 0; last = 0; }
+}
+function kick() { if (!rafId && pinned === null) rafId = requestAnimationFrame(frame); }
+
+function render() {
+  const v = p.value, hv = hover.value;
+  const x = (G.ix + (open ? 0 : delta)) * v;
+  const y = Math.min(0, G.iy * v);
+  const s = 1 / G.S + (1 - 1 / G.S) * v;
+  item.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`;
+  hoverEl.style.transform = `scale(${1 + (knobs.hoverScale - 1) * hv})`;
+  const g = Math.max(hv, v);                                                               // the ramp opens on hover and stays open while open
+  for (let i = 0, N = knobs.deck.length; i < N; i++) {                                      // hidden slots (≥ N) are never written
+    const c = cards[i];
+    if (!c.fan) continue;                                                                  // front card with no directional shift: untouched
+    c.el.style.transform = `translate(${c.dx + g * c.sx}px, ${c.dy + g * c.sy}px) rotate(${c.rot + g * c.srot}deg)`;   // rest + g·ramp
+  }
+  text.style.opacity = Z(v, ZOOM.timing.galleryContent, 0, 1, easeInExpo) * gate.value;
+  const h = easeOutQuad(clamp(v / ZOOM.timing.header.end, 0, 1));
+  hdr.style.opacity = 1 - h;
+  hdr.style.transform = `scale(${1 - (1 - ZOOM.desktop.headerScale) * h})`;
+  backEl.style.opacity = Z(back.value, ZOOM.timing.backButton, 0, 1, t => t);
+  backInner.style.opacity = ZOOM.backButtonOpacity + (1 - ZOOM.backButtonOpacity) * backHover.value;
+  cursorScaleEl.style.transform = `scale(${cursorScale.value})`;
+  cursorDownEl.style.transform = `scale(${cursorDown.value})`;
+  cursorDisc.style.opacity = cursorVis.value;
+  cursorDisc.style.transform = `scale(${.1 + .9 * cursorVis.value})`;
+}
+
+/* ---------- events ---------- */
+let pd = null;
+document.addEventListener('pointerdown', e => { pd = { x: e.clientX, y: e.clientY, target: e.target }; });
+document.addEventListener('pointerup', e => {
+  if (!pd) return;
+  const moved = Math.hypot(e.clientX - pd.x, e.clientY - pd.y), t = pd.target; pd = null;
+  if (t.closest('[data-clickable]')) return;                                  // the back button handles itself
+  if (open) { if (moved < ZOOM.dismissMaxMove) collapse(); }                  // click anywhere while open = dismiss
+  else if (moved < ZOOM.clickMaxMove && t.closest('.cards')) expand();        // the whole stack box is the click target
+});
+document.addEventListener('pointermove', e => { lastX = e.clientX; lastY = e.clientY; }, { passive: true });
+/* pointerenter/leave on the stack box: leave fires only when the pointer leaves the box AND all cards (transformed
+   geometry), so the hit area is the box plus whatever fans out of it. The knob panel is below the viewer (a sibling, not
+   a descendant), so hovering or dragging in it never enters the box; its clicks are not on .cards, so they never expand. */
+cardsEl.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') hoverTo(1); });
+cardsEl.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hoverTo(0); });
+backEl.addEventListener('click', e => { e.stopPropagation(); collapse(); });
+backEl.addEventListener('mouseenter', () => { backHover.set(1); cursorScale.set(ZOOM.cursor.scaleSmall); kick(); });
+backEl.addEventListener('mouseleave', () => { backHover.set(0); cursorScale.set(1); kick(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'ArrowDown') collapse(); });
+
+let resizeT = 0;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(layout, 50); });   // geometry only; p untouched
+
+/* ---------- cursor (spec section 5, simplified: pop in/out instead of edge fly) ---------- */
+const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+if (SHOW_CURSOR && !touch) {
+  document.documentElement.classList.add('custom-cursor');
+  const half = ZOOM.cursor.size / 2;
+  let visible = false;
+  const show = on => { if (visible !== on) { visible = on; cursorVis.set(on ? 1 : 0); kick(); } };
+  document.addEventListener('mousemove', e => {
+    cursorEl.style.transform = `translate3d(${e.clientX - half}px, ${e.clientY - half}px, 0)`;   // direct, no smoothing
+    const m = ZOOM.cursor.edge;
+    const overKnobs = !!e.target.closest?.('#knobs');                                             // TEMP panel: native cursor there
+    show(!(e.clientX < m || e.clientY < m || e.clientX > innerWidth - m || e.clientY > innerHeight - m) && !overKnobs);
+  });
+  document.documentElement.addEventListener('mouseleave', () => show(false));
+  addEventListener('blur', () => show(false));
+  document.addEventListener('mousedown', () => { cursorDown.set(ZOOM.cursor.scaleDown); kick(); });
+  document.addEventListener('mouseup',   () => { cursorDown.set(1); kick(); });
+}
+
+/* ======================= TEMP knob panel (#knobs) =======================
+   Delete this block together with the #knobs element and its CSS once the values are final. Range inputs with a
+   live readout; seed (integer + reroll); deck picker (thumbnail row: click to add/remove, badge = slot, reset);
+   front-card select (the deck's images); "copy values" writes the knob JSON to the clipboard and console.logs it
+   (plus the equivalent query string). */
+if (knobsEl) {
+  const dec = d => Math.max(0, Math.ceil(-Math.log10(d.step) - 1e-9));
+  const fmt = (d, v) => d.type ? String(v) : (+v).toFixed(dec(d));
+  const label = (txt, ...ctrls) => { const l = document.createElement('label'); l.append(txt + ' ', ...ctrls); knobsEl.append(l); return l; };
+  for (const d of KNOB_DEFS) {
+    if (d.type === 'int') {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = 1; inp.value = knobs[d.key];
+      inp.addEventListener('input', () => { const v = parseInt(inp.value); if (Number.isFinite(v)) setKnob(d.key, v); });
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = 'reroll';
+      b.addEventListener('click', () => { const v = 1 + Math.floor(Math.random() * 9999); inp.value = v; setKnob(d.key, v); });
+      label(d.label, inp, b); d.input = inp;
+    } else if (d.type === 'bool') {
+      const inp = document.createElement('input'); inp.type = 'checkbox'; inp.checked = !!knobs[d.key];
+      inp.addEventListener('change', () => setKnob(d.key, inp.checked ? 1 : 0));
+      label(d.label, inp); d.input = inp;
+    } else if (d.type === 'select') {                     // front: the deck's images (ascending), value = IMAGES index of slot 0
+      const sel = document.createElement('select');
+      const fill = () => { sel.textContent = '';
+                           for (const v of [...knobs.deck].sort((a, b) => a - b)) { const o = document.createElement('option'); o.value = v; o.textContent = `${v} ${IMAGES[v].id}`; sel.append(o); }
+                           sel.value = knobs.front; };
+      fill(); sel.addEventListener('change', () => setKnob(d.key, +sel.value));
+      label(d.label, sel); d.input = sel; d.sync = fill;
+    } else if (d.type === 'deck') {                       // the picker: one thumbnail per image, click to toggle, badge = slot (1 = front)
+      const wrap = document.createElement('span'); wrap.className = 'deck'; wrap.append(d.label + ' ');
+      const picks = IMAGES.map((pic, v) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'pick'; b.title = `${v} ${pic.id}`;
+        const im = document.createElement('img'); im.src = ASSETS + pic.id + '-thumb.jpg'; im.alt = pic.id; im.draggable = false;
+        const badge = document.createElement('span'); badge.className = 'n';
+        b.append(im, badge); b.badge = badge;
+        b.addEventListener('click', () => {               // unselected → append (back of the deck); selected → remove, never below 2
+          const dk = knobs.deck.slice(), k = dk.indexOf(v);
+          if (k < 0) dk.push(v); else if (dk.length > 2) dk.splice(k, 1); else return;
+          setKnob('deck', dk);
+        });
+        wrap.append(b); return b;
+      });
+      const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'reset';
+      reset.addEventListener('click', () => setKnob('deck', DEFAULT_DECK.slice()));
+      wrap.append(reset); knobsEl.append(wrap); d.input = wrap;
+      d.sync = () => picks.forEach((b, v) => { const k = knobs.deck.indexOf(v); b.classList.toggle('on', k >= 0); b.badge.textContent = k >= 0 ? k + 1 : ''; });
+      d.sync();
+    } else if (d.type === 'nudge') {                      // nudges: one compact row per shown slot — "slot n" + dx / dy / rot number inputs ADDED to the seeded rest pose, live
+      const wrap = document.createElement('span'); wrap.className = 'nudges'; wrap.append(d.label + ' ');
+      const rows = Array.from({ length: D }, (_, i) => {
+        const row = document.createElement('span'); row.className = 'slotrow'; row.title = `slot ${i} = badge ${i + 1}` + (i === 0 ? ' (the front card: its nudge also moves the open image)' : '');
+        const sl = document.createElement('span'); sl.className = 'sl'; sl.textContent = `slot ${i}`; row.append(sl);
+        row.inputs = [['dx', 0], ['dy', 1], ['rot', 2]].map(([txt, k]) => {
+          const [min, max, step] = NUDGE_RANGE[k];
+          const inp = document.createElement('input'); inp.type = 'number'; inp.min = min; inp.max = max; inp.step = step; inp.title = k === 2 ? 'degrees, added to the seeded rotation' : 'fraction of the box, added to the seeded offset';
+          inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (Number.isFinite(v)) setNudge(i, k, v); });   // → arrange() → onNudge → sync
+          const l = document.createElement('label'); l.append(txt + ' ', inp); row.append(l); return inp;
+        });
+        wrap.append(row); return row;
+      });
+      const clear = document.createElement('button'); clear.type = 'button'; clear.textContent = 'clear nudges'; clear.title = 'zero every slot\'s nudge (back to the pure seeded pile)';
+      clear.addEventListener('click', clearNudges);
+      wrap.append(clear); knobsEl.append(wrap); d.input = wrap;
+      d.sync = () => rows.forEach((row, i) => {            // rows of the shown slots only; the inputs follow knobs.nudge (rewritten only when they differ, so typing is not disturbed)
+        row.style.display = i < knobs.deck.length ? '' : 'none';
+        row.inputs.forEach((inp, k) => { const v = knobs.nudge[i][k]; if (inp.value === '' || +inp.value !== v) inp.value = v; inp.classList.toggle('set', v !== 0); });
+      });
+      onNudge = d.sync; d.sync();
+    } else {
+      const inp = document.createElement('input'); inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = knobs[d.key];
+      const val = document.createElement('span'); val.className = 'val'; val.textContent = fmt(d, knobs[d.key]);
+      inp.addEventListener('input', () => { setKnob(d.key, +inp.value); val.textContent = fmt(d, +inp.value); });
+      label(d.label, inp, val); d.input = inp; d.val = val;
+    }
+  }
+  onDeck = () => { for (const d of KNOB_DEFS) d.sync?.(); };                                // badges + front select follow the deck
+  const copy = document.createElement('button'); copy.type = 'button'; copy.textContent = 'copy values';
+  copy.addEventListener('click', () => {
+    const out = { ...knobs, nudge: trimNudge(knobs.nudge) };                                 // "deck":[0,2,6], "nudge":[[0,0,0],[-0.03,0,0],[0,0,5.4]] (trailing all-zero slots trimmed)
+    const json = JSON.stringify(out);
+    const qs = Object.entries(out).map(([k, v]) => `${k}=${k === 'nudge' ? serializeNudge(v) : Array.isArray(v) ? v.join(',') : v}`).join('&');   // deck=0,2,6&nudge=0,0,0;-0.03,0,0;0,0,5.4
+    console.log('[knobs] ' + json + '\n?' + qs);
+    navigator.clipboard?.writeText(json).catch(() => {});
+  });
+  knobsEl.append(copy);
+}
+
+/* ---------- boot ---------- */
+let naturalT = 0;
+function useNatural(c) {                    // refine a card's ratio from the decoded image (thumb and full differ by < 0.1 %)
+  const nw = c.img.naturalWidth, nh = c.img.naturalHeight;
+  if (c.pic && nw && nh && Math.abs(nw / nh - c.pic.w / c.pic.h) > .002) {
+    c.pic.w = nw; c.pic.h = nh;
+    clearTimeout(naturalT); naturalT = setTimeout(layout, 0);
+  }
+}
+layout();
+for (const c of cards) { if (c.img.complete) useNatural(c); else c.img.addEventListener('load', () => useNatural(c), { once: true }); }
+if (document.fonts?.ready) document.fonts.ready.then(layout);
+addEventListener('load', () => {            // preload the whole set, full size + thumbs: a deck change / front swap never shows a blank card
+  for (const d of IMAGES) for (const sfx of ['.jpg', '-thumb.jpg']) { const im = new Image(); im.fetchPriority = 'low'; im.src = ASSETS + d.id + sfx; }
+});
+
+if (hPinned !== null) hover.jump(hPinned);
+if (pinned !== null) {
+  open = pinned > 0;
+  backEl.style.pointerEvents = open ? 'auto' : 'none';
+  p.jump(pinned); back.jump(pinned); gate.jump(pinned);
+}
+if (pinned !== null || hPinned !== null) render();
+if (query.get('auto') === '1' && pinned === null) {
+  addEventListener('load', () => setTimeout(() => {
+    const dw = G.bOpen - G.bRest, dh = dw;
+    measure = { t0: performance.now(), px: Math.max(Math.abs(G.ix - dw / 2), Math.abs(G.ix + dw / 2), dh) };
+    expand();
+  }, 500));
+}
+if (query.get('autohover') === '1' && pinned === null && hPinned === null) {
+  addEventListener('load', () => setTimeout(() => {
+    // largest rendered displacement at rest between h = 0 and h = 1: box edge from the scale + the widest card's offset change
+    const hs = knobs.hoverScale - 1, q = 1 + hs;
+    const maxDx = Math.max(...cards.slice(0, knobs.deck.length).map(c => Math.hypot((c.dx + c.sx) * q - c.dx, (c.dy + c.sy) * q - c.dy))) / G.S;   // rest px (shown cards): ramp shift under the hover scale
+    const px = (G.bRest / 2) * hs + maxDx;
+    hMeasure = { t0: performance.now(), px, dir: 'enter' };
+    hover.set(1); kick();
+  }, 500));
+}
+
+window.__zoom = { expand, collapse, spring: p, hover, springs: { p, back, gate, hover, backHover, cursorScale, cursorDown, cursorVis },
+                  layout, arrange, geom: G, cards, knobs, setKnob, setDeck, setNudge, clearNudges, serializeNudge, parseNudge };
+})();
+</script>
+</body>
+</html>
