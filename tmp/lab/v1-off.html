@@ -1,0 +1,253 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>FS Lab V1-OFF</title><style>:root{--ink:#1d1d1f;--mute:#86868b;--hair:#e5e5ea;--obj:#ececf0;--obj2:#e1e1e6;--ok:#248a3d;--no:#c93400;--blue:#0071e3;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:#fff;-webkit-text-size-adjust:100%}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;touch-action:manipulation}
+a{color:var(--blue);text-decoration:none}
+
+/* readout */
+.hud{position:fixed;z-index:20;top:max(10px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));max-width:calc(100vw - 28px);background:rgba(255,255,255,.86);border-radius:12px;padding:2px 8px 6px 0}
+.hud .top{display:flex;gap:12px;align-items:baseline;font-size:12px;color:var(--mute);white-space:nowrap}
+.hud .top a{padding:6px 0}
+.vd{font-size:26px;font-weight:600;line-height:1.1;margin:0 0 2px}
+.vd.ok{color:var(--ok)}.vd.no{color:var(--no)}.vd.na{color:var(--ink)}
+.sub{font-size:13px}
+.grid{display:grid;grid-template-columns:auto auto;gap:0 12px;margin-top:6px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.grid b{font-weight:400;color:var(--mute)}
+@media (orientation:landscape){.grid{grid-template-columns:auto auto auto auto}}
+.do{margin-top:6px;font-size:12px;line-height:1.35;color:var(--mute);max-width:430px}
+.log{margin-top:5px;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);white-space:pre;overflow:hidden}
+.hud.min .grid,.hud.min .c2{display:none}
+@media (orientation:landscape){.hud{display:flex;gap:24px;align-items:flex-start;max-width:calc(100vw - 28px - env(safe-area-inset-left) - env(safe-area-inset-right) - 40px)}.hud .c2{flex:0 1 340px;min-width:0;padding-top:24px}.hud .do{margin-top:0}}
+.us{color:#28a745}.ul{color:#e08600}.ud{color:var(--blue)}
+
+/* what the screen really shows: hairline = layout viewport (position:fixed; inset:0); 3 bars = 100svh / 100lvh / 100dvh from the top */
+.frame{position:fixed;inset:0;border:1px solid rgba(0,113,227,.3);pointer-events:none;z-index:40}
+.ub{position:fixed;top:0;width:2px;pointer-events:none;z-index:41}
+.ub::after{content:attr(data-k);position:absolute;bottom:3px;right:5px;font:10px/1 ui-monospace,Menlo,monospace}
+.ub.s{height:100svh;right:calc(env(safe-area-inset-right) + 34px);background:#28a745;color:#28a745}
+.ub.l{height:100lvh;right:calc(env(safe-area-inset-right) + 22px);background:#e08600;color:#e08600}
+.ub.d{height:100dvh;right:calc(env(safe-area-inset-right) + 10px);background:var(--blue);color:var(--blue)}
+
+/* the row: abstract objects on a baseline (stands in for the site's row) */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:1}
+.base{position:absolute;left:0;right:0;bottom:16%;height:1px;background:var(--hair)}
+.row{position:absolute;left:0;bottom:calc(16% + 1px);display:flex;align-items:flex-end;gap:26px;padding:0 max(40px,env(safe-area-inset-left));will-change:transform}
+.obj{flex:none;position:relative;border-radius:12px;background:var(--obj)}
+.obj:nth-child(2n){background:var(--obj2)}
+.obj i{position:absolute;left:9px;bottom:7px;font:11px/1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--mute)}
+
+/* swipe-up hint */
+.hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--mute);font-size:13px;opacity:0;transition:opacity .35s;pointer-events:none;z-index:15}
+.hint.on{opacity:1}
+.hint svg{width:22px;height:22px;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(5px)}50%{transform:translateY(-5px)}}
+
+.btn{display:inline-block;font:15px/1 -apple-system,system-ui,sans-serif;color:var(--blue);background:#f2f2f7;border:0;border-radius:999px;padding:12px 18px;margin:4px 6px 4px 0}
+.mono{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+html{scrollbar-width:none}body{height:600lvh}html.lockov{overflow:hidden}</style></head><body><div class="stage" id="stage"></div><div class="hint" id="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l6-6 6 6"/></svg><span>Swipe up for full screen</span></div><script>window.LAB={"v": "v1-off", "title": "V1 · no lock", "todo": "Landscape, bars showing: swipe up once, anywhere. Then use the row (← → ↑ ↓), tap around, tap the top edge, rotate. <b>Report:</b> did one swipe hide the bars? did they stay hidden while you used the row? what brought them back (log)? Portrait test: scroll down until the bar shrinks, then rotate."}</script><script>// fslab core: live readout of what Safari's bars are doing + an event log + a beacon to the Mac.
+// Each page sets window.LAB = {v, title, todo, ...} before this script; it exposes window.lab.
+(function () {
+  'use strict';
+  const L = window.LAB || {}, Q = new URLSearchParams(location.search), ua = navigator.userAgent;
+  const T0 = performance.now(), body = document.body;
+  const showHud = Q.get('hud') !== '0' && L.hud !== false;
+
+  // ---- probes: what 100svh / 100lvh / 100dvh resolve to, and the safe-area insets
+  const probe = css => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:0;top:0;width:0;visibility:hidden;pointer-events:none;' + css; body.appendChild(d); return d; };
+  const P = { s: probe('height:100svh'), l: probe('height:100lvh'), d: probe('height:100dvh') };
+  const SA = probe('padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)');
+
+  // ---- browser / version (iOS 26 freezes the OS token in the UA at 18_6/18_7; Version/ is the real Safari = iOS major)
+  const sv = (ua.match(/Version\/([\d.]+)/) || [])[1] || '';
+  const osv = (ua.match(/OS (\d+)_(\d+)(?:_(\d+))?/) || []).slice(1).filter(Boolean).join('.');
+  const standalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  const KIND = (() => {
+    const apps = [[/LinkedInApp/i, 'LinkedIn in-app'], [/Instagram/i, 'Instagram in-app'], [/FBAN|FBAV|FB_IAB|FBIOS/i, 'Facebook in-app'],
+      [/GSA\//, 'Google app'], [/Twitter/i, 'X in-app'], [/musical_ly|TikTok|Bytedance/i, 'TikTok in-app'], [/Snapchat/i, 'Snapchat in-app'],
+      [/\bLine\//, 'LINE in-app'], [/WhatsApp/i, 'WhatsApp in-app'], [/Slack/i, 'Slack in-app'], [/CriOS/, 'Chrome (iOS)'],
+      [/FxiOS/, 'Firefox (iOS)'], [/EdgiOS/, 'Edge (iOS)'], [/OPiOS|OPT\//, 'Opera (iOS)'], [/DuckDuckGo/i, 'DuckDuckGo']];
+    for (const [re, n] of apps) if (re.test(ua)) return n;
+    if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'in-app WebView';
+    return 'Safari';
+  })();
+  const inApp = /in-app|WebView|Google app/.test(KIND);
+  const verLabel = (sv ? 'Safari ' + sv : KIND) + (osv ? ' · UA ' + osv : '');
+
+  // ---- event log
+  const LOG = [];
+  let logEl = null;
+  function log(msg) {
+    LOG.push(((performance.now() - T0) / 1000).toFixed(1).padStart(5) + 's  ' + msg);
+    if (LOG.length > 300) LOG.shift();
+    if (logEl) logEl.textContent = LOG.slice(-5).join('\n');
+    queueSend('log');
+  }
+
+  // ---- passive gesture observer: so the log can say WHAT changed the bars
+  let G = null, last = { what: '', at: 0 };
+  const zoneOf = y => y < 48 ? 'top edge' : y > innerHeight - 48 ? 'bottom edge' : 'middle';
+  const dirOf = (mx, my) => Math.hypot(mx, my) < 10 ? 'tap' : Math.abs(mx) > Math.abs(my) ? (mx < 0 ? 'swipe ←' : 'swipe →') : (my < 0 ? 'swipe ↑' : 'swipe ↓');
+  addEventListener('touchstart', e => { const t = e.touches[0]; if (t) G = { x: t.clientX, y: t.clientY, mx: 0, my: 0 }; }, { passive: true, capture: true });
+  addEventListener('touchmove', e => { const t = e.touches[0]; if (G && t) { G.mx = t.clientX - G.x; G.my = t.clientY - G.y; } }, { passive: true, capture: true });
+  addEventListener('touchend', () => { if (!G) return; last = { what: dirOf(G.mx, G.my) + ' @' + zoneOf(G.y), at: performance.now() }; G = null; }, { passive: true, capture: true });
+  function cause() {
+    if (G) return 'during ' + dirOf(G.mx, G.my) + ' @' + zoneOf(G.y);
+    if (!last.at) return 'no touch reached the page';
+    const s = (performance.now() - last.at) / 1000;
+    return s > 3 ? 'no touch reached the page (last: ' + last.what + ' ' + s.toFixed(0) + 's ago)' : 'after ' + last.what + (s > 0.15 ? ' ' + s.toFixed(1) + 's ago' : '');
+  }
+
+  // ---- measurement
+  function measure() {
+    const iw = innerWidth, ih = innerHeight, vv = window.visualViewport;
+    let s = P.s.offsetHeight, l = P.l.offsetHeight, d = P.d.offsetHeight;
+    const E = window.__labEmu; if (E) { s = E.s ?? s; l = E.l ?? l; }   // test hook only (Playwright has no Safari bars)
+    const land = iw > ih, sw = screen.width, sh = screen.height;
+    const full = land ? Math.min(sw, sh) : Math.max(sw, sh);
+    const cs = getComputedStyle(SA);
+    const sa = [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map(v => Math.round(parseFloat(v) || 0));
+    const app = standalone(), collapsible = (l - s) > 4;
+    let bars, verdict, cls;
+    if (app) { bars = 'app'; verdict = 'Home Screen app'; cls = ih >= full - 1 ? 'ok' : 'na'; }
+    else if (!collapsible) { bars = 'fixed'; verdict = ih >= full - 1 ? 'No bars' : 'Bars fixed (cannot hide)'; cls = ih >= full - 1 ? 'ok' : 'no'; }
+    else if (ih >= l - 1) { bars = 'hidden'; verdict = land ? 'Bars hidden' : 'Bars minimised'; cls = 'ok'; }
+    else { bars = 'showing'; verdict = 'Bars showing'; cls = 'no'; }
+    const de = document.documentElement;
+    return { iw, ih, vvw: vv ? Math.round(vv.width) : null, vvh: vv ? Math.round(vv.height) : null, vvt: vv ? Math.round(vv.offsetTop) : null,
+      vvs: vv ? +vv.scale.toFixed(2) : null, sw, sh, s, l, d, sa, land, full, fills: ih >= full - 1, collapsible, bars, verdict, cls,
+      docW: de.scrollWidth, docH: de.scrollHeight, sx: Math.round(scrollX), sy: Math.round(scrollY),
+      ori: (screen.orientation && screen.orientation.type) || '?', ang: screen.orientation ? screen.orientation.angle : (window.orientation ?? null),
+      app, kind: KIND, sv, osv };
+  }
+
+  // ---- HUD
+  let hud, vdEl, subEl, gridEl, sentEl, prevKey = '', M = measure();
+  if (showHud) {
+    hud = document.createElement('div'); hud.className = 'hud';
+    hud.innerHTML = '<div class="c1"><div class="top"><a href="./">‹ Lab</a><span>' + (L.title || '') + '</span><span class="sent"></span></div>' +
+      '<div class="vd"></div><div class="sub"></div><div class="grid"></div></div>' +
+      '<div class="c2">' + (L.todo ? '<div class="do">' + L.todo + '</div>' : '') + '<div class="log"></div></div>';
+    body.appendChild(hud);
+    [vdEl, subEl, gridEl, logEl, sentEl] = ['.vd', '.sub', '.grid', '.log', '.sent'].map(s => hud.querySelector(s));
+    if (L.hudMin) hud.classList.add('min');
+    vdEl.addEventListener('click', () => hud.classList.toggle('min'));
+    sentEl.addEventListener('click', () => send('manual'));
+    if (Q.get('frame') !== '0' && L.frame !== false) {
+      const f = document.createElement('div'); f.className = 'frame'; body.appendChild(f);
+      for (const k of ['s', 'l', 'd']) { const u = document.createElement('div'); u.className = 'ub ' + k; u.dataset.k = k; body.appendChild(u); }
+    }
+  }
+  function paint(m) {
+    if (!hud) return;
+    vdEl.textContent = m.verdict; vdEl.className = 'vd ' + m.cls;
+    subEl.textContent = (m.land ? 'landscape' : 'portrait') + ' · page ' + m.ih + ' of ' + m.full + ' px tall' + (m.fills ? ' — fills the screen' : ' (' + (m.full - m.ih) + ' px short)');
+    const rows = [['inner', m.iw + '×' + m.ih], ['visual', m.vvw + '×' + m.vvh + (m.vvt ? ' ↓' + m.vvt : '') + (m.vvs !== 1 ? ' @' + m.vvs : '')],
+      ['screen', m.sw + '×' + m.sh], ['<span class="us">s</span>/<span class="ul">l</span>/<span class="ud">d</span>vh', m.s + '/' + m.l + '/' + m.d],
+      ['safe', m.sa.join(' ')], ['scroll', m.sx + ',' + m.sy + ' of ' + m.docW + '×' + m.docH], ['orient', m.ori.replace('-primary', '').replace('-secondary', '²') + ' ' + m.ang + '°'],
+      ['browser', verLabel]];
+    if (lab.extraRows) rows.push(...lab.extraRows());
+    gridEl.innerHTML = rows.map(r => '<b>' + r[0] + '</b><span>' + r[1] + '</span>').join('');
+  }
+
+  // ---- beacon to the Mac (lab server's host, port 8794); silent if unreachable
+  const BEACON = location.protocol + '//' + location.hostname + ':8794/log';
+  let sendT = 0;
+  function queueSend(reason) { clearTimeout(sendT); sendT = setTimeout(() => send(reason), 700); }
+  function send(reason) {
+    let ok = false;
+    try { ok = navigator.sendBeacon(BEACON, JSON.stringify({ v: L.v, reason, url: location.href, ua, m: M, log: LOG.slice(-40), extra: lab.extra || null })); } catch (e) { }
+    if (sentEl) sentEl.textContent = ok ? 'sent ✓' : 'not sent';
+  }
+
+  // ---- loop
+  const subs = [];
+  let prevBars = null, prevLand = null;
+  function tick() {
+    M = measure();
+    const key = JSON.stringify(M) + (lab.extraRows ? JSON.stringify(lab.extraRows()) : '');
+    if (key !== prevKey) { prevKey = key; paint(M); }
+    if (prevLand !== null && M.land !== prevLand) { log('rotated → ' + (M.land ? 'landscape' : 'portrait') + ' ' + M.iw + '×' + M.ih); queueSend('rotate'); }
+    if (M.bars !== prevBars) {
+      if (prevBars !== null) log('bars → ' + M.bars + ' · ' + cause());
+      else log('open: ' + M.bars + ' · ' + (M.land ? 'landscape' : 'portrait') + ' · ' + KIND);
+      for (const f of subs) f(M, prevBars);
+      queueSend('bars');
+    }
+    prevBars = M.bars; prevLand = M.land;
+    for (const f of lab.onTick) f(M);
+    requestAnimationFrame(tick);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') send('hidden'); else log('page visible again'); });
+  addEventListener('pageshow', e => { if (e.persisted) log('restored from back/forward cache'); });
+
+  // ---- the row (JS-owned, like the site): drag + momentum + rubber band
+  function makeRow(host) {
+    const W = [120, 86, 150, 104, 70, 132, 96, 160, 84, 118, 140, 76, 110, 128, 92, 150, 104, 136];
+    const H = [150, 104, 176, 128, 86, 160, 118, 190, 96, 140, 170, 90, 132, 154, 110, 180, 120, 164];
+    const base = document.createElement('div'); base.className = 'base'; host.appendChild(base);
+    const el = document.createElement('div'); el.className = 'row';
+    el.innerHTML = W.map((w, i) => '<div class="obj" style="width:calc(' + (w / 190).toFixed(3) + ' * min(34svh,190px));height:calc(' + (H[i] / 190).toFixed(3) + ' * min(34svh,190px))"><i>' + (i + 1) + '</i></div>').join('');
+    host.appendChild(el);
+    let r = 0, x = 0, v = 0, lt = 0, raf = 0;
+    const lo = () => Math.min(0, innerWidth - el.scrollWidth);
+    const band = n => n > 0 ? n * .3 : n < lo() ? lo() + (n - lo()) * .3 : n;
+    const put = n => { x = n; el.style.transform = 'translate3d(' + n.toFixed(1) + 'px,0,0)'; };
+    function stop() { cancelAnimationFrame(raf); }
+    function drag(d) { stop(); const now = performance.now(), dt = Math.min(64, Math.max(4, now - lt)); v = d / dt * 16.7; lt = now; r += d; put(band(r)); }
+    function release() {
+      stop(); if (performance.now() - lt > 80) v = 0;
+      const step = () => {
+        const L0 = lo();
+        if (x > 0 || x < L0) {            // past an end: spring back, momentum dies
+          const t = x > 0 ? 0 : L0, n = x + (t - x) * .18; v = 0;
+          put(Math.abs(t - n) < .5 ? t : n); r = x;
+          if (x !== t) raf = requestAnimationFrame(step);
+          return;
+        }
+        v *= .95; put(x + v); r = x;
+        if (Math.abs(v) > .2 || x > 0 || x < L0) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }
+    function to(n) { stop(); r = n; put(n); }
+    return { el, drag, release, stop, to, lo, get x() { return x; } };
+  }
+
+  // Touch controller for a JS-owned row. allowNativeY(): true = let a vertical swipe scroll the document (no preventDefault).
+  function driveRow(row, host, opt = {}) {
+    let st = null;
+    host.addEventListener('touchstart', e => { const t = e.touches[0]; st = { x: t.clientX, y: t.clientY, lx: t.clientX, ly: t.clientY, axis: null }; row.stop(); }, { passive: true });
+    host.addEventListener('touchmove', e => {
+      if (!st) return; const t = e.touches[0];
+      const dx = t.clientX - st.lx, dy = t.clientY - st.ly; st.lx = t.clientX; st.ly = t.clientY;
+      if (!st.axis) st.axis = Math.abs(t.clientX - st.x) >= Math.abs(t.clientY - st.y) ? 'x' : 'y';
+      const native = st.axis === 'y' && opt.allowNativeY && opt.allowNativeY();
+      if (!native) { if (e.cancelable) e.preventDefault(); row.drag(st.axis === 'x' ? dx : dy); }
+      else if (opt.nudge) row.drag(dy * opt.nudge);
+    }, { passive: false });
+    const end = () => { if (st) row.release(); st = null; };
+    host.addEventListener('touchend', end); host.addEventListener('touchcancel', end);
+  }
+
+  const lab = window.lab = { L, Q, log, send, measure, makeRow, driveRow, onTick: [], onBars: f => subs.push(f), get m() { return M; }, KIND, inApp, sv, osv, standalone, extra: null, extraRows: null };
+  requestAnimationFrame(tick);
+  setTimeout(() => send('load'), 1200);
+})();
+</script><script>(function(){"use strict";
+const mode = "off";
+const stage=document.getElementById("stage"), hint=document.getElementById("hint");
+const row=lab.makeRow(stage);
+let locked=false;
+lab.driveRow(row, stage, { allowNativeY: () => !(locked && mode==="pd"), nudge: 0 });
+document.addEventListener("touchmove", e => { if (locked && mode==="pd" && e.cancelable) e.preventDefault(); }, { passive:false });
+lab.onTick.push(m => {
+  const want = mode!=="off" && m.land && m.bars==="hidden";
+  if (want !== locked) {
+    locked = want;
+    if (mode==="ov") document.documentElement.classList.toggle("lockov", want);
+    lab.log(want ? "lock on (" + mode + ")" : "lock off");
+  }
+  hint.classList.toggle("on", m.land && m.bars==="showing");
+});
+lab.extraRows = () => [["lock", mode + (locked ? " · ON" : " · off")]];
+})();</script></body></html>

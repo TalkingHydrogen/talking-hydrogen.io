@@ -1,0 +1,270 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>FS Lab V3</title><style>:root{--ink:#1d1d1f;--mute:#86868b;--hair:#e5e5ea;--obj:#ececf0;--obj2:#e1e1e6;--ok:#248a3d;--no:#c93400;--blue:#0071e3;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:#fff;-webkit-text-size-adjust:100%}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;touch-action:manipulation}
+a{color:var(--blue);text-decoration:none}
+
+/* readout */
+.hud{position:fixed;z-index:20;top:max(10px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));max-width:calc(100vw - 28px);background:rgba(255,255,255,.86);border-radius:12px;padding:2px 8px 6px 0}
+.hud .top{display:flex;gap:12px;align-items:baseline;font-size:12px;color:var(--mute);white-space:nowrap}
+.hud .top a{padding:6px 0}
+.vd{font-size:26px;font-weight:600;line-height:1.1;margin:0 0 2px}
+.vd.ok{color:var(--ok)}.vd.no{color:var(--no)}.vd.na{color:var(--ink)}
+.sub{font-size:13px}
+.grid{display:grid;grid-template-columns:auto auto;gap:0 12px;margin-top:6px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.grid b{font-weight:400;color:var(--mute)}
+@media (orientation:landscape){.grid{grid-template-columns:auto auto auto auto}}
+.do{margin-top:6px;font-size:12px;line-height:1.35;color:var(--mute);max-width:430px}
+.log{margin-top:5px;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);white-space:pre;overflow:hidden}
+.hud.min .grid,.hud.min .c2{display:none}
+@media (orientation:landscape){.hud{display:flex;gap:24px;align-items:flex-start;max-width:calc(100vw - 28px - env(safe-area-inset-left) - env(safe-area-inset-right) - 40px)}.hud .c2{flex:0 1 340px;min-width:0;padding-top:24px}.hud .do{margin-top:0}}
+.us{color:#28a745}.ul{color:#e08600}.ud{color:var(--blue)}
+
+/* what the screen really shows: hairline = layout viewport (position:fixed; inset:0); 3 bars = 100svh / 100lvh / 100dvh from the top */
+.frame{position:fixed;inset:0;border:1px solid rgba(0,113,227,.3);pointer-events:none;z-index:40}
+.ub{position:fixed;top:0;width:2px;pointer-events:none;z-index:41}
+.ub::after{content:attr(data-k);position:absolute;bottom:3px;right:5px;font:10px/1 ui-monospace,Menlo,monospace}
+.ub.s{height:100svh;right:calc(env(safe-area-inset-right) + 34px);background:#28a745;color:#28a745}
+.ub.l{height:100lvh;right:calc(env(safe-area-inset-right) + 22px);background:#e08600;color:#e08600}
+.ub.d{height:100dvh;right:calc(env(safe-area-inset-right) + 10px);background:var(--blue);color:var(--blue)}
+
+/* the row: abstract objects on a baseline (stands in for the site's row) */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:1}
+.base{position:absolute;left:0;right:0;bottom:16%;height:1px;background:var(--hair)}
+.row{position:absolute;left:0;bottom:calc(16% + 1px);display:flex;align-items:flex-end;gap:26px;padding:0 max(40px,env(safe-area-inset-left));will-change:transform}
+.obj{flex:none;position:relative;border-radius:12px;background:var(--obj)}
+.obj:nth-child(2n){background:var(--obj2)}
+.obj i{position:absolute;left:9px;bottom:7px;font:11px/1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--mute)}
+
+/* swipe-up hint */
+.hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--mute);font-size:13px;opacity:0;transition:opacity .35s;pointer-events:none;z-index:15}
+.hint.on{opacity:1}
+.hint svg{width:22px;height:22px;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(5px)}50%{transform:translateY(-5px)}}
+
+.btn{display:inline-block;font:15px/1 -apple-system,system-ui,sans-serif;color:var(--blue);background:#f2f2f7;border:0;border-radius:999px;padding:12px 18px;margin:4px 6px 4px 0}
+.mono{font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+html,body{height:100%;overflow:hidden}@media (orientation:landscape){.hud .grid{display:none}}.panel{position:fixed;z-index:25;left:max(14px,env(safe-area-inset-left));bottom:calc(env(safe-area-inset-bottom) + 14px);max-width:calc(100vw - 80px)}.panel .mono{color:#86868b;margin:4px 0}.panel video{width:128px;height:72px;border-radius:8px;background:#f2f2f7}</style></head><body><div class="panel"><div><button class="btn" id="bEl">Element fullscreen</button><button class="btn" id="bVid">Video fullscreen</button><button class="btn" id="bLock">Lock landscape</button></div><div class="mono" id="api"></div><video id="vid" src="data:video/mp4;base64,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ut1zb1W63W63U7uZ3u+aLfqnqOdbrddbrdbrdbvrrdSuuoh1ut11ut1ut1uut1uuaERX1dS1GOt11M63UrqR1upa3e73fUzrdbrd829Vut1ut31utzwn6uuuo51u93u+t1uupRW5HcrrdzO5XPvV9TO+t1ut1uut1uaEfVLXXXUJOpXW63fUzmjXq4p1K6iXUQ73crqIdS1M63fW63W663W5oR9UtddddRzrdSuupBWpXUzqV1ut1upHctbvdYrXUQ63W663U4rPF+qWuuuuuo51u93u+t1u931ut11M6i3WK1u4p3u+t31K5o/1dddddddQg6ndbrqZ1K63XW63W7kd9SityupnUW66jnW7nmj36uuuuuuuuoSd7uepHU7rdbuR3I7nqZ1u5a63UrrdSCtzOp5o9+rrrrrrrrrqEnXU4re73W6mdSuut1ut33I63cruV1upXaPXXXXXXXXXXXUc63ctSO91uupxWpnUrrqKdbqV11u4t1PXXXXXXXXXXXUJOpxWusVvdbrdzO5XPO9VEO93u+upHUW6i6666666666666jnXW63PEvVxTvdyut1ut1I66kd7uNdRNdddddddddddddQg73e5p3qpnU7qZ31u93K66iHW6hV1111111111111111CTqdzb1W6kd7qepHW63fUjrdQm66666666666666666hRzzvV9brddbqR1uut1uoTdddddddddddddddddeAAAAAVkGaOF4NsGcE8CR4EjwaYc8PeHvD0HOHvD3oVLDn1/AweBMyQSYWgRNL5YFjC0C5iPCz/FfBpuC/fxXCvihW9fwIHEcI/FcSf4GDCfqDjJAseDzUD5hWAAAAhEGaVAnhO5sBO/////4XP5+bCmTAwcVuET/wJdfJgbNitwmfk+aA4e4T4MZBHN/cJ/QrsQh8vwp+KjnL8nwmf7m+T6gEBmwMGL4M5/k+xXl//4Cx7/q4R+T7f/A0wt8nyXKKlhH5Phr5Pu5sCB8CZrAsfAocRxnyfVxPx/yfdwv8nw18kAAAADlBmmC8J1y4HX/19fX19cMV9+K+vrquHK+urAQGHK4e+Hvh74e+Hvh74e+HvhAVvEcb8PfD3w98PfUAAABjQZqAvCQn8D3///////////hP4u/wOnvhHArcd6mvu+vrAkYS+W+Gfmvhj6v74b/rh5f+B6/xVcKf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vvvd997vvvvvd99997rd7vvvd997vvvvd99xLvvvvvuKd9999997vvrFb73ffct999999yO++5b77kd9999997vuW++sVvrqRyd97vvvvvvd9z333333I77773fffe76xW++93333u++++t3333u++9333u++933331KK333I77773ffe7773fcqT7md99y33K04m++5b776hIVvvvvd9997vvvvuV3H3333333111111111CjvuW933G3LffffffXXXXXXXXXXXXXXXXXWK331111111111111111111111111111111111111111111111111111111111111111111111111111111111111114AAAABIQZo4X8GH///////hXw94oRwkJ/Bn+Gz9+KEcIiu/Dnrw4IlrxQjhEV37Pzr8RwgK78WK4R9eHNV4/ER/i1+I4S8PeHvD3h6AAAAAKEGaVD4FgV3wUQEtwUYiWHfh8V4jgouGRXII8RwnwafAoQ78PfD3w7AAAAB/QZph/X8HH///f////Cvy39/f3wt8Nn7+a/v76FcIH+u/mv75L4RPLn/4oTwif6+v+e/vuvEccf68/XxQjjz+I8/R/+a/v7++EBPiPrz9Vz3wiJ8R4jz+I8//C4nxHiP4M5PixHiOO+T4vgQMREx3yVDkV8IfJ8NfJ8NfJ8NfJAAAAJVBmoC/wLH///+J4Z+qvr64ZPr+6564QP0fxH/dcLH6E+I8R/xQjxHGn8R4rxHdfX15+FD+I8R4jo/n/6q+uevEeI3FH8R4jxHiPEdCv+FT+I8R4jxHQnxHVd1wifxHiPEfwd2K6E/8KCPEeI4j4sVxAjxHiOXgnxHdcJivEcvy/E8E2IhOLPxPwt8R8LfEfC3xHwt8RAAAAHJBmqBv8CB9///////4jhX4cPFKvir48/n8/ievhg/ifFeI8R4j/heuuDuX4qvviz9/L8Vf3xR+T5BX/Ch5ZRHQnv4TE+I8V4jsTy/dVEVxwnl+64gV9caJ5fi68VzCf4Rn+T4ark+Gvk+Gvk+Gvk+GvkgAAACrQZrAvBTXiPEcafWI8Rxojjj6xHiPEdH5RHiOEj6xHiOJE+I5a+uLP4nxHIK8R/BxiPEeI5xHiOKP4nxHiOxPiPEf8UI8RxJ+xXiOxXfxYji68R4rxHL9V0I8RyivFc5+U/iP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" playsinline muted loop preload="auto"></video></div><script>window.LAB={"v": "v3", "title": "V3 · Fullscreen API", "todo": "Tap each button. <b>Report:</b> the log lines (also sent to the Mac). Expect on iPhone: no element fullscreen, the video opens Apple's own player, lock() is missing or rejected."}</script><script>// fslab core: live readout of what Safari's bars are doing + an event log + a beacon to the Mac.
+// Each page sets window.LAB = {v, title, todo, ...} before this script; it exposes window.lab.
+(function () {
+  'use strict';
+  const L = window.LAB || {}, Q = new URLSearchParams(location.search), ua = navigator.userAgent;
+  const T0 = performance.now(), body = document.body;
+  const showHud = Q.get('hud') !== '0' && L.hud !== false;
+
+  // ---- probes: what 100svh / 100lvh / 100dvh resolve to, and the safe-area insets
+  const probe = css => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:0;top:0;width:0;visibility:hidden;pointer-events:none;' + css; body.appendChild(d); return d; };
+  const P = { s: probe('height:100svh'), l: probe('height:100lvh'), d: probe('height:100dvh') };
+  const SA = probe('padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)');
+
+  // ---- browser / version (iOS 26 freezes the OS token in the UA at 18_6/18_7; Version/ is the real Safari = iOS major)
+  const sv = (ua.match(/Version\/([\d.]+)/) || [])[1] || '';
+  const osv = (ua.match(/OS (\d+)_(\d+)(?:_(\d+))?/) || []).slice(1).filter(Boolean).join('.');
+  const standalone = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  const KIND = (() => {
+    const apps = [[/LinkedInApp/i, 'LinkedIn in-app'], [/Instagram/i, 'Instagram in-app'], [/FBAN|FBAV|FB_IAB|FBIOS/i, 'Facebook in-app'],
+      [/GSA\//, 'Google app'], [/Twitter/i, 'X in-app'], [/musical_ly|TikTok|Bytedance/i, 'TikTok in-app'], [/Snapchat/i, 'Snapchat in-app'],
+      [/\bLine\//, 'LINE in-app'], [/WhatsApp/i, 'WhatsApp in-app'], [/Slack/i, 'Slack in-app'], [/CriOS/, 'Chrome (iOS)'],
+      [/FxiOS/, 'Firefox (iOS)'], [/EdgiOS/, 'Edge (iOS)'], [/OPiOS|OPT\//, 'Opera (iOS)'], [/DuckDuckGo/i, 'DuckDuckGo']];
+    for (const [re, n] of apps) if (re.test(ua)) return n;
+    if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'in-app WebView';
+    return 'Safari';
+  })();
+  const inApp = /in-app|WebView|Google app/.test(KIND);
+  const verLabel = (sv ? 'Safari ' + sv : KIND) + (osv ? ' · UA ' + osv : '');
+
+  // ---- event log
+  const LOG = [];
+  let logEl = null;
+  function log(msg) {
+    LOG.push(((performance.now() - T0) / 1000).toFixed(1).padStart(5) + 's  ' + msg);
+    if (LOG.length > 300) LOG.shift();
+    if (logEl) logEl.textContent = LOG.slice(-5).join('\n');
+    queueSend('log');
+  }
+
+  // ---- passive gesture observer: so the log can say WHAT changed the bars
+  let G = null, last = { what: '', at: 0 };
+  const zoneOf = y => y < 48 ? 'top edge' : y > innerHeight - 48 ? 'bottom edge' : 'middle';
+  const dirOf = (mx, my) => Math.hypot(mx, my) < 10 ? 'tap' : Math.abs(mx) > Math.abs(my) ? (mx < 0 ? 'swipe ←' : 'swipe →') : (my < 0 ? 'swipe ↑' : 'swipe ↓');
+  addEventListener('touchstart', e => { const t = e.touches[0]; if (t) G = { x: t.clientX, y: t.clientY, mx: 0, my: 0 }; }, { passive: true, capture: true });
+  addEventListener('touchmove', e => { const t = e.touches[0]; if (G && t) { G.mx = t.clientX - G.x; G.my = t.clientY - G.y; } }, { passive: true, capture: true });
+  addEventListener('touchend', () => { if (!G) return; last = { what: dirOf(G.mx, G.my) + ' @' + zoneOf(G.y), at: performance.now() }; G = null; }, { passive: true, capture: true });
+  function cause() {
+    if (G) return 'during ' + dirOf(G.mx, G.my) + ' @' + zoneOf(G.y);
+    if (!last.at) return 'no touch reached the page';
+    const s = (performance.now() - last.at) / 1000;
+    return s > 3 ? 'no touch reached the page (last: ' + last.what + ' ' + s.toFixed(0) + 's ago)' : 'after ' + last.what + (s > 0.15 ? ' ' + s.toFixed(1) + 's ago' : '');
+  }
+
+  // ---- measurement
+  function measure() {
+    const iw = innerWidth, ih = innerHeight, vv = window.visualViewport;
+    let s = P.s.offsetHeight, l = P.l.offsetHeight, d = P.d.offsetHeight;
+    const E = window.__labEmu; if (E) { s = E.s ?? s; l = E.l ?? l; }   // test hook only (Playwright has no Safari bars)
+    const land = iw > ih, sw = screen.width, sh = screen.height;
+    const full = land ? Math.min(sw, sh) : Math.max(sw, sh);
+    const cs = getComputedStyle(SA);
+    const sa = [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map(v => Math.round(parseFloat(v) || 0));
+    const app = standalone(), collapsible = (l - s) > 4;
+    let bars, verdict, cls;
+    if (app) { bars = 'app'; verdict = 'Home Screen app'; cls = ih >= full - 1 ? 'ok' : 'na'; }
+    else if (!collapsible) { bars = 'fixed'; verdict = ih >= full - 1 ? 'No bars' : 'Bars fixed (cannot hide)'; cls = ih >= full - 1 ? 'ok' : 'no'; }
+    else if (ih >= l - 1) { bars = 'hidden'; verdict = land ? 'Bars hidden' : 'Bars minimised'; cls = 'ok'; }
+    else { bars = 'showing'; verdict = 'Bars showing'; cls = 'no'; }
+    const de = document.documentElement;
+    return { iw, ih, vvw: vv ? Math.round(vv.width) : null, vvh: vv ? Math.round(vv.height) : null, vvt: vv ? Math.round(vv.offsetTop) : null,
+      vvs: vv ? +vv.scale.toFixed(2) : null, sw, sh, s, l, d, sa, land, full, fills: ih >= full - 1, collapsible, bars, verdict, cls,
+      docW: de.scrollWidth, docH: de.scrollHeight, sx: Math.round(scrollX), sy: Math.round(scrollY),
+      ori: (screen.orientation && screen.orientation.type) || '?', ang: screen.orientation ? screen.orientation.angle : (window.orientation ?? null),
+      app, kind: KIND, sv, osv };
+  }
+
+  // ---- HUD
+  let hud, vdEl, subEl, gridEl, sentEl, prevKey = '', M = measure();
+  if (showHud) {
+    hud = document.createElement('div'); hud.className = 'hud';
+    hud.innerHTML = '<div class="c1"><div class="top"><a href="./">‹ Lab</a><span>' + (L.title || '') + '</span><span class="sent"></span></div>' +
+      '<div class="vd"></div><div class="sub"></div><div class="grid"></div></div>' +
+      '<div class="c2">' + (L.todo ? '<div class="do">' + L.todo + '</div>' : '') + '<div class="log"></div></div>';
+    body.appendChild(hud);
+    [vdEl, subEl, gridEl, logEl, sentEl] = ['.vd', '.sub', '.grid', '.log', '.sent'].map(s => hud.querySelector(s));
+    if (L.hudMin) hud.classList.add('min');
+    vdEl.addEventListener('click', () => hud.classList.toggle('min'));
+    sentEl.addEventListener('click', () => send('manual'));
+    if (Q.get('frame') !== '0' && L.frame !== false) {
+      const f = document.createElement('div'); f.className = 'frame'; body.appendChild(f);
+      for (const k of ['s', 'l', 'd']) { const u = document.createElement('div'); u.className = 'ub ' + k; u.dataset.k = k; body.appendChild(u); }
+    }
+  }
+  function paint(m) {
+    if (!hud) return;
+    vdEl.textContent = m.verdict; vdEl.className = 'vd ' + m.cls;
+    subEl.textContent = (m.land ? 'landscape' : 'portrait') + ' · page ' + m.ih + ' of ' + m.full + ' px tall' + (m.fills ? ' — fills the screen' : ' (' + (m.full - m.ih) + ' px short)');
+    const rows = [['inner', m.iw + '×' + m.ih], ['visual', m.vvw + '×' + m.vvh + (m.vvt ? ' ↓' + m.vvt : '') + (m.vvs !== 1 ? ' @' + m.vvs : '')],
+      ['screen', m.sw + '×' + m.sh], ['<span class="us">s</span>/<span class="ul">l</span>/<span class="ud">d</span>vh', m.s + '/' + m.l + '/' + m.d],
+      ['safe', m.sa.join(' ')], ['scroll', m.sx + ',' + m.sy + ' of ' + m.docW + '×' + m.docH], ['orient', m.ori.replace('-primary', '').replace('-secondary', '²') + ' ' + m.ang + '°'],
+      ['browser', verLabel]];
+    if (lab.extraRows) rows.push(...lab.extraRows());
+    gridEl.innerHTML = rows.map(r => '<b>' + r[0] + '</b><span>' + r[1] + '</span>').join('');
+  }
+
+  // ---- beacon to the Mac (lab server's host, port 8794); silent if unreachable
+  const BEACON = location.protocol + '//' + location.hostname + ':8794/log';
+  let sendT = 0;
+  function queueSend(reason) { clearTimeout(sendT); sendT = setTimeout(() => send(reason), 700); }
+  function send(reason) {
+    let ok = false;
+    try { ok = navigator.sendBeacon(BEACON, JSON.stringify({ v: L.v, reason, url: location.href, ua, m: M, log: LOG.slice(-40), extra: lab.extra || null })); } catch (e) { }
+    if (sentEl) sentEl.textContent = ok ? 'sent ✓' : 'not sent';
+  }
+
+  // ---- loop
+  const subs = [];
+  let prevBars = null, prevLand = null;
+  function tick() {
+    M = measure();
+    const key = JSON.stringify(M) + (lab.extraRows ? JSON.stringify(lab.extraRows()) : '');
+    if (key !== prevKey) { prevKey = key; paint(M); }
+    if (prevLand !== null && M.land !== prevLand) { log('rotated → ' + (M.land ? 'landscape' : 'portrait') + ' ' + M.iw + '×' + M.ih); queueSend('rotate'); }
+    if (M.bars !== prevBars) {
+      if (prevBars !== null) log('bars → ' + M.bars + ' · ' + cause());
+      else log('open: ' + M.bars + ' · ' + (M.land ? 'landscape' : 'portrait') + ' · ' + KIND);
+      for (const f of subs) f(M, prevBars);
+      queueSend('bars');
+    }
+    prevBars = M.bars; prevLand = M.land;
+    for (const f of lab.onTick) f(M);
+    requestAnimationFrame(tick);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') send('hidden'); else log('page visible again'); });
+  addEventListener('pageshow', e => { if (e.persisted) log('restored from back/forward cache'); });
+
+  // ---- the row (JS-owned, like the site): drag + momentum + rubber band
+  function makeRow(host) {
+    const W = [120, 86, 150, 104, 70, 132, 96, 160, 84, 118, 140, 76, 110, 128, 92, 150, 104, 136];
+    const H = [150, 104, 176, 128, 86, 160, 118, 190, 96, 140, 170, 90, 132, 154, 110, 180, 120, 164];
+    const base = document.createElement('div'); base.className = 'base'; host.appendChild(base);
+    const el = document.createElement('div'); el.className = 'row';
+    el.innerHTML = W.map((w, i) => '<div class="obj" style="width:calc(' + (w / 190).toFixed(3) + ' * min(34svh,190px));height:calc(' + (H[i] / 190).toFixed(3) + ' * min(34svh,190px))"><i>' + (i + 1) + '</i></div>').join('');
+    host.appendChild(el);
+    let r = 0, x = 0, v = 0, lt = 0, raf = 0;
+    const lo = () => Math.min(0, innerWidth - el.scrollWidth);
+    const band = n => n > 0 ? n * .3 : n < lo() ? lo() + (n - lo()) * .3 : n;
+    const put = n => { x = n; el.style.transform = 'translate3d(' + n.toFixed(1) + 'px,0,0)'; };
+    function stop() { cancelAnimationFrame(raf); }
+    function drag(d) { stop(); const now = performance.now(), dt = Math.min(64, Math.max(4, now - lt)); v = d / dt * 16.7; lt = now; r += d; put(band(r)); }
+    function release() {
+      stop(); if (performance.now() - lt > 80) v = 0;
+      const step = () => {
+        const L0 = lo();
+        if (x > 0 || x < L0) {            // past an end: spring back, momentum dies
+          const t = x > 0 ? 0 : L0, n = x + (t - x) * .18; v = 0;
+          put(Math.abs(t - n) < .5 ? t : n); r = x;
+          if (x !== t) raf = requestAnimationFrame(step);
+          return;
+        }
+        v *= .95; put(x + v); r = x;
+        if (Math.abs(v) > .2 || x > 0 || x < L0) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }
+    function to(n) { stop(); r = n; put(n); }
+    return { el, drag, release, stop, to, lo, get x() { return x; } };
+  }
+
+  // Touch controller for a JS-owned row. allowNativeY(): true = let a vertical swipe scroll the document (no preventDefault).
+  function driveRow(row, host, opt = {}) {
+    let st = null;
+    host.addEventListener('touchstart', e => { const t = e.touches[0]; st = { x: t.clientX, y: t.clientY, lx: t.clientX, ly: t.clientY, axis: null }; row.stop(); }, { passive: true });
+    host.addEventListener('touchmove', e => {
+      if (!st) return; const t = e.touches[0];
+      const dx = t.clientX - st.lx, dy = t.clientY - st.ly; st.lx = t.clientX; st.ly = t.clientY;
+      if (!st.axis) st.axis = Math.abs(t.clientX - st.x) >= Math.abs(t.clientY - st.y) ? 'x' : 'y';
+      const native = st.axis === 'y' && opt.allowNativeY && opt.allowNativeY();
+      if (!native) { if (e.cancelable) e.preventDefault(); row.drag(st.axis === 'x' ? dx : dy); }
+      else if (opt.nudge) row.drag(dy * opt.nudge);
+    }, { passive: false });
+    const end = () => { if (st) row.release(); st = null; };
+    host.addEventListener('touchend', end); host.addEventListener('touchcancel', end);
+  }
+
+  const lab = window.lab = { L, Q, log, send, measure, makeRow, driveRow, onTick: [], onBars: f => subs.push(f), get m() { return M; }, KIND, inApp, sv, osv, standalone, extra: null, extraRows: null };
+  requestAnimationFrame(tick);
+  setTimeout(() => send('load'), 1200);
+})();
+</script><script>(function(){"use strict";
+const v=document.getElementById("vid"), de=document.documentElement, E=Element.prototype; try { v.load(); } catch (e) {}
+const api = {
+  "Element.requestFullscreen": typeof E.requestFullscreen,
+  "Element.webkitRequestFullscreen": typeof E.webkitRequestFullscreen,
+  "document.fullscreenEnabled": String(document.fullscreenEnabled),
+  "document.webkitFullscreenEnabled": String(document.webkitFullscreenEnabled),
+  "video.webkitEnterFullscreen": typeof v.webkitEnterFullscreen,
+  "screen.orientation.lock": screen.orientation ? typeof screen.orientation.lock : "no screen.orientation"
+};
+lab.extra = { api };
+document.getElementById("api").innerHTML = Object.entries(api).map(([k,x]) => k.replace("document.","doc.").replace("Element.","el.") + " = " + x).join("<br>");
+const msg = e => (e && (e.name + " — " + e.message)) || String(e);
+document.getElementById("bEl").onclick = () => {
+  const t = document.documentElement;
+  try {
+    if (t.requestFullscreen) { lab.log("requestFullscreen() called"); const p=t.requestFullscreen(); if (p && p.then) p.then(() => lab.log("element fullscreen: ENTERED")).catch(e => lab.log("requestFullscreen rejected: " + msg(e))); }
+    else if (t.webkitRequestFullscreen) { t.webkitRequestFullscreen(); lab.log("webkitRequestFullscreen() called"); setTimeout(() => lab.log("webkitFullscreenElement: " + (document.webkitFullscreenElement ? "SET" : "none")), 700); }
+    else lab.log("no requestFullscreen on this element (iPhone)");
+  } catch (e) { lab.log("fullscreen threw: " + msg(e)); }
+};
+for (const ev of ["fullscreenchange","webkitfullscreenchange","fullscreenerror","webkitfullscreenerror"]) document.addEventListener(ev, () => lab.log(ev + (document.fullscreenElement||document.webkitFullscreenElement ? " (in)" : " (out)")));
+v.addEventListener("webkitbeginfullscreen", () => lab.log("video: Apple's native player opened"));
+v.addEventListener("webkitendfullscreen", () => lab.log("video: native player closed"));
+document.getElementById("bVid").onclick = () => {
+  try { v.play().catch(()=>{}); if (v.webkitEnterFullscreen) { v.webkitEnterFullscreen(); lab.log("video.webkitEnterFullscreen() called"); }
+        else if (v.requestFullscreen) { v.requestFullscreen().then(()=>lab.log("video element fullscreen ENTERED")).catch(e=>lab.log("video requestFullscreen rejected: "+msg(e))); }
+        else lab.log("no video fullscreen API"); } catch (e) { lab.log("video threw: " + msg(e) + " (readyState " + v.readyState + ")"); }
+};
+document.getElementById("bLock").onclick = async () => {
+  const so = screen.orientation;
+  if (!so || typeof so.lock !== "function") { lab.log("screen.orientation.lock: not available"); return; }
+  try { await so.lock("landscape"); lab.log("orientation.lock: OK"); } catch (e) { lab.log("orientation.lock rejected: " + msg(e)); }
+};
+})();</script></body></html>

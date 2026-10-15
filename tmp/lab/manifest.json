@@ -1,0 +1,10 @@
+{
+ "name": "FS Lab",
+ "short_name": "FS Lab",
+ "start_url": "./v9.html",
+ "scope": "./",
+ "display": "fullscreen",
+ "orientation": "landscape",
+ "background_color": "#ffffff",
+ "theme_color": "#ffffff"
+}
