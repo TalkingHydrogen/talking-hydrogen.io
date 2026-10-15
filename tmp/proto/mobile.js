@@ -50,8 +50,18 @@
   root.classList.add('phone');
   /* FEED (spec/05-vertical.md, 2026-10-14): a phone held in PORTRAIT is a vertical feed — the document scrolls natively (a centred
      column, the name pinned with its age), a tap zooms, OPEN is a vertical pager. Decided before the first paint (html.feed) and again
-     only by mode(W, H), which layoutAll() calls on every re-layout (a rotation switches it). ?feed=0: v1's horizontal portrait (A/B). */
-  const FEED_OK = Q.get('feed') !== '0';
+     only by mode(W, H), which layoutAll() calls on every re-layout (a rotation switches it). ?feed=0: v1's horizontal portrait (A/B).
+     LANDSCAPE-FIRST (2026-10-15, owner: "push the version where it tells you to rotate the screen and then swipe up the entire desk of
+     things, and then the name will appear"): the feed is now only for the in-app browsers that can't rotate (LinkedIn, Instagram,
+     Facebook, any WKWebView without Safari's token: a portrait wall would trap a recruiter there) and ?feed=1; everywhere else the phone
+     is the STAGE (its block below): upright a rotate prompt, in landscape the ENTRY and Safari's bars hidden. ?stage=0 / ?feed=0: the
+     page as before the stage (v1's horizontal portrait, no prompt, no entry). */
+  const UA = navigator.userAgent;
+  const IN_APP = /LinkedInApp|Instagram|FBAN|FBAV|FB_IAB|FBIOS/i.test(UA) || (/iPhone|iPod/.test(UA) && !/Safari\//.test(UA));
+  const FEED_Q = Q.get('feed');
+  const FEED_OK = FEED_Q === '1' || (IN_APP && FEED_Q !== '0');
+  const STAGE = !FEED_OK && FEED_Q !== '0' && Q.get('stage') !== '0';
+  if (STAGE) root.classList.add('stage');
   let FEED = FEED_OK && innerHeight >= innerWidth;
   if (FEED) root.classList.add('feed');
   function mode(W, H) {
@@ -144,7 +154,56 @@
       rgba(255,255,255,0) 100%); z-index: -1; pointer-events: none; }
   html.phone.feed .hdr .name { position: relative; }
   `;
-  const st = document.createElement('style'); st.id = 'mobile-css'; st.textContent = css + cssFeed;
+  /* STAGE (landscape-first; its block below): the document is a tall invisible page under a FIXED stage (the viewer), so the visitor's
+     first upward swipe is a real document scroll — the only thing that makes Safari collapse its bars — while nothing on screen scrolls.
+     The stage is the LARGE viewport (100lvh: the screen once the bars are gone) anchored to the bottom: the row is laid out once for the
+     bars-hidden screen and never re-laid when they come and go — with them showing, the stage's top band (the name's line) is under
+     Safari's top bar, the desk whole above the bottom edge. No scroll indicator (scrollbar-width, Safari 18.2+). The rotate prompt
+     (upright) and the swipe-up cue (the ENTRY) are the only added UI (owner-requested); upright the prompt covers the page (visibility +
+     opacity only: never display on a layer over the row). Type: the caption's setting (15 px SF Regular, 1.2, no tracking), the ink and
+     the page's quiet gray. */
+  const cssStage = `
+  html.phone.stage { overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+  html.phone.stage::-webkit-scrollbar { display: none; }
+  html.phone.stage body { min-height: 2400vh; min-height: 2400lvh; }
+  html.phone.stage .viewer { position: fixed; left: 0; right: 0; top: auto; bottom: 0; width: 100%; height: 100vh; height: var(--stage-h, 100lvh); }
+  .st-type { margin: 0; font-size: 15px; line-height: 1.2; font-weight: 400; letter-spacing: 0; color: #1D1D1F; }
+  .rot { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 2147483000; background: #fff; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; padding: 0 32px 3vh; text-align: center; visibility: hidden; opacity: 0;
+         pointer-events: none; touch-action: pan-y; }
+  .rot-i { display: block; width: 80px; height: 80px; margin-bottom: 14px; color: #1D1D1F; overflow: visible; }
+  .rot-p { transform-box: fill-box; transform-origin: 50% 50%; }
+  .rot-a { opacity: 0; }
+  .rot-s { color: #868689; margin-top: 6px; opacity: 0; }
+  @media (orientation: portrait) {
+    html.phone.stage .rot { visibility: visible; opacity: 1; pointer-events: auto; }
+    html.phone.stage .rot-p { animation: st-turn 3.6s infinite; }
+    html.phone.stage .rot-a { animation: st-arc 3.6s infinite; }
+    html.phone.stage .rot-s { animation: st-late .8s cubic-bezier(.25,.1,.25,1) 4s forwards; }
+  }
+  @keyframes st-turn {
+    0%   { transform: rotate(0deg); opacity: 0; animation-timing-function: cubic-bezier(.25,.1,.25,1); }
+    9%   { transform: rotate(0deg); opacity: 1; }
+    26%  { transform: rotate(0deg); opacity: 1; animation-timing-function: cubic-bezier(.37,.14,.32,1); }
+    52%  { transform: rotate(-90deg); opacity: 1; }
+    86%  { transform: rotate(-90deg); opacity: 1; animation-timing-function: cubic-bezier(.42,0,.58,1); }
+    97%, 100% { transform: rotate(-90deg); opacity: 0; }
+  }
+  @keyframes st-arc {
+    0%, 6% { opacity: 0; } 16%, 30% { opacity: 1; animation-timing-function: cubic-bezier(.42,0,.58,1); } 46%, 100% { opacity: 0; }
+  }
+  @keyframes st-late { to { opacity: 1; } }
+  .cue { position: fixed; left: 0; right: 0; top: 41%; z-index: 2147482000; display: flex; flex-direction: column; align-items: center;
+         pointer-events: none; visibility: hidden; }
+  html.phone.stage.e-wait .cue { visibility: visible; }
+  .cue-in { display: flex; flex-direction: column; align-items: center; opacity: 0; }
+  html.phone.stage.e-wait .cue-in { animation: st-late .7s cubic-bezier(.25,.1,.25,1) .5s forwards; }
+  .cue-i { display: block; width: 26px; height: 15px; margin-bottom: 10px; color: #1D1D1F; overflow: visible; }
+  html.phone.stage.e-wait .cue-i path { animation: st-bob 2.2s cubic-bezier(.42,0,.58,1) infinite; }
+  @keyframes st-bob { 0%, 100% { transform: translateY(3px); opacity: .35; } 50% { transform: translateY(-3px); opacity: 1; } }
+  .cue .st-type { color: #868689; }
+  `;
+  const st = document.createElement('style'); st.id = 'mobile-css'; st.textContent = css + cssFeed + (STAGE ? cssStage : '');
   document.head.appendChild(st);
 
   /* the viewport: cover the notch bands (the viewer paints them, so OPEN's #FCFCFC reaches the edges); the pinch stays (no maximum-scale) */
@@ -305,6 +364,7 @@
       if (x) s.openDx = por ? -(x.r - x.l) / 2 * Math.min(extB(s.name, W, H), fitOf(s.name, W, H)) / W : 0;
     }
     const THo = FEED && por ? TH_F : TH;
+    if (STAGE) stageLaid();                                              // the STAGE: the desk's travel re-measured at the next entry frame
     return { W, H, bx: 1, by: 1, scale: 1, C: em / 20, em, hMargin: mg.l, vMargin: top, contentW, contentH, contentLeft, contentTop, contentBottom,
              TH: THo, bRest: THo, B, K: KB, KV, padRight: mg.r, zonePadY: 0,   // (the GROW stage's g / sL … : pageLayout() sets their no-op values for every profile)
              phone: por ? 'portrait' : 'landscape', capBelow: below, seat, playAt, capLine };
@@ -414,6 +474,207 @@
     for (const el of row.children) if (el.style.marginTop || el.style.left) { el.style.marginTop = ''; el.style.left = ''; }
     for (const k of ['--fe-l', '--fe-t', '--fe-s', '--fe-h']) root.style.removeProperty(k);
   }
+  /* ---------- the STAGE (landscape-first, 2026-10-15): the rotate prompt, the ENTRY, Safari's bars ----------
+     The mechanism is the one proven on the owner's iPhone (iOS 18.3.1; resp notes landscape-fullscreen.md, lab v4): a fixed stage over
+     a tall invisible document, the first upward swipe a REAL document scroll, then a touchmove lock.
+     UPRIGHT: the rotate prompt (CSS: the .rot rules; its second line after 4 s — Portrait Orientation Lock can't be detected). The page
+       under it takes no finger (hold()); a vertical swipe on it is the document's own (the bars minimise, and that carries into landscape).
+     LANDSCAPE, first arrival — the ENTRY: white, the desk (the row) waiting below the screen, its papers' top edges peeking (?epeek= × H),
+       and the swipe-up cue. The swipe is a real document scroll (never preventDefault-ed: Safari collapses its bars) and the desk follows
+       the FINGER 1:1 in the stage's frame — not scrollY: the collapse moves the viewport and the bar's height is not in the scroll —
+       a rubber band above its seat. Let go: a critically damped spring (?eresp= .5 s response) carries the finger's speed to the seat —
+       a third of the way up or flicked up (≥ .3 pt/ms) — else back down. A tap lifts it too (no bars hidden then: the next upward swipe
+       does it). LANDED: the cue goes, ?ename= 350 ms later the name fades in, then the page comes alive as on a desktop (then(): the lid's
+       hint). Once a visit: a rotation back keeps the desk up, the row's place and an open object (the engine's layoutAll()).
+     THE BARS: hidden when innerHeight reaches the LARGE viewport (a hidden 100lvh probe), 'fixed' when 100lvh − 100svh ≤ 4 (nothing to
+       hide: an in-app view, a Home Screen app, Playwright). After the entry, in landscape, bars hidden or fixed = LOCKED: every one-finger
+       touchmove is preventDefault-ed (non-passive: the lock that works on every iOS) and the scroller / OPEN layers allow no pan, so no
+       scroll ever reaches Safari; the engine's recogniser (TOUCH) takes every gesture as before. Bars back (a tap on the top edge, the app
+       switcher) = UNLOCKED: an upward one-finger swipe is the document's again (it hides them; the desk stays — no second entry), decided
+       at the FIRST touchmove (WebKit defers its pan to that answer); every other gesture stays the site's. A pinch is never touched here.
+     Hooks for the engine (site.html): hold() — TOUCH makes no gesture of its own (upright, during the entry); native(dx, dy) — this finger
+     is the document's (TOUCH lets it go); then(fn) — fn after the landing (at once with no entry). ?entry=0: the desk up from the start
+     (labs, harnesses). Test hook (Playwright has no bars): window.__barsEmu = { s, l, ih } stands in for the 100svh / 100lvh probes (and
+     innerHeight) and sizes the stage l px tall, as Safari's 100lvh is. */
+  const EN = { on: STAGE && Q.get('entry') !== '0', done: true, x: 0, D: 0, dirty: true, f: null, raf: 0, v: 0, cbs: [],
+               peek: num('epeek', .06), resp: num('eresp', .5), nameMs: num('ename', 350) };
+  EN.done = !EN.on;
+  let T = null, locked = false, panOK = null, lvhProbe = null, pollN = 0, pollRaf = 0, scrollQ = 0, barsNow = '';
+  const byId = id => document.getElementById(id);
+  const isLand = () => innerWidth > innerHeight;
+  function lvh() {                                                      // the LARGE viewport (the screen with Safari's bars gone)
+    if (!lvhProbe) {
+      lvhProbe = document.createElement('div');
+      lvhProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:100vh;height:100lvh;visibility:hidden;pointer-events:none';
+      document.body.appendChild(lvhProbe);
+    }
+    return lvhProbe.offsetHeight || innerHeight;
+  }
+  function bars() {
+    let s = svh(), l = lvh(), ih = innerHeight; const E = window.__barsEmu;
+    if (E) { s = E.s ?? s; l = E.l ?? l; ih = E.ih ?? ih; }
+    return l - s <= 4 ? 'fixed' : ih >= l - 1 ? 'hidden' : 'showing';
+  }
+  const rb = (o, dim) => (1 - 1 / (o * .55 / Math.max(1, dim) + 1)) * dim;   // the row's rubber band (ROWPHYS.edge.c)
+  function stageLaid() {                                                // page(): a new layout — the desk's travel is re-measured
+    EN.dirty = true;
+    if (EN.on && !EN.done && !EN.f && !EN.raf) requestAnimationFrame(() => { if (!EN.done && !EN.f && !EN.raf) { measureD(); put(EN.D); } });
+  }
+  function measureD() {                                                 // the travel: the papers' top edges EN.peek × H above the stage's bottom
+    EN.dirty = false;
+    const v = byId('viewer'), sc = byId('scroller'); if (!v || !sc) return;
+    const H = v.clientHeight || innerHeight, W = v.clientWidth || innerWidth, top0 = v.getBoundingClientRect().top;   // (both rects carry the offset)
+    let top = Infinity;
+    for (const c of sc.querySelectorAll('.row > .wrap:not(#macbook) .card')) {   // (the closed laptop is a slab under an empty lid box)
+      const r = c.getBoundingClientRect();
+      if (r.width && r.height && r.right > 0 && r.left < W) top = Math.min(top, r.top - top0);
+    }
+    EN.D = Math.max(.25 * H, Number.isFinite(top) ? H - EN.peek * H - top : .6 * H);
+  }
+  /* the desk's offset is the whole VIEWER's translate (the name inside it is unseen until the landing): the engine measures every rect
+     in the viewer's frame (minus its rect), so a layout during the entry stays exact — on the scroller, the stacks' home rects carried
+     the offset and the first zoom after the landing aimed a stage height off */
+  function put(x) {
+    EN.x = x;
+    const v = byId('viewer'); if (v) v.style.transform = x ? 'translate3d(0,' + x.toFixed(2) + 'px,0)' : '';
+    const cue = EN.cue; if (cue) { const o = EN.D > 0 ? Math.max(0, Math.min(1, 1 - 2.6 * (1 - x / EN.D))) : 1; cue.style.opacity = o < 1 ? o.toFixed(3) : ''; }
+  }
+  const fy = t => t.clientY - byId('viewer').getBoundingClientRect().top + EN.x;   // the finger in the stage's frame (the viewer's rect less the desk's own offset)
+  function grab(t, ts) {
+    stopAnim(); if (EN.dirty) measureD();
+    const y = fy(t); EN.f = { y0: y, x0: EN.x, q: [[ts, y]], m: 0, t0: ts, X0: t.clientX, Y0: t.clientY, ly: y, lt: performance.now(), sy: scrollY };
+  }
+  function follow(y, ts) {                                              // the finger at y (the stage's frame): the desk 1:1, rubber-banded past its ends
+    const f = EN.f, H = byId('viewer').clientHeight || innerHeight;
+    f.q.push([ts, y]); while (f.q.length > 2 && ts - f.q[0][0] > 100) f.q.shift();
+    const raw = f.x0 + y - f.y0;                                        // + = down
+    put(raw < 0 ? -rb(-raw, H) : raw > EN.D ? EN.D + rb(raw - EN.D, H) : raw);
+  }
+  function drag(t, ts) {
+    const f = EN.f, y = fy(t);
+    f.m = Math.max(f.m, Math.hypot(t.clientX - f.X0, t.clientY - f.Y0));
+    f.ly = y; f.lt = performance.now(); f.sy = scrollY;
+    follow(y, ts);
+  }
+  function scrolled() {                                                 // insurance: no touchmove for 60 ms while the document scrolls under the finger —
+    const f = EN.f; if (!f || performance.now() - f.lt < 60) return;    // follow the scroll instead (finger up = scroll down; the bars' collapse not in it)
+    const now = performance.now(); f.m = Math.max(f.m, 11); follow(f.ly - (scrollY - f.sy), now);
+  }
+  function release(cancel, ts) {
+    const f = EN.f; EN.f = null; if (!f) return;
+    const q = f.q, a = q[0], b = q[q.length - 1], span = b[0] - a[0];
+    const v = !cancel && span > 0 && ts - b[0] < 60 ? (b[1] - a[1]) / span : 0;   // px/ms, + = down (the row's estimator: 0 after a rest)
+    const tap = !cancel && f.m < 10 && ts - f.t0 < 500;
+    const p = EN.D > 0 ? 1 - EN.x / EN.D : 1;
+    spring(tap || (!cancel && ((p >= .33 && v < .15) || v <= -.3)) ? 0 : EN.D, tap ? 0 : v);
+  }
+  function stopAnim() { if (EN.raf) cancelAnimationFrame(EN.raf); EN.raf = 0; }
+  function spring(tgt, v0) {                                            // critically damped, the finger's speed as its start
+    stopAnim(); EN.v = Math.max(-4, Math.min(4, v0));
+    const w = 2 * Math.PI / (EN.resp * 1000); let last = performance.now();
+    const step = now => {
+      const dt = Math.max(0, Math.min(32, now - last)); last = now;
+      const n = Math.max(1, Math.ceil(dt)), h = dt / n; let x = EN.x, v = EN.v;
+      for (let i = 0; i < n; i++) { v += (-w * w * (x - tgt) - 2 * w * v) * h; x += v * h; }
+      EN.v = v;
+      if (Math.abs(x - tgt) < .3 && Math.abs(v) < .02) { EN.raf = 0; put(tgt); if (tgt === 0) landed(); return; }
+      put(x); EN.raf = requestAnimationFrame(step);
+    };
+    EN.raf = requestAnimationFrame(step);
+  }
+  function landed() {
+    EN.done = true;
+    const v = byId('viewer'); if (v) { v.style.transform = ''; v.style.willChange = ''; }
+    root.classList.remove('e-wait'); if (EN.cue) EN.cue.style.opacity = '';
+    setTimeout(() => {
+      const n = document.querySelector('.hdr .name');
+      if (n) { n.style.transition = 'opacity .6s cubic-bezier(.25,.1,.25,1)'; n.style.opacity = ''; setTimeout(() => { n.style.transition = ''; }, 700); }
+      for (const fn of EN.cbs.splice(0)) { try { fn(); } catch (e) { setTimeout(() => { throw e; }); } }
+    }, EN.nameMs);
+    sync();
+  }
+  function decide(dx, dy) {                                             // this finger: the document's (true) or the site's (false)
+    if (!isLand() || !EN.done) return true;                            // upright (the prompt) / the entry: the document's scroll
+    if (locked) return false;
+    return Math.abs(dy) > Math.abs(dx) && dy < 0;                       // the bars showing: an upward swipe hides them again
+  }
+  function sync() {                                                     // the lock follows the bars, the orientation and the entry
+    const b = bars(); barsNow = b;
+    locked = EN.done && isLand() && b !== 'showing';
+    const pan = !locked;
+    if (pan === panOK) return;
+    panOK = pan;
+    const sc = byId('scroller'); if (sc) sc.style.touchAction = pan ? 'pan-y pinch-zoom' : '';
+    for (const id of ['shield', 'zoneL', 'zoneR', 'nzoneL', 'nzoneR']) { const el = byId(id); if (el) el.style.touchAction = pan ? 'pan-y' : ''; }
+  }
+  /* the invisible document is finite (2400 lvh) and every swipe that hides the bars again spends a swipe + its momentum (1–2 k px); at its
+     end Safari would show the bars on a pull. So once LOCKED and still (no finger, no scroll for 450 ms) past 60 % of it, it is parked
+     back at 1 lvh — a script scroll: Safari's bars only follow the visitor's scrolls, and the fixed stage shows nothing of it */
+  let parkT = 0;
+  function park() {
+    if (!locked || T) return;
+    const max = document.documentElement.scrollHeight - innerHeight, y0 = Math.round(lvh());
+    if (max > 0 && scrollY > .6 * max) scrollTo(0, y0);
+  }
+  function pollStep() { pollRaf = 0; sync(); if (--pollN > 0) pollRaf = requestAnimationFrame(pollStep); }
+  function poll() { pollN = 75; if (!pollRaf) pollRaf = requestAnimationFrame(pollStep); }   // ~1.2 s of frames: the sizes settle late after a turn
+  const stage = STAGE ? {
+    hold: () => !isLand() || !EN.done,
+    native(dx, dy) { if (!T) return false; if (T.nat === null && (dx || dy)) T.nat = decide(dx, dy); return T.nat === true; },
+    then(fn) { if (EN.done) fn(); else EN.cbs.push(fn); },
+    get entry() { return { on: EN.on, done: EN.done, x: EN.x, D: EN.D, dragging: !!EN.f, anim: !!EN.raf }; },   // debug (the probes)
+    get locked() { return locked; }, get bars() { return barsNow; }, sync,
+  } : null;
+  if (STAGE) {
+    const E = window.__barsEmu; if (E && E.l) root.style.setProperty('--stage-h', E.l + 'px');
+    const mk = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; document.body.appendChild(d); return d; };
+    mk('rot', '<svg class="rot-i" viewBox="0 0 80 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">' +
+              '<g class="rot-p"><rect x="28.5" y="20" width="23" height="48" rx="6"/><rect x="36.4" y="23.3" width="7.2" height="2.3" rx="1.15" ' +
+              'fill="currentColor" stroke="none"/><path d="M37.2 64.6h5.6" stroke-width="1.2"/></g>' +
+              '<path class="rot-a" d="M66.85 28.5A31 31 0 0 0 21.78 18.92M21.78 18.92l5.5.4M21.78 18.92l1.3-5.3"/></svg>' +
+              '<p class="st-type rot-t">Best in landscape</p><p class="st-type rot-s">Rotation locked? Turn it off in Control Center.</p>')
+      .setAttribute('role', 'status');
+    if (EN.on) {
+      root.classList.add('e-wait');
+      EN.cue = mk('cue', '<div class="cue-in"><svg class="cue-i" viewBox="0 0 26 15" aria-hidden="true"><path d="M3 12 L13 3.5 L23 12" fill="none" ' +
+                         'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><p class="st-type">Swipe up</p></div>');
+      const v = byId('viewer'), H0 = v?.clientHeight || innerHeight;      // below the stage until the first layout measures the peek
+      if (v) { v.style.willChange = 'transform'; v.style.transform = 'translate3d(0,' + H0 + 'px,0)'; }
+      EN.x = H0;
+      const n = document.querySelector('.hdr .name'); if (n) n.style.opacity = '0';
+    }
+    addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) { T = null; if (EN.f) release(true, e.timeStamp); return; }   // a second finger: not the entry's
+      const t = e.touches[0]; T = { x0: t.clientX, y0: t.clientY, nat: null };
+      if (!EN.done && isLand()) grab(t, e.timeStamp);
+    }, { passive: true, capture: true });
+    addEventListener('touchmove', e => {
+      if (!T || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (T.nat === null) { const dx = t.clientX - T.x0, dy = t.clientY - T.y0; if (dx || dy) T.nat = decide(dx, dy); }
+      if (EN.f) drag(t, e.timeStamp);
+      if (T.nat === false && e.cancelable) e.preventDefault();          // the LOCK (and every gesture of the site's while unlocked)
+    }, { passive: false, capture: true });
+    const tEnd = e => {
+      if (e.touches.length) return;
+      if (EN.f) { const t = e.changedTouches[0]; if (t && e.type === 'touchend') drag(t, e.timeStamp); release(e.type === 'touchcancel', e.timeStamp); }
+      T = null; sync();
+    };
+    addEventListener('touchend', tEnd, { passive: true, capture: true });
+    addEventListener('touchcancel', tEnd, { passive: true, capture: true });
+    addEventListener('resize', poll);
+    if (window.visualViewport) visualViewport.addEventListener('resize', poll);
+    addEventListener('orientationchange', poll);
+    addEventListener('pageshow', poll);
+    addEventListener('scroll', () => {
+      if (EN.f) scrolled();
+      if (!scrollQ) scrollQ = requestAnimationFrame(() => { scrollQ = 0; sync(); });
+      clearTimeout(parkT); parkT = setTimeout(park, 450);
+    }, { passive: true });
+    try { history.scrollRestoration = 'manual'; } catch (e) {}           // a reload starts at the document's top (not deep in it, near its end)
+    sync();
+  }
+
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
-                      vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; } };
+                      vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage };
 })();

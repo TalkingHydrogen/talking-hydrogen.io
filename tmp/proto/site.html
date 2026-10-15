@@ -1358,6 +1358,10 @@ const viewer = $('viewer');
    height. The engine's open picture is a pure function of each element's VIEWPORT place at the frozen scroll (RP.sy, expand() …
    enterHome()): RP.rowTop = row.offsetTop − RP.sy carries it, as RP.sl carries x. */
 const isFeed = () => !!window.__mobile?.feed;
+/* the STAGE (mobile.js, 2026-10-15: landscape-first — upright a rotate prompt; in landscape the ENTRY, the swipe that raises the desk and
+   hides Safari's bars, then the touchmove lock): null on a desktop and in the feed's browsers. The viewer is a fixed stage over a tall
+   invisible document there, so the document's scroll is Safari's bar instrument, never the page's: no scrollTo of ours (lockPage()) */
+const STG = window.__mobile?.stage || null;
 const feedPageMs = () => window.__mobile?.P?.pageMs || ZOOM.ease.inMs;   // FEED: a page snap's duration (mobile.js P.pageMs, ?fpage=)
 const vrect = () => isFeed() ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight, width: innerWidth, height: innerHeight } : viewer.getBoundingClientRect();
 const vH = () => isFeed() ? window.__mobile.vh() : viewer.clientHeight;                                 // the first 100 vh: the frame of every layout value below
@@ -3462,7 +3466,7 @@ function feedThaw() {
   if (RP.sy) { RP.sy = 0; RP.rowTop = row.offsetTop; }
   if (shield.style.pointerEvents) { shield.style.pointerEvents = ''; shield.style.touchAction = ''; }
 }
-function lockPage() { if (!SINK && !isFeed()) scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
+function lockPage() { if (!SINK && !isFeed() && !STG) scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
 function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
@@ -3941,7 +3945,7 @@ function openNow() {
   lidSync();
   activeStack = self; wrap.classList.add('active'); placeZones();                         // site: as expand()
   scroller.classList.add('frozen'); scroll0 = scroller.scrollLeft; measureBox(); targets();   // the row's scroll frozen (as expand())
-  if (!SINK && !isFeed()) scrollTo(0, 0); unlockPage();                                    // OPEN: at the top, not locked (as enterOpen()); the WHEEL SINK: never (its x); FEED: where the column is
+  if (!SINK && !isFeed() && !STG) scrollTo(0, 0); unlockPage();                            // OPEN: at the top, not locked (as enterOpen()); the WHEEL SINK: never (its x); FEED: where the column is
   if (isFeed()) feedFreeze();
   hover.jump(0); p.jump(1);
   loadTucked(); vhover = 0; jumpAll(); setLayout('viewer'); untuck(true);
@@ -3953,7 +3957,7 @@ function openNow() {
 applyConfigs();
 syncHomeSlots();
 if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete') ld(); else addEventListener('load', ld, { once: true }); }   // site: the lid's clips after the page (the poster is the card's image)
-if (lid && LID_HINT.on) armLidHint();                                     // site 2026-10-07: … and its HINT once they can play (LID_HINT)
+if (lid && LID_HINT.on) { if (STG) STG.then(armLidHint); else armLidHint(); }   // site 2026-10-07: … and its HINT once they can play (LID_HINT) — the STAGE: after the ENTRY's landing and the name (the desk was below the screen; the entry's swipe would have called it off)
 else if (lid) restLid();                                                  // FEED, no hint (?lidhint=0): the rest pose from the start
 resetOrder();
 for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
@@ -5382,7 +5386,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     const H = RP.H;
     if (dy >= 0) drSet('hold', dx, dy, Math.max(TC.sMin, 1 - TC.shrink * dy / H));          // down: the page follows the finger and shrinks about the grab point
     else drSet('hold', 0, -rubberBand(-dy, H), 1);                                            // up: the rubber band
-    DR.px = g.lx; DR.py = g.ly;
+    DR.px = g.lx; DR.py = g.ly - (STG ? viewer.getBoundingClientRect().top : 0);              // (the STAGE: the viewer's top sits under Safari's bar while it shows)
   }
   function vRelease(vx, vy, cancel) {
     if (isFeed() && g.vk !== 'close') return vReleaseFeed(vx, vy, cancel);
@@ -5470,6 +5474,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!finger(e)) return;
     e.stopImmediatePropagation();
     lastX = e.clientX; lastY = e.clientY; lastTouch = true;
+    if (STG?.hold()) return;                                                                 // the STAGE (mobile.js): upright under the rotate prompt, or the ENTRY — every finger is the document's
     if (dead.size || g) {                                                                   // a second finger: the one-finger gesture lets go; a pinch is not ours
       if (g) { dead.add(g.id); end(null, true); }
       dead.add(e.pointerId); return;
@@ -5505,6 +5510,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!g || e.pointerId !== g.id) return;
     const t = e.timeStamp;
     g.x = e.clientX; g.y = e.clientY;
+    if (g.nat || (STG && !g.lock && (g.nat = STG.native(g.x - g.x0, g.y - g.y0)))) return;   // the STAGE: this finger is the document's scroll (it hides Safari's bars) — nothing of the site's moves
     g.q.push([t, g.x, g.y]); while (g.q.length > 2 && t - g.q[0][0] > TC.win) g.q.shift();
     if (RP.touch && g.ctx === 'home') RP.touch.x = g.x;
     if (g.ctx === 'busy' && isFeed() && ctxNow() === 'open') adopt();                     // FEED (VR3-2): the snap landed under this finger — it holds the page from here
@@ -5514,6 +5520,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     else if (g.ctx === 'open' && g.a === activeStack) { if (g.lock === 'h') hFollow(g.x - g.lx); else vFollow(g.x - g.lx, g.y - g.ly); }
   }
   function end(e, cancel) {                   // e null: a second finger (cancel)
+    if (g.nat) cancel = true;                 // the STAGE: the document's swipe (WebKit's pointercancel may never come)
     const t = e ? e.timeStamp : performance.now();
     if (e && (e.clientX !== g.x || e.clientY !== g.y)) { g.x = e.clientX; g.y = e.clientY; g.q.push([t, g.x, g.y]); }
     const G0 = g; clearTimeout(g.pt);
@@ -5546,7 +5553,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!finger(e)) return;
     e.stopImmediatePropagation();
     if (dead.delete(e.pointerId)) { upT = performance.now(); return; }
-    if (!g || e.pointerId !== g.id) return;
+    if (!g || e.pointerId !== g.id) { if (!g && STG) upT = performance.now(); return; }   // (the STAGE's gate: its click swallowed too)
     end(e, cancel);
   }
   addEventListener('pointerdown', down, { capture: true });
@@ -5574,6 +5581,8 @@ let resizeT = 0;
 let resizeW = innerWidth;
 addEventListener('resize', () => {
   if (isFeed() && !activeStack && innerWidth === resizeW && innerHeight >= innerWidth) { RP.H = vH(); liveSync(); return; }   // FEED (spec 05 S21): Safari's toolbar at HOME — the column depends on W only: no re-layout, the live height only
+  if (STG && viewer.clientWidth === RP.W && viewer.clientHeight === RP.H) return;   // the STAGE: Safari's bars only — the stage is the large viewport, nothing to re-lay
+  if (STG && innerHeight > innerWidth) filmGuard()?.stop();                        // the STAGE, turned upright: the rotate prompt covers the page — the film stops as a tap would (its sound never plays behind a white screen)
   resizeW = innerWidth;
   clearTimeout(resizeT); resizeT = setTimeout(() => layoutAll('resize'), 50);
 });   // geometry only; springs untouched
