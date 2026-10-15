@@ -55,12 +55,16 @@
      things, and then the name will appear"): the feed is now only for the in-app browsers that can't rotate (LinkedIn, Instagram,
      Facebook, any WKWebView without Safari's token: a portrait wall would trap a recruiter there) and ?feed=1; everywhere else the phone
      is the STAGE (its block below): upright a rotate prompt, in landscape the ENTRY and Safari's bars hidden. ?stage=0 / ?feed=0: the
-     page as before the stage (v1's horizontal portrait, no prompt, no entry). */
+     page as before the stage (v1's horizontal portrait, no prompt, no entry).
+     PORTRAIT-FIRST (2026-10-15, later; owner: "so much to do before just seeing it might remove the accessibility of it"): the FEED is
+     the phone's page again, in every browser — no rotate prompt, no entry: the work is one scroll away, rotation lock or not. Turned
+     sideways it is the horizontal row (mode(): no prompt, no entry, Safari's bars as they are). The STAGE stays behind ?stage=1 (A/B;
+     an in-app browser keeps the feed even then). */
   const UA = navigator.userAgent;
   const IN_APP = /LinkedInApp|Instagram|FBAN|FBAV|FB_IAB|FBIOS/i.test(UA) || (/iPhone|iPod/.test(UA) && !/Safari\//.test(UA));
   const FEED_Q = Q.get('feed');
-  const FEED_OK = FEED_Q === '1' || (IN_APP && FEED_Q !== '0');
-  const STAGE = !FEED_OK && FEED_Q !== '0' && Q.get('stage') !== '0';
+  const FEED_OK = FEED_Q === '1' || (FEED_Q !== '0' && (IN_APP || Q.get('stage') !== '1'));
+  const STAGE = !FEED_OK && FEED_Q !== '0' && Q.get('stage') === '1';
   if (STAGE) root.classList.add('stage');
   let FEED = FEED_OK && innerHeight >= innerWidth;
   if (FEED) root.classList.add('feed');
