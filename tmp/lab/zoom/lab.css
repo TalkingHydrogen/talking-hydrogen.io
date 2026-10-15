@@ -1,0 +1,35 @@
+/* lab.css — the pinch LIFT labs (fslab/zoom): a white OPEN-like page, nothing else */
+:root { --page: #FCFCFC; --ink: #1D1D1F; --quiet: #868689; --hud: #C7C7CC; color-scheme: light; }
+html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+body { font: 15px/1.2 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: var(--quiet); }
+img { -webkit-user-drag: none; -webkit-touch-callout: none; display: block; }
+
+/* the table: one 3D context, order by depth (Safari re-rasters on z-index changes; depth is free) */
+#stage { position: fixed; inset: 0; touch-action: none; overflow: hidden; background: var(--page); }
+#table { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; }
+#table .cover { position: absolute; left: -200vmax; top: -200vmax; width: 400vmax; height: 400vmax; background: var(--page); transform: translateZ(-1px); }
+.card { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; background: #fff;
+  box-shadow: 0 .5px 1.2px rgba(60, 40, 20, .28), 0 2px 7px rgba(60, 40, 20, .07); }
+.card.alpha { background: transparent; }                                 /* a polaroid card: its texture carries its own anti-aliased edge */
+.card img { width: 100%; height: 100%; }
+.caption { position: absolute; left: 0; top: 0; transform-origin: 0 0; white-space: pre; color: var(--quiet); font-size: 15px; line-height: 18px;
+  transition: opacity .6s ease-in-out; will-change: transform, opacity; }
+.caption b { font-weight: 400; color: var(--ink); }
+
+/* the LIFT layer: above the whole table (outside its 3D context); permanent layers, never display-toggled */
+#lift { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#lift .veil { position: absolute; inset: 0; background: var(--page); opacity: 0; will-change: opacity; }
+#lift .copy { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; opacity: 0; will-change: transform, opacity; }
+#lift .copy .sh { position: absolute; inset: 0; will-change: opacity; border-radius: .5px; }
+#lift .copy .sh1 { box-shadow: 0 .5px 1.2px rgba(60, 40, 20, .28), 0 2px 7px rgba(60, 40, 20, .07); }
+#lift .copy .sh2 { box-shadow: 0 6px 18px rgba(0, 0, 0, .16), 0 2px 5px rgba(0, 0, 0, .08); opacity: 0; }
+#lift .copy .base { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+#lift .copy .hi { position: absolute; left: 0; top: 0; transform-origin: 0 0; opacity: 0; will-change: opacity; }
+
+/* the lab readout: tiny, grey, bottom centre (lab pages only) */
+#hud { position: fixed; left: 50%; bottom: max(6px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20;
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--hud); white-space: pre; letter-spacing: 0;
+  padding: 6px 10px; font-variant-numeric: tabular-nums; }
+#hud a { color: inherit; text-decoration: none; }

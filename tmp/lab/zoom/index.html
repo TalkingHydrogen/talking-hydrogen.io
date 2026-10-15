@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pinch Lab</title>
+<style>
+:root { color-scheme: light; }
+html { background: #fff; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: #fff; color: #1d1d1f; font: 15px/1.4 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+h1 { font-size: 28px; line-height: 1.15; margin: 8px 0 8px; }
+p { margin: 0 0 10px; color: #6e6e73; max-width: 620px; }
+ol { list-style: none; padding: 0; margin: 22px 0 0; max-width: 640px; }
+li { padding: 14px 0; border-top: 1px solid #e5e5ea; }
+li > a { font-size: 19px; font-weight: 600; color: #0071e3; text-decoration: none; display: inline-block; padding: 2px 0; }
+li div { color: #6e6e73; font-size: 14px; margin-top: 2px; }
+li div a { color: #0071e3; text-decoration: none; }
+.k { font-size: 13px; color: #86868b; margin-top: 26px; max-width: 620px; }
+</style>
+</head>
+<body>
+<h1>Pinch lab</h1>
+<p>Open on the iPhone in Safari, turn it to landscape. Each page is the zoomed-in view of a picture on the white page.</p>
+<ol>
+  <li><a href="z1.html">Z1 · Lift</a>
+    <div>Grab the print with two fingers: it comes off the page, follows both fingers, and drops back onto its place when you let go. Try lifting one finger halfway through (it stays in your hand, the other finger moves it), putting it back, pinching past 3× (it resists), pinching smaller (it resists), and letting go while it moves.
+    Also: <a href="z1.html?img=neo">a polaroid</a> · <a href="z1.html?img=drawing">a drawing</a> · <a href="z1.html?twist=1">with twist</a> (two fingers also turn it) · <a href="z1.html?zeta=.8">a softer landing</a> (a hint of bounce as it drops back).</div></li>
+  <li><a href="z2.html">Z2 · Lift and swipe</a>
+    <div>A row of three: the room print, the polaroid pile (two), the drawing. Swipe on the picture to go through the pile, then on to the next. Swipe on the white to jump to the next stack. Tap the left or right edge for the stack on that side. Tap the white or drag down to close; tap a picture to open it again. Pinch at any moment, also halfway through a swipe.</div></li>
+  <li><a href="z3.html">Z3 · Like Photos</a>
+    <div>What the iPhone's Photos app actually does: the zoom stays when you let go, one finger moves around, a double tap zooms in or back out. Compare it with Z1.</div></li>
+</ol>
+<p class="k">The grey line at the bottom of each page is for testing only: zoom, fingers down, frames per second and finger updates per second during a pinch, “hi” = the full-resolution copy is ready (time to decode), “ge” = how far Safari's own pinch reading differs from ours. Tap it to come back here.</p>
+<script>
+/* open the labs in place of this page: no back history, so a swipe from the screen's edge can't leave a lab */
+for (const a of document.querySelectorAll('a[href$=".html"], a[href*=".html?"]')) a.addEventListener('click', e => { e.preventDefault(); location.replace(a.href); });
+</script>
+</body>
+</html>
