@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="format-detection" content="telephone=no"><title>Safari guard lab</title><style>:root{--ink:#1d1d1f;--mute:#86868b;--hair:#e5e5ea;--obj:#ececf0;--obj2:#e1e1e6;--ok:#248a3d;--no:#c93400;--blue:#0071e3;color-scheme:light}
+*{box-sizing:border-box}
+html{background:#fff;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+a{color:var(--blue);text-decoration:none}
+body.tall{height:600lvh}
+
+/* the stage (the site's viewer): fixed, the whole screen */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:1;background:#fff}
+.base{position:absolute;left:0;right:0;bottom:18%;height:1px;background:var(--hair)}
+.row{position:absolute;left:0;bottom:calc(18% + 1px);display:flex;align-items:flex-end;gap:26px;padding:0 max(44px,env(safe-area-inset-left));will-change:transform}
+.obj{flex:none;position:relative;border-radius:10px;background:var(--obj)}
+.obj:nth-child(2n){background:var(--obj2)}
+.obj i{position:absolute;left:8px;bottom:6px;font:11px/1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--mute)}
+.photo{display:block;flex:none;height:min(42svh,210px);width:auto;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);transform-origin:50% 50%;will-change:transform}
+.cap{position:absolute;left:max(44px,env(safe-area-inset-left));bottom:calc(18% - 34px);font-size:13px;color:var(--mute)}
+.cap b{font-weight:500;color:var(--ink)}
+.cap a{margin-left:14px}
+
+/* the open view: a backdrop + the photo large (the site's OPEN) */
+.open{position:fixed;inset:0;z-index:5;background:#FCFCFC;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .3s,visibility 0s .3s}
+.open.on{opacity:1;visibility:visible;transition:opacity .3s}
+.open .photo{height:min(78svh,560px)}
+.open.cut{transition:none}
+
+/* readout */
+.hud{position:fixed;z-index:20;left:max(12px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 8px);max-width:min(420px,calc(100vw - 24px));
+  background:rgba(255,255,255,.9);border-radius:12px;padding:6px 10px 8px;box-shadow:0 0 0 .5px rgba(0,0,0,.08);font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
+  -webkit-user-select:none;user-select:none;pointer-events:none}
+.hud a,.hud .btn{pointer-events:auto}
+@media (orientation:landscape){.hud{top:52px;left:auto;right:max(12px,env(safe-area-inset-right));max-width:min(430px,52vw);max-height:calc(100vh - 60px);overflow:hidden;font-size:10.5px;line-height:1.4}.hud .do{display:none}}   /* landscape: the top ~44 pt brings Safari's bars back, keep taps out of it */
+.hud .t{font:600 13px/1.3 -apple-system,system-ui,sans-serif;display:flex;gap:10px;align-items:baseline}
+.hud .t a,.hud .t span{font:400 11px/1 -apple-system,system-ui,sans-serif;color:var(--mute)}
+.hud .t span.btn{color:var(--blue);padding:4px 0}
+.hud .k{color:var(--mute)}
+.hud .ok{color:var(--ok)}.hud .no{color:var(--no)}
+.hud .lay a{margin-right:7px;white-space:nowrap}
+.hud .lay a.off{color:var(--no);text-decoration:line-through}
+.hud .do{font:12px/1.35 -apple-system,system-ui,sans-serif;color:var(--mute);margin:3px 0 2px}
+.hud .log{white-space:pre;overflow:hidden;color:var(--mute);font-size:10.5px;margin-top:2px}
+.hud.min .x{display:none}
+.big{font:600 22px/1.15 -apple-system,system-ui,sans-serif}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.b{font:13px/1 -apple-system,system-ui,sans-serif;color:var(--blue);background:#f2f2f7;border:0;border-radius:999px;padding:9px 13px}
+.b.on{background:var(--blue);color:#fff}
+
+body{padding:calc(env(safe-area-inset-top) + 18px) max(22px,env(safe-area-inset-right)) 40px max(22px,env(safe-area-inset-left));max-width:760px}
+h1{font-size:26px;margin:0 0 4px}.k{color:#86868b;font-size:13px}ol{padding-left:20px}li{margin:14px 0}
+li>a{font-size:19px;font-weight:600}li p{margin:3px 0;font-size:14px;color:#3a3a3c}</style></head><body><div class="ix"><h1>Safari guard lab</h1><p class="k">Open each on the iPhone, in Safari first, then from LinkedIn / Instagram / Gmail (send yourself the link). Landscape first.</p><ol><li><a href="g1.html">G1 · Full guard</a><p>The recommended set on a landscape stage. Try every way to break it (two-thumb pinch, double-tap, left-edge swipe with the photo open and closed, pull down, long-press, drag the photo out, rotate). The readout shows the zoom, history, bars, the site’s own pinch and the last thing the guard blocked. <b>Copy report</b> and paste it in the chat. The <i>layers</i> row turns one guard off at a time: e.g. turn off <i>touch-action</i> and <i>2-finger</i> to see whether <i>gesture</i> alone still stops the page zoom; turn on <i>edge pd</i> to see that a touchstart preventDefault does not stop the back swipe.</p></li><li><a href="g2.html">G2 · Unguarded control</a><p>The same stage, no guard. Do the same things: Safari zooms, the photo pinch is cancelled, the edge swipe leaves, the top pull refreshes, long-press shows the callout.</p></li><li><a href="g3.html">G3 · Load zoomed</a><p>Pinch in, then reload; then go to page 2 and swipe back; then rotate while zoomed. It shows the scale the page comes back at, and three recoveries: A meta reset (expect: no effect in Safari, works in LinkedIn / Instagram), B same-URL replace and B2 new-URL load (expect ×1), C counter-zoom (the stage looks un-zoomed); <i>auto</i> runs B at load when zoomed. <a href="g3.html?guard=1">G3 with the guard</a>: you cannot zoom in at all.</p></li></ol><p class="k">The real verdict is the phone’s: the Mac’s WebKit has no Safari gestures. Source: resp/guard-src/ · notes/safari-guards.md</p></div></body></html>

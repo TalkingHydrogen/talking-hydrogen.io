@@ -1,0 +1,12 @@
+/* SafariGuard CSS (on the site: under html.phone). Static: set once, never toggled, except the zoom stand-down at the end. */
+html, html * { touch-action: pan-y; }             /* every element (touch-action is not inherited and resets at scroll containers): no native pinch, no
+                                                    two-finger zoom, no content back-swipe; a vertical swipe still scrolls the document (the bars collapse) */
+html { overscroll-behavior: none;                  /* no rubber band, no pull-to-refresh (Safari 16+: the main scroll view stops bouncing) */
+       -webkit-text-size-adjust: 100%; text-size-adjust: 100%;   /* no text inflation in landscape */
+       -webkit-tap-highlight-color: transparent;
+       -webkit-touch-callout: none;                /* no Save Image / link preview / callout (inherited) */
+       -webkit-user-select: none; user-select: none; }
+body { overscroll-behavior: none; }
+img, video, canvas, svg, a { -webkit-user-drag: none; -webkit-touch-callout: none; }
+.sg-pinch { touch-action: none; }                /* the site's own two-finger targets: pointer events only, no native gesture at all */
+html.sg-zoomed, html.sg-zoomed * { touch-action: auto !important; }   /* zoomed: let the user's pinch / double-tap undo it */

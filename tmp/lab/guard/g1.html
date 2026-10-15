@@ -1,0 +1,456 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="format-detection" content="telephone=no"><title>Guard G1</title><script>(function(){var q=new URLSearchParams(location.search),c="";
+if(q.get("meta")==="0"){var m=document.querySelector('meta[name=viewport]');m.content="width=device-width, initial-scale=1, viewport-fit=cover";}
+if(q.get("ta")==="0")c+="html,html *,.sg-pinch{touch-action:auto!important}";
+if(q.get("os")==="0")c+="html,body{overscroll-behavior:auto!important}";
+if(c){var s=document.createElement("style");s.textContent=c;document.head.appendChild(s);}})();</script><style>/* SafariGuard CSS (on the site: under html.phone). Static: set once, never toggled, except the zoom stand-down at the end. */
+html, html * { touch-action: pan-y; }             /* every element (touch-action is not inherited and resets at scroll containers): no native pinch, no
+                                                    two-finger zoom, no content back-swipe; a vertical swipe still scrolls the document (the bars collapse) */
+html { overscroll-behavior: none;                  /* no rubber band, no pull-to-refresh (Safari 16+: the main scroll view stops bouncing) */
+       -webkit-text-size-adjust: 100%; text-size-adjust: 100%;   /* no text inflation in landscape */
+       -webkit-tap-highlight-color: transparent;
+       -webkit-touch-callout: none;                /* no Save Image / link preview / callout (inherited) */
+       -webkit-user-select: none; user-select: none; }
+body { overscroll-behavior: none; }
+img, video, canvas, svg, a { -webkit-user-drag: none; -webkit-touch-callout: none; }
+.sg-pinch { touch-action: none; }                /* the site's own two-finger targets: pointer events only, no native gesture at all */
+html.sg-zoomed, html.sg-zoomed * { touch-action: auto !important; }   /* zoomed: let the user's pinch / double-tap undo it */
+:root{--ink:#1d1d1f;--mute:#86868b;--hair:#e5e5ea;--obj:#ececf0;--obj2:#e1e1e6;--ok:#248a3d;--no:#c93400;--blue:#0071e3;color-scheme:light}
+*{box-sizing:border-box}
+html{background:#fff;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+a{color:var(--blue);text-decoration:none}
+body.tall{height:600lvh}
+
+/* the stage (the site's viewer): fixed, the whole screen */
+.stage{position:fixed;inset:0;overflow:hidden;z-index:1;background:#fff}
+.base{position:absolute;left:0;right:0;bottom:18%;height:1px;background:var(--hair)}
+.row{position:absolute;left:0;bottom:calc(18% + 1px);display:flex;align-items:flex-end;gap:26px;padding:0 max(44px,env(safe-area-inset-left));will-change:transform}
+.obj{flex:none;position:relative;border-radius:10px;background:var(--obj)}
+.obj:nth-child(2n){background:var(--obj2)}
+.obj i{position:absolute;left:8px;bottom:6px;font:11px/1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--mute)}
+.photo{display:block;flex:none;height:min(42svh,210px);width:auto;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);transform-origin:50% 50%;will-change:transform}
+.cap{position:absolute;left:max(44px,env(safe-area-inset-left));bottom:calc(18% - 34px);font-size:13px;color:var(--mute)}
+.cap b{font-weight:500;color:var(--ink)}
+.cap a{margin-left:14px}
+
+/* the open view: a backdrop + the photo large (the site's OPEN) */
+.open{position:fixed;inset:0;z-index:5;background:#FCFCFC;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .3s,visibility 0s .3s}
+.open.on{opacity:1;visibility:visible;transition:opacity .3s}
+.open .photo{height:min(78svh,560px)}
+.open.cut{transition:none}
+
+/* readout */
+.hud{position:fixed;z-index:20;left:max(12px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top) + 8px);max-width:min(420px,calc(100vw - 24px));
+  background:rgba(255,255,255,.9);border-radius:12px;padding:6px 10px 8px;box-shadow:0 0 0 .5px rgba(0,0,0,.08);font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
+  -webkit-user-select:none;user-select:none;pointer-events:none}
+.hud a,.hud .btn{pointer-events:auto}
+@media (orientation:landscape){.hud{top:52px;left:auto;right:max(12px,env(safe-area-inset-right));max-width:min(430px,52vw);max-height:calc(100vh - 60px);overflow:hidden;font-size:10.5px;line-height:1.4}.hud .do{display:none}}   /* landscape: the top ~44 pt brings Safari's bars back, keep taps out of it */
+.hud .t{font:600 13px/1.3 -apple-system,system-ui,sans-serif;display:flex;gap:10px;align-items:baseline}
+.hud .t a,.hud .t span{font:400 11px/1 -apple-system,system-ui,sans-serif;color:var(--mute)}
+.hud .t span.btn{color:var(--blue);padding:4px 0}
+.hud .k{color:var(--mute)}
+.hud .ok{color:var(--ok)}.hud .no{color:var(--no)}
+.hud .lay a{margin-right:7px;white-space:nowrap}
+.hud .lay a.off{color:var(--no);text-decoration:line-through}
+.hud .do{font:12px/1.35 -apple-system,system-ui,sans-serif;color:var(--mute);margin:3px 0 2px}
+.hud .log{white-space:pre;overflow:hidden;color:var(--mute);font-size:10.5px;margin-top:2px}
+.hud.min .x{display:none}
+.big{font:600 22px/1.15 -apple-system,system-ui,sans-serif}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.b{font:13px/1 -apple-system,system-ui,sans-serif;color:var(--blue);background:#f2f2f7;border:0;border-radius:999px;padding:9px 13px}
+.b.on{background:var(--blue);color:#fff}
+</style></head><body><script>window.LAB={"v": "g1", "title": "G1 · full guard", "todo": "Try to break it. <b>Two thumbs pinch</b> anywhere: the page must stay ×1.00, the photo follows your fingers. <b>Double-tap</b>. <b>Swipe from the left edge</b> (open the photo first too): you must stay here. <b>Pull down</b> at the top. <b>Long-press</b> the photo, the text, the link; drag the photo out. Rotate. Then copy report.", "guard": true, "tall": true, "lock": true};</script><script>/* SafariGuard: keeps iPhone Safari's own gestures off a JavaScript-owned, full-screen stage.
+   (notes/safari-guards.md has the why and the sources for each layer.)
+
+   The layers, cheapest and most reliable first:
+   1. CSS (static, never toggled except while zoomed): touch-action on <html> (pan-y: the native vertical swipe stays, for the
+      bars-collapse scroll; no native pinch, no content back-swipe) and none on the site's own two-finger targets; overscroll-behavior:
+      none (no rubber band, no pull-to-refresh); no callout / selection / drag / tap highlight / text inflation. Resolved in Safari's UI
+      process from the layers' event regions, so it never waits for the page's main thread.
+   2. WebKit GestureEvents (gesturestart / gesturechange / gestureend): preventDefault, non-passive.
+   3. Touch events: a second finger's touchstart and every touchmove with 2+ touches are preventDefault-ed (non-passive), so the
+      page never pinches or two-finger-pans, while POINTER events keep flowing to the site's own two-finger handler.
+   4. Double-tap: a second touchend within 350 ms / 40 pt is preventDefault-ed, and a dblclick listener exists. At the initial scale
+      WebKit swaps its double-tap recognizer for a non-blocking one that still zooms when the second tap hits no click target, and
+      touch-action does not cover it (bug 325368, iOS 26.5 / 27.0): a prevented touchend fails it; the dblclick listener takes it.
+   5. History: Safari's edge swipe cannot be blocked, so it is given somewhere harmless to land. Each opened view pushes one
+      same-document entry inside its tap (viewOpened); back = popstate → onBack(): close the view (instantly when Safari already animated
+      it: hasUAVisualTransition). Mode 'both' also pushes one 'home' entry on the first tap, so an edge swipe at home stays on the page;
+      it is re-armed only by a later tap, so two deliberate back swipes in a row still leave the site: nobody is trapped.
+   6. Zoom watch: visualViewport.scale. If the page ever is zoomed (a restored zoom, a pinch that slipped through, rotation while
+      zoomed), every layer above stands down (html.sg-zoomed) so the user's own pinch / double-tap can bring it back to 1; at ×1 the
+      layers re-arm. Safari ignores maximum-scale (WKWebViewConfiguration.ignoresViewportScaleLimits), so a script cannot reset it.
+
+   API: SafariGuard.init(opts) → SafariGuard; .viewOpened(id) in the tap that opens a view, .viewClosed() when the page closes it.
+   opts: { log(msg), onBack({instant}), onForward(id), onZoom(zoomed, scale), history ('both' | 'view' | false), doubleTap, gestures,
+   touches, edgePD (lab only: preventDefault touchstarts in the outer 24 pt: proves it does not stop Safari's back swipe) }.
+   State: SafariGuard.zoomed, .scale, .armed, .stats {kind: count}, .last. No dependencies, no UI. */
+(function () {
+  'use strict';
+  const html = document.documentElement;
+  const G = window.SafariGuard = { zoomed: false, scale: 1, armed: false, stats: {}, last: '', opts: {} };
+  const note = (kind, detail) => {
+    G.stats[kind] = (G.stats[kind] || 0) + 1;
+    G.last = kind + (detail ? ' · ' + detail : '');
+    if (G.opts.log) G.opts.log(G.last);
+  };
+  G.note = note;
+
+  G.init = function (o = {}) {
+    const opts = G.opts = Object.assign({ history: 'both', doubleTap: true, gestures: true, touches: true, edgePD: false }, o);
+    const NP = { passive: false, capture: true };                         // non-passive: these listeners may cancel
+
+    /* 2. WebKit's own GestureEvents (iOS only; macOS Safari fires them for trackpad pinches too) */
+    if (opts.gestures) for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, e => {
+      if (G.zoomed) return;
+      if (e.cancelable) e.preventDefault();
+      if (t !== 'gesturechange') note(t + ' blocked', 'scale ' + (+e.scale || 1).toFixed(2));
+    }, NP);
+
+    /* 3. two fingers: never the page's pinch or two-finger pan (pointer events still reach the site) */
+    if (opts.touches) {
+      document.addEventListener('touchstart', e => {
+        if (G.zoomed) return;
+        if (e.touches.length > 1) { if (e.cancelable) e.preventDefault(); note('2-finger touchstart blocked'); return; }
+        if (opts.edgePD) {
+          const x = e.touches[0].clientX;
+          if (x < 24 || x > innerWidth - 24) { if (e.cancelable) e.preventDefault(); note('edge touchstart prevented', 'x ' + Math.round(x)); }
+        }
+      }, NP);
+      let tm = 0;
+      document.addEventListener('touchmove', e => {
+        if (G.zoomed || e.touches.length < 2) return;
+        if (e.cancelable) e.preventDefault();
+        if (++tm % 20 === 1) note('2-finger touchmove blocked');
+      }, NP);
+    }
+
+    /* 4. double-tap */
+    if (opts.doubleTap) {
+      let lt = -1e9, lx = 0, ly = 0;
+      document.addEventListener('touchend', e => {
+        if (G.zoomed || e.touches.length || e.changedTouches.length !== 1) return;
+        const t = e.changedTouches[0], now = e.timeStamp;
+        if (now - lt < 350 && Math.hypot(t.clientX - lx, t.clientY - ly) < 40) {
+          if (e.cancelable) e.preventDefault();
+          note('double-tap blocked'); lt = -1e9; return;
+        }
+        lt = now; lx = t.clientX; ly = t.clientY;
+      }, NP);
+      /* WebKit's second double-tap path: at the initial scale its main double-tap recognizer is off (fast taps) and a NON-BLOCKING one
+         runs instead; when the second tap finds no click target it zooms (_didNotHandleTapAsClick), and touch-action never sees it
+         (bug 325368). A prevented touchend fails it (above); a dblclick listener makes WebKit hand the double tap to the page instead. */
+      document.addEventListener('dblclick', e => { if (!G.zoomed) { e.preventDefault(); note('dblclick blocked'); } }, NP);
+    }
+
+    /* 1b. the long press, belt and braces (the CSS does the work: -webkit-touch-callout, user-select, -webkit-user-drag) */
+    document.addEventListener('contextmenu', e => { e.preventDefault(); note('contextmenu blocked'); }, NP);
+    document.addEventListener('selectstart', e => { e.preventDefault(); }, NP);
+    document.addEventListener('dragstart', e => { e.preventDefault(); note('drag blocked'); }, NP);
+
+    /* a touch Safari took (edge back-swipe, Control Center, the home indicator, a native pan / zoom) */
+    addEventListener('pointercancel', e => {
+      if (e.pointerType !== 'touch') return;
+      const x = Math.round(e.clientX), y = Math.round(e.clientY);
+      const where = x < 30 ? 'left edge' : x > innerWidth - 30 ? 'right edge' : y > innerHeight - 30 ? 'bottom edge' : y < 30 ? 'top edge' : 'middle';
+      note('pointercancel', 'Safari took a touch @' + where + ' ' + x + ',' + y);
+    }, { passive: true, capture: true });
+
+    /* 5. history: the back swipe lands on our own page. WebKit (iOS 16+) makes the swipe SKIP entries pushed without a recent user
+       activation (≤ 10 s), so every push happens inside a tap. Modes: 'view' = one entry per opened view (back = close, like a modal);
+       'both' = also one 'home' entry on the first tap, so a back swipe at home stays too (re-armed only by a later tap: never a trap) */
+    let cur = history.state && history.state.sg || null, expect = 0;
+    if (cur === 'view' && opts.history) {                                    // reloaded / restored on a view's entry: the page starts at home
+      cur = opts.history === 'both' ? 'home' : null;
+      try { history.replaceState(cur ? { sg: 'home' } : null, ''); } catch (er) { }
+    }
+    G.armed = cur === 'home';
+    G.viewOpened = id => {                                                   // call synchronously in the tap that opens a view
+      if (!opts.history) return;
+      try { if (cur === 'view') history.replaceState({ sg: 'view', id }, ''); else history.pushState({ sg: 'view', id }, ''); cur = 'view'; note('history: view entry', 'length ' + history.length); }
+      catch (er) { note('pushState failed', String(er)); }
+    };
+    G.viewClosed = () => {                                                   // the page closed a view itself (a tap): drop its entry
+      if (!opts.history || cur !== 'view') return;
+      expect++; history.back();
+    };
+    if (opts.history === 'both') addEventListener('pointerup', () => {       // capture: before the page's own tap handler pushes a view
+      if (cur || G.armed) return;
+      try { history.pushState({ sg: 'home' }, ''); cur = 'home'; G.armed = true; note('history armed', 'length ' + history.length); } catch (er) { note('pushState failed', String(er)); }
+    }, { passive: true, capture: true });
+    if (opts.history) addEventListener('popstate', e => {
+      const prev = cur, next = e.state && e.state.sg || null, instant = !!e.hasUAVisualTransition;   // hasUAVisualTransition: iOS 18+, true after Safari's swipe animation
+      cur = next; G.armed = next === 'home' || next === 'view';
+      if (expect) { expect--; return; }                                      // our own history.back() after a tap-close
+      if (next === 'view') { note('forward: view re-opened'); if (opts.onForward) opts.onForward(e.state.id); return; }
+      if (prev === 'view') { note('back caught', 'closed the view' + (instant ? ' (Safari animated it)' : '')); if (opts.onBack) opts.onBack({ instant, home: next === 'home' }); return; }
+      note('back caught', next === 'home' ? 'forward onto home' : 'stayed on the page (re-arms on the next tap)');
+    });
+
+    /* 6. zoom watch */
+    const vv = window.visualViewport;
+    const zoomCheck = why => {
+      const E = window.__sgEmu;                                            // test hook (Playwright cannot pinch-zoom)
+      const s = E && E.scale ? E.scale : vv ? vv.scale : 1;
+      G.scale = s;
+      const z = Math.abs(s - 1) > .01;
+      if (z === G.zoomed) return;
+      G.zoomed = z; html.classList.toggle('sg-zoomed', z);
+      note(z ? 'page zoomed ×' + s.toFixed(2) : 'zoom back to ×1', z ? 'guards stand down so a pinch can undo it (' + why + ')' : 'guards re-armed');
+      if (opts.onZoom) opts.onZoom(z, s);
+    };
+    G.zoomCheck = zoomCheck;
+    if (vv) { vv.addEventListener('resize', () => zoomCheck('vv resize')); vv.addEventListener('scroll', () => zoomCheck('vv scroll')); }
+    addEventListener('pageshow', e => zoomCheck(e.persisted ? 'pageshow from bfcache' : 'pageshow'));
+    addEventListener('orientationchange', () => setTimeout(() => zoomCheck('rotation'), 400));
+    zoomCheck('load');
+    return G;
+  };
+})();
+</script><script>/* guard lab: the landscape stage (a JS-owned row + one photo with the site's own two-finger pinch + an open view), the bars /
+   lock logic of the landscape plan, and a readout. window.LAB = { v, title, todo, guard } is set before this script. */
+(function () {
+  'use strict';
+  const L = window.LAB || {}, Q = new URLSearchParams(location.search), html = document.documentElement, ua = navigator.userAgent;
+  const T0 = performance.now(), GUARD = !!L.guard, $ = id => document.getElementById(id);
+
+  /* ---------- log ---------- */
+  const LOG = []; let logEl = null;
+  function log(m) {
+    LOG.push(((performance.now() - T0) / 1000).toFixed(1).padStart(5) + 's  ' + m);
+    if (LOG.length > 250) LOG.shift();
+    if (logEl) logEl.textContent = LOG.slice(-7).join('\n');
+  }
+
+  /* ---------- which browser ---------- */
+  const KIND = (() => {
+    const apps = [[/LinkedInApp/i, 'LinkedIn in-app'], [/Instagram/i, 'Instagram in-app'], [/FBAN|FBAV|FB_IAB|FBIOS/i, 'Facebook in-app'],
+      [/GSA\//, 'Google app'], [/Twitter/i, 'X in-app'], [/Slack/i, 'Slack in-app'], [/CriOS/, 'Chrome iOS'], [/FxiOS/, 'Firefox iOS'], [/EdgiOS/, 'Edge iOS']];
+    for (const [re, n] of apps) if (re.test(ua)) return n;
+    if (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua)) return 'in-app WebView';
+    return 'Safari';
+  })();
+  const SV = (ua.match(/Version\/([\d.]+)/) || [])[1] || '';
+
+  /* ---------- the guard (G1) or a passive observer (G2: logs what Safari did, prevents nothing) ---------- */
+  const on = k => Q.get(k) !== '0';
+  let SG = null;
+  if (GUARD) {
+    const hist = Q.get('hist') === '0' ? false : Q.get('hist') === 'view' ? 'view' : 'both';
+    SG = window.SafariGuard.init({ log, onBack: i => { if (openEl.classList.contains('on')) { closeOpen(i.instant); log('→ open view closed ' + (i.instant ? 'at once (Safari animated the swipe)' : 'with its own fade')); } },
+      onForward: () => { if (!openEl.classList.contains('on')) { openEl.classList.add('on'); log('→ open view re-opened (forward)'); } },
+      history: hist, doubleTap: on('dt'), gestures: on('ge'), touches: on('tm'), edgePD: Q.get('edgepd') === '1' });
+  } else {
+    const P = { passive: true, capture: true };
+    let gs = 0;
+    document.addEventListener('gesturestart', e => { gs++; log('gesturestart (not blocked) ×' + (+e.scale || 1).toFixed(2)); }, P);
+    addEventListener('pointercancel', e => { if (e.pointerType === 'touch') log('pointercancel: Safari took the touch @' + Math.round(e.clientX) + ',' + Math.round(e.clientY)); }, P);
+    addEventListener('popstate', () => log('popstate (history ' + history.length + ')'));
+    let z = false;
+    const zc = () => { const s = visualViewport ? visualViewport.scale : 1, n = Math.abs(s - 1) > .01; if (n !== z) { z = n; log(n ? 'page zoomed ×' + s.toFixed(2) : 'zoom back to ×1'); } };
+    if (window.visualViewport) { visualViewport.addEventListener('resize', zc); visualViewport.addEventListener('scroll', zc); }
+    addEventListener('pageshow', zc);
+  }
+  addEventListener('pageshow', e => { if (e.persisted) log('restored from back/forward cache · zoom ×' + (visualViewport ? visualViewport.scale.toFixed(2) : '?')); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') log('page visible again'); });
+
+  /* ---------- the photo: a picture with words on it (Live Text / Visual Look Up target) ---------- */
+  function photoURL() {
+    const c = document.createElement('canvas'); c.width = 600; c.height = 760;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 600, 760);
+    const gr = g.createLinearGradient(0, 40, 0, 600); gr.addColorStop(0, '#9fb7c9'); gr.addColorStop(.55, '#d8c9a8'); gr.addColorStop(1, '#6f7d5c');
+    g.fillStyle = gr; g.fillRect(40, 40, 520, 560);
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(420, 170, 60, 0, 7); g.fill();
+    g.fillStyle = '#3d4a33'; g.beginPath(); g.moveTo(40, 600); g.lineTo(220, 380); g.lineTo(330, 470); g.lineTo(450, 340); g.lineTo(560, 470); g.lineTo(560, 600); g.fill();
+    g.fillStyle = '#1d1d1f'; g.font = '600 46px -apple-system, Helvetica, Arial, sans-serif'; g.fillText('Viktor Dune', 44, 668);
+    g.fillStyle = '#55555a'; g.font = '30px -apple-system, Helvetica, Arial, sans-serif'; g.fillText('Portfolio 2026 · call 555 0123', 46, 716);
+    return c.toDataURL('image/jpeg', .86);
+  }
+  const SRC = photoURL();
+
+  /* ---------- the stage ---------- */
+  const stage = document.createElement('div'); stage.className = 'stage'; stage.id = 'stage';
+  stage.innerHTML = '<div class="base"></div><div class="row" id="row"></div>' +
+    '<div class="cap" id="cap"><b>Long-press me</b> · selectable text test · 2026-10-15 · 555 0123<a href="' + (GUARD ? 'g2.html' : 'g1.html') + '">' + (GUARD ? 'G2 control ›' : 'G1 guarded ›') + '</a></div>';
+  document.body.appendChild(stage);
+  const rowEl = $('row');
+  const W = [86, 150, 104, 70, 132, 96, 160, 84, 118, 140, 76, 110, 128, 92, 150, 104, 136];
+  const H = [104, 176, 128, 86, 160, 118, 190, 96, 140, 170, 90, 132, 154, 110, 180, 120, 164];
+  const ph = document.createElement('div'); ph.className = 'ph' + (GUARD ? ' sg-pinch' : ''); ph.id = 'ph';
+  ph.innerHTML = '<img class="photo" id="photo" alt="" src="' + SRC + '"' + (Q.get('imgpe') === '0' ? ' style="pointer-events:none"' : '') + '>';
+  rowEl.appendChild(ph);
+  rowEl.insertAdjacentHTML('beforeend', W.map((w, i) => '<div class="obj" style="width:calc(' + (w / 190).toFixed(3) + ' * min(34svh,180px));height:calc(' + (H[i] / 190).toFixed(3) + ' * min(34svh,180px))"><i>' + (i + 2) + '</i></div>').join(''));
+  const openEl = document.createElement('div'); openEl.className = 'open'; openEl.id = 'open';
+  openEl.innerHTML = '<div class="ph' + (GUARD ? ' sg-pinch' : '') + '" id="oph"><img class="photo" alt="" src="' + SRC + '"></div>';
+  document.body.appendChild(openEl);
+  if (L.tall) document.body.classList.add('tall');
+
+  function openNow() { openEl.classList.add('on'); log('open view'); if (SG) SG.viewOpened('photo'); }
+  function closeOpen(cut) {
+    if (cut) { openEl.classList.add('cut'); openEl.classList.remove('on'); void openEl.offsetWidth; openEl.classList.remove('cut'); }
+    else openEl.classList.remove('on');
+  }
+
+  /* ---------- bars (the landscape plan): 100svh / 100lvh probes; the lock = every touchmove prevented once they are hidden ---------- */
+  const probe = css => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:0;top:0;width:0;visibility:hidden;pointer-events:none;' + css; document.body.appendChild(d); return d; };
+  const PS = probe('height:100svh'), PL = probe('height:100lvh');
+  function bars() {
+    const E = window.__labEmu || {}, s = E.s ?? PS.offsetHeight, l = E.l ?? PL.offsetHeight, ih = E.ih ?? innerHeight;
+    if (l - s <= 4) return 'fixed';
+    return ih >= l - 1 ? 'hidden' : 'showing';
+  }
+  let locked = false, barsNow = bars();
+  if (L.lock && Q.get('lock') !== '0') document.addEventListener('touchmove', e => { if (locked && !(SG && SG.zoomed) && e.cancelable) e.preventDefault(); }, { passive: false });
+
+  /* ---------- the row: pointer events only, passive (as the site's TOUCH block) ---------- */
+  let rx = 0, rv = 0, raf = 0, lt = 0;
+  const lo = () => Math.min(0, innerWidth - rowEl.scrollWidth);
+  const band = n => n > 0 ? n * .3 : n < lo() ? lo() + (n - lo()) * .3 : n;
+  let rr = 0;
+  const put = n => { rx = n; rowEl.style.transform = 'translate3d(' + n.toFixed(1) + 'px,0,0)'; };
+  function rowDrag(d) { cancelAnimationFrame(raf); const now = performance.now(), dt = Math.min(64, Math.max(4, now - lt)); rv = d / dt * 16.7; lt = now; rr += d; put(band(rr)); }
+  function rowRelease(fling) {
+    cancelAnimationFrame(raf); if (!fling || performance.now() - lt > 80) rv = 0;
+    const step = () => {
+      const L0 = lo();
+      if (rx > 0 || rx < L0) { const t = rx > 0 ? 0 : L0, n = rx + (t - rx) * .18; rv = 0; put(Math.abs(t - n) < .5 ? t : n); rr = rx; if (rx !== t) raf = requestAnimationFrame(step); return; }
+      rv *= .95; put(rx + rv); rr = rx;
+      if (Math.abs(rv) > .2) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  /* ---------- the site's own two-finger pinch on the photo (Photos-style: it follows both fingers, springs back) ---------- */
+  const PZ = { ptrs: new Map(), on: false, el: null, d0: 0, m0: null, s: 1, max: 1, cancelled: 0, last: '' };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  function pzWrite(tx, ty, s) { PZ.el.style.transition = 'none'; PZ.el.style.transform = 'translate3d(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px,0) scale(' + s.toFixed(3) + ')'; }
+  function pzEnd(why) {
+    if (!PZ.on) return;
+    PZ.on = false; PZ.last = why + ' · peak ×' + PZ.max.toFixed(2);
+    log('site pinch ' + why + ' (peak ×' + PZ.max.toFixed(2) + ')');
+    const el = PZ.el; el.style.transition = 'transform .38s cubic-bezier(.32,.72,0,1)'; el.style.transform = '';
+  }
+
+  /* ---------- one pointer router ---------- */
+  let st = null;                                    // the row drag / tap pointer
+  addEventListener('pointerdown', e => {
+    if (e.target.closest && e.target.closest('.hud')) return;
+    const phEl = e.target.closest && e.target.closest('.ph');
+    if (phEl) {
+      PZ.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, el: phEl });
+      if (PZ.ptrs.size === 2) {
+        const [a, b] = [...PZ.ptrs.values()];
+        PZ.on = true; PZ.el = a.el.querySelector('img'); PZ.d0 = dist(a, b) || 1; PZ.m0 = mid(a, b); PZ.s = 1; PZ.max = 1;
+        st = null; log('site pinch: 2 fingers on the photo');
+        return;
+      }
+    }
+    if (PZ.ptrs.size > 1) return;
+    st = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, t0: e.timeStamp, axis: null };
+    cancelAnimationFrame(raf);
+  }, { passive: true });
+  addEventListener('pointermove', e => {
+    const p = PZ.ptrs.get(e.pointerId);
+    if (p) { p.x = e.clientX; p.y = e.clientY; }
+    if (PZ.on && PZ.ptrs.size >= 2) {
+      const [a, b] = [...PZ.ptrs.values()], m = mid(a, b);
+      PZ.s = Math.max(.6, dist(a, b) / PZ.d0); PZ.max = Math.max(PZ.max, PZ.s);
+      pzWrite(m.x - PZ.m0.x, m.y - PZ.m0.y, PZ.s);
+      return;
+    }
+    if (!st || e.pointerId !== st.id || openEl.classList.contains('on')) return;
+    const dx = e.clientX - st.lx, dy = e.clientY - st.ly; st.lx = e.clientX; st.ly = e.clientY;
+    if (!st.axis) { if (Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 10) return; st.axis = Math.abs(e.clientX - st.x0) >= Math.abs(e.clientY - st.y0) ? 'x' : 'y'; }
+    if (st.axis === 'x') rowDrag(dx); else if (locked || !L.tall) rowDrag(-dy);
+  }, { passive: true });
+  function up(e, cancel) {
+    if (PZ.ptrs.has(e.pointerId)) {
+      PZ.ptrs.delete(e.pointerId);
+      if (PZ.on && PZ.ptrs.size < 2) {
+        if (cancel) PZ.cancelled++;
+        pzEnd(cancel ? 'CANCELLED by Safari (pointercancel)' : 'released');
+        st = null; return;
+      }
+    }
+    if (!st || e.pointerId !== st.id) return;
+    const moved = Math.hypot(e.clientX - st.x0, e.clientY - st.y0), s0 = st; st = null;
+    if (cancel) { rowRelease(false); return; }
+    if (moved < 10 && e.timeStamp - s0.t0 < 600) {                          // a tap
+      if (openEl.classList.contains('on')) { closeOpen(false); log('tap → close'); if (SG) SG.viewClosed(); return; }
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && el.closest && el.closest('.ph')) openNow();
+      return;
+    }
+    rowRelease(true);
+  }
+  addEventListener('pointerup', e => up(e, false), { passive: true });
+  addEventListener('pointercancel', e => up(e, true), { passive: true });
+
+  /* ---------- the readout ---------- */
+  const hud = document.createElement('div'); hud.className = 'hud';
+  const LAY = [['ta', 'touch-action'], ['ge', 'gesture'], ['tm', '2-finger'], ['dt', 'dbl-tap'], ['hist', 'history'], ['meta', 'max-scale'], ['os', 'overscroll'], ['lock', 'lock'], ['imgpe', 'img hit'], ['edgepd', 'edge pd']];
+  const layLink = ([k, n]) => {
+    if (k === 'hist') { const q = new URLSearchParams(location.search), c = q.get('hist') === '0' ? '0' : q.get('hist') === 'view' ? 'view' : 'both';
+      const nx = c === 'both' ? 'view' : c === 'view' ? '0' : null; if (nx) q.set('hist', nx); else q.delete('hist');
+      return '<a href="?' + q.toString() + '" class="' + (c === '0' ? 'off' : '') + '">history:' + (c === '0' ? 'off' : c) + '</a>'; }
+    const q = new URLSearchParams(location.search), def = k !== 'edgepd', cur = k === 'edgepd' ? q.get(k) === '1' : q.get(k) !== '0';
+    if (def) { if (cur) q.set(k, '0'); else q.delete(k); } else { if (cur) q.delete(k); else q.set(k, '1'); }
+    return '<a href="?' + q.toString() + '" class="' + (cur ? '' : 'off') + '">' + n + '</a>';
+  };
+  hud.innerHTML = '<div class="t">' + L.title + '<span class="btn" id="hmin">min</span><span class="btn" id="hcopy">copy report</span><a href="./">‹ lab</a></div>' +
+    '<div class="x"><div class="do">' + (L.todo || '') + '</div><div id="hrows"></div>' +
+    (GUARD ? '<div class="lay"><span class="k">layers (tap to toggle): </span>' + LAY.map(layLink).join('') + '</div>' : '') +
+    '<div class="log" id="hlog"></div></div>';
+  document.body.appendChild(hud);
+  logEl = $('hlog');
+  $('hmin').onclick = () => hud.classList.toggle('min');
+  $('hcopy').onclick = () => {
+    const rep = JSON.stringify({ v: L.v, url: location.href, ua, kind: KIND, m: measure(), guard: SG ? { stats: SG.stats, zoomed: SG.zoomed, armed: SG.armed } : null, pinch: PZ.last, log: LOG.slice(-60) }, null, 1);
+    const ok = () => log('report copied (paste it in the chat)');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(rep).then(ok, () => prompt('Copy:', rep)); else prompt('Copy:', rep);
+  };
+  if (Q.get('hud') === 'min') hud.classList.add('min');
+
+  function measure() {
+    const vv = window.visualViewport, E = window.__sgEmu;
+    const s = E && E.scale ? E.scale : vv ? vv.scale : 1;
+    return { scale: +s.toFixed(3), vv: vv ? [Math.round(vv.width), Math.round(vv.height), Math.round(vv.offsetLeft), Math.round(vv.offsetTop)] : null,
+      inner: [innerWidth, innerHeight], hist: history.length, state: history.state, bars: barsNow, locked, land: innerWidth > innerHeight,
+      sy: Math.round(scrollY), dpr: devicePixelRatio, screen: [screen.width, screen.height] };
+  }
+  const hrows = $('hrows');
+  let prev = '';
+  function paint() {
+    const m = measure(), z = Math.abs(m.scale - 1) > .01;
+    const rows = [
+      '<span class="k">zoom</span> <b class="' + (z ? 'no' : 'ok') + '">×' + m.scale.toFixed(2) + '</b>' + (z ? ' <span class="no">(zoomed' + (SG ? ': guard stands down' : '') + ')</span>' : '') +
+        ' <span class="k">· visual</span> ' + (m.vv ? m.vv[0] + '×' + m.vv[1] + ' +' + m.vv[2] + ',' + m.vv[3] : '–') + ' <span class="k">· inner</span> ' + m.inner.join('×'),
+      '<span class="k">history</span> ' + m.hist + (SG ? (SG.opts.history ? ' · ' + SG.opts.history + ' · ' + (SG.armed ? '<span class="ok">on our entry (' + (history.state && history.state.sg) + '): a back swipe stays here</span>' : '<span class="no">' + (SG.opts.history === 'both' ? 'not armed: tap once' : 'home: back leaves') + '</span>') : ' · catcher off') : ' · ' + (history.state ? 'state set' : 'no catcher')),
+      '<span class="k">bars</span> ' + m.bars + (L.lock ? ' · lock ' + (locked ? '<span class="ok">ON</span>' : 'off') : '') + ' · ' + (m.land ? 'landscape' : 'portrait') + ' · scroll ' + m.sy,
+      '<span class="k">site pinch</span> ' + (PZ.on ? '<b class="ok">×' + PZ.s.toFixed(2) + ' · 2 fingers</b>' : (PZ.last || '–')) + (PZ.cancelled ? ' <span class="no">· cancelled ' + PZ.cancelled + '×</span>' : ''),
+      '<span class="k">last guard</span> ' + (SG ? (SG.last || '–') : 'none (unguarded)'),
+      '<span class="k">browser</span> ' + KIND + (SV ? ' ' + SV : '') + ' · dpr ' + m.dpr + ' · screen ' + m.screen.join('×')
+    ];
+    const k = rows.join('|');
+    if (k !== prev) { prev = k; hrows.innerHTML = rows.map(r => '<div>' + r + '</div>').join(''); }
+  }
+
+  /* ---------- the loop ---------- */
+  let prevBars = null, prevSY = 0;
+  function tick() {
+    barsNow = bars();
+    const want = !!L.lock && Q.get('lock') !== '0' && barsNow !== 'showing';
+    if (want !== locked) { locked = want; log(want ? 'lock ON (bars ' + barsNow + '): no scroll reaches Safari' : 'lock off (bars ' + barsNow + ')'); }
+    if (barsNow !== prevBars) { if (prevBars !== null) log('bars → ' + barsNow); prevBars = barsNow; }
+    const sy = Math.round(scrollY); if (Math.abs(sy - prevSY) > 40) { log('document scrolled → ' + sy); prevSY = sy; }
+    paint();
+    requestAnimationFrame(tick);
+  }
+  log('open · ' + KIND + (SV ? ' ' + SV : '') + ' · history ' + history.length + ' · zoom ×' + (window.visualViewport ? visualViewport.scale.toFixed(2) : '?') +
+    ' · nav ' + ((performance.getEntriesByType('navigation')[0] || {}).type || '?'));
+  requestAnimationFrame(tick);
+  window.lab = { log, measure, LOG, rowTo: n => { cancelAnimationFrame(raf); rr = n; rv = 0; put(n); }, get locked() { return locked; }, PZ, openNow, closeOpen, isOpen: () => openEl.classList.contains('on') };
+})();
+</script></body></html>
