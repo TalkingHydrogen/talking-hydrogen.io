@@ -3,8 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
+<meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
+<script>
+/* site 2026-10-15 — the LINKEDIN → SAFARI HAND-OFF (notes/inapp-to-safari.md §6, resp/inapp-src/handoff.js; the owner's phone test: a
+   scripted x-safari- redirect on arrival, from a LinkedIn message, opened Safari). Inside LinkedIn's in-app browser on an iPhone this
+   same address is handed to Safari, where the site is the real one (landscape, the bars gone). No UI. Before everything else (mobile.js's
+   in-app FEED is the fallback when the app refuses both tiers: the visitor simply stays in it).
+   Tier 1, at DOMContentLoaded (after parsing: a let-through failure cannot blank the page): location.replace('x-safari-' + this URL); the
+   body is hidden meanwhile (the 1.5 s grace: no flash of the feed). Tier 2, only if tier 1 was provably ignored (no hidden / pagehide /
+   stalled timers in the grace): the first tap or upward swipe hands off inside its touchend (the gesture carried; that tap also does its
+   own job here). Never anything else: only LinkedInApp on an iPhone (an allowlist — never a generic "no Safari/" match: Home Screen apps
+   match that), only on a fresh navigation (never a reload or a return: no loops), once per webview session, never in Safari or on a
+   desktop (they return on the first line). */
+(function () {
+  var ua = navigator.userAgent;
+  if (!/LinkedInApp/.test(ua) || !/iPhone|iPod/.test(ua)) return;
+  var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+  if (nav && nav.type !== 'navigate') return;
+  try { if (sessionStorage.getItem('handoff')) return; sessionStorage.setItem('handoff', '1'); } catch (e) { }
+  var root = document.documentElement, GRACE = 1500;
+  function safari() { return 'x-safari-' + location.href; }
+  function watch(onIgnored) {               // iOS reports nothing when a hand-off works: hidden, pagehide or stalled timers (the app suspended) = left
+    var gone = false, t0 = performance.now(), last = t0;
+    function mark() { gone = true; }
+    function vis() { if (document.hidden) mark(); }
+    document.addEventListener('visibilitychange', vis);
+    addEventListener('pagehide', mark);
+    var iv = setInterval(function () { var n = performance.now(); if (n - last > 900) mark(); last = n; }, 250);
+    setTimeout(function () {
+      clearInterval(iv); document.removeEventListener('visibilitychange', vis); removeEventListener('pagehide', mark);
+      if (!gone && performance.now() - t0 < GRACE + 700) onIgnored();
+    }, GRACE);
+  }
+  root.classList.add('handoff');
+  document.addEventListener('DOMContentLoaded', function () {
+    location.replace(safari());                                          // tier 1
+    watch(tier2);
+    setTimeout(function () { root.classList.remove('handoff'); }, GRACE); // the webview keeps the normal page (the way back)
+  });
+  function tier2() {
+    root.classList.remove('handoff');
+    var s = null;
+    function down(e) { var p = e.touches[0]; s = { x: p.clientX, y: p.clientY, t: e.timeStamp }; }
+    function up(e) {
+      if (!s) return;
+      var p = e.changedTouches[0], dx = p.clientX - s.x, dy = p.clientY - s.y, tap = Math.abs(dx) < 10 && Math.abs(dy) < 10 && e.timeStamp - s.t < 500;
+      s = null;
+      if (!tap && dy > -40) return;                                      // a tap, or an upward swipe
+      removeEventListener('touchstart', down, true); removeEventListener('touchend', up, true);
+      location.href = safari();                                          // synchronous, inside touchend: it carries the gesture (no tier 3: no UI)
+    }
+    addEventListener('touchstart', down, { capture: true, passive: true });
+    addEventListener('touchend', up, { capture: true, passive: true });
+  }
+})();
+</script>
 <title>viktor dune</title>
 <style>
+  html.handoff body { visibility: hidden; }   /* site 2026-10-15: the LINKEDIN → SAFARI HAND-OFF's 1.5 s (its script above; never set outside LinkedIn's in-app browser) */
   :root { --em: 20px; --viewer-bg: #FCFCFC; --play-gray: #E6E7E8; }   /* --play-gray: the play button's disc */           /* flip.html: the page is #FCFCFC while the viewer is open */
   html, body { margin: 0; overscroll-behavior: none; }   /* the page is exactly the viewer (100 vh): the page never scrolls (the row scrolls in .scroller); no history swipe */
   /* PERF 2026-09-28: the root's overflow is hidden FOR GOOD. It used to be toggled by lockPage() / unlockPage() at every transition
@@ -1400,7 +1456,7 @@ const pageQuery = new URLSearchParams(location.search);    // site: the URL knob
    after the boot layout (and at load, in case the browser restored a scroll). It takes every horizontal wheel natively, so it drifts by
    the deltas: parked again once a stream has been quiet for SINK_PARK.quiet ms and has drifted more than SINK_PARK.far px. Kept small:
    parked 500 000 px out, the composite of a fixed layer that far rounds (the open print differed by up to 4/255); ≤ 100 000 is exact. */
-const SINK = pageQuery.get('sink') !== '0' && !pageQuery.has('type') && !pageQuery.has('color') && matchMedia('(any-hover: hover)').matches;
+const SINK = pageQuery.get('sink') !== '0' && !pageQuery.has('type') && !pageQuery.has('color') && matchMedia('(any-hover: hover)').matches && !window.__mobile?.on;   // SAFARI GUARDS (W6, 2026-10-15): never on a phone — an iPhone with a mouse reports any-hover, and the 60 000 px root would load the page shrunk to fit
 const SINK_MID = 30000, SINK_PARK = { quiet: 150, far: 2000 };
 let sinkDrift = 0, sinkT = 0;
 function sinkPark() { if (SINK) { perfMark('sink park'); sinkDrift = 0; scrollTo(SINK_MID, 0); } }
@@ -2532,6 +2588,15 @@ function makeTurn(FR, take, tuning) {
   T.stopAuto = () => {                                                      // off for this landing: pending, due or running
     clearTimeout(T.autoT); T.autoT = 0; T.autoDue = false; T.takeAuto();
   };
+  T.unstart = () => {                                                       // site 2026-10-15: a double tap's second tap — the turn its first began goes back (the teaser's spring, from where it is)
+    if (!T.playing || T.from !== 'front' || T.t > .6) return false;
+    const h = T.hint; h.side = T.side; h.t = T.t; h.v = 0; h.target = 0; h.want = 0;
+    T.playing = false; T.t = 0; T.dirty = true; kick(); return true;
+  };
+  T.rest = () => {                                                          // site 2026-10-15: the LIFT grabbed it mid-hint — flat at once (the copy is taken from this frame)
+    T.stopAuto(); const h = T.hint;
+    if (h.t || h.v || h.target) { h.t = h.v = h.target = 0; h.want = 0; h.side = 0; T.dirty = true; T.draw(); }
+  };
   T.start = side => {
     if (T.playing) return;
     T.stopAuto();                                                           // site 2026-10-09: turned — this landing's ZOOM-IN HINT is over (it continues from the hint's pose, as from the teaser's); 2026-10-10: the next landing hints again
@@ -3274,6 +3339,60 @@ function tfcStep() {                        // the cancelled prev is off screen 
   const c = tfc.c, tfc0 = tfc; tfc = null;
   zOrder = order.slice(); for (const m of [c.ex, c.tl, c.sp, c.ey]) m.jump(0); c.sc.jump(1); c.ps.jump(tfc0.s0);
 }
+function tfTake() {                         // site 2026-10-15: the LIFT took the finger's flip — its card is the front one, at rest at once (unseen: parked)
+  const f = tf; if (!f) return;
+  if (f.dir > 0) { tfEnd(false, 0, true); return; }                                       // next: the front card back on its seat
+  tf = null; flip(-1); jumpAll(); kick();                                                  // prev: the incoming card taken — the click's order, CAP_WAIT, the song; every card at rest
+}
+/* site 2026-10-15 — the LIFT, the stack's side (phone; the TOUCH block's LIFT: notes/pinch-zoom.md §3.7 / §4). Two fingers on the open
+   picture lift a COPY of its front card above the page (the TOUCH block builds it from this card's own nodes); the card itself is PARKED
+   in its own pile: a page-coloured patch at translateZ(.5) — over the pile's floor (z 0), under every card (z ≥ 1) — the card at
+   translateZ(−5) under it. Depth and a plain colour layer's opacity only: never opacity / visibility / z-index on a card (the re-raster
+   laws); the back cards stay above the patch and show. liftInfo(): the card, its REST SEAT and its POSE NOW in the viewer's frame
+   (centre px, scale, radians) from the pile's own numbers — the item's centre at p = 1 is the open box's (G.gcx, G.H / 2 + G.dy) — never
+   a getBoundingClientRect inside the 3D pile. What never lifts (L11): the MacBook (its lid, its film), a flight in the air (the finger's
+   own flip is taken: tfTake()), the room print turned or turning, a clip whose film shows (only its poster lifts). */
+const liftPatch = window.__mobile?.on ? cardsEl.appendChild(Object.assign(document.createElement('div'), { className: 'liftpatch' })) : null;
+let liftC = null;
+function liftable() {
+  if (state !== 'open' || frozen || !G.eff || film || lid || flipActive() || tfc) return false;
+  if (TURN && (TURN.playing || TURN.from !== 'front')) return false;
+  if (VID && audio && (!audio.paused || (clipFrame && blendK() > 0 && (VID.blend || audio.currentTime > .05)))) return false;   // the film's frame over the poster (a plain clip's first frame IS its poster)
+  return true;
+}
+function liftInfo(probe) {                  // probe: only its sources (the prefetch) — no check, no side effect
+  if (!probe && !liftable()) return null;
+  const c = tf && tf.dir < 0 ? tf.c : cards[order[0]], sl = slots[0];
+  if (!c || !sl || !c.w || !c.pose) return null;
+  if (!probe && TURN && TURN.card === c && TURN.hinting()) { TURN.rest(); render(); }     // the ZOOM-IN HINT up: flat first (the copy is this frame's card)
+  const ox = G.gcx, oy = G.H / 2 + (G.dy || 0), r = Math.PI / 180, P = c.pose, [fw, fh] = fileDims(c.pic);
+  return { c, el: c.el, img: c.img, fl: c.fl, w: c.w, h: c.h, name: cfg.name,
+           seat: { x: ox + sl.dx, y: oy + sl.dy, s: sl.size, r: sl.rot * r },                // the front seat (a taken prev card is the front one)
+           now: { x: ox + P.X, y: oy + P.Y, s: P.SC, r: P.R * r },                          // its pose as last rendered (a flip drag's included)
+           hi: srcsetOf(c.pic).src, hiW: fw, hiH: fh };                                     // the largest file (the sharpness under the zoom)
+}
+function liftPark(on, c) {
+  if (!liftPatch) return;
+  if (on) {
+    const sl = slots[0], F = FLOOR && (c.pic.floor || FLOOR);
+    let m = F ? Math.max(+F.fx * c.w, +F.fy * c.h) : 0;                                      // the patch's margin: the card's table shadow …
+    if (!CAST && !SKIP.has('shade') && (kc(c, 'shadow') > 0 || kc(c, 'vshadow') > 0)) m = Math.max(m, 3 * SH.sigma * G.K + Math.abs(SH.y * G.K) + Math.abs((SH.x || 0) * G.K));   // … or its shade
+    m += 2; const w = c.w + 2 * m, h = c.h + 2 * m;
+    Object.assign(liftPatch.style, { width: w + 'px', height: h + 'px', margin: `${-h / 2}px 0 0 ${-w / 2}px`,
+      transform: `translateZ(.5px) translate(${sl.dx}px, ${sl.dy}px) rotate(${sl.rot}deg) scale(${sl.size})`, opacity: '1' });
+    if (liftC && liftC !== c) liftC.lifted = false;
+    liftC = c; c.lifted = true;
+  } else {
+    if (liftC) liftC.lifted = false;
+    liftC = null; liftPatch.style.opacity = '0';
+  }
+  render();
+}
+function closeInstant() {                   // site 2026-10-15: SAFARI GUARDS — a back swipe Safari already animated (its snapshot of HOME): HOME at once, no zoom out
+  if (state !== 'open') return false;
+  collapse(); if (state === 'close') { p.jump(0); kick(); }
+  return true;
+}
 /* the apex geometry of the outgoing card o against the pile (every card not in the hand). The pile does not move: nothing
    re-seats before the BACK start, so its cards are taken at their seat targets (+ peek) — and, for a card still springing
    home from an earlier flight (a click during BACK), at its current pose (with its decaying tilt / lift / spin) if that sticks
@@ -3497,6 +3616,7 @@ function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
   if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
+  window.__mobile?.guard?.viewOpened(cfg.name);                                            // site 2026-10-15: SAFARI GUARDS (phone) — this view's history entry, inside the tap (a back swipe closes it); a CAMERA move renames it
   state = 'zoom'; delta = 0; moved = !!move;
   capFirst = true;                                                                         // site 2026-10-10 (CAP_WAIT): the caption's next fade in is this landing's
   run0 = order[move === -1 && D > 1 ? 1 : 0];                                              // site 2026-10-10: THE KEYS — this visit's run (walk()); arrived from the right (moveTo()'s side −1), the front card ends it
@@ -3574,10 +3694,12 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   placeNZones();                                                                           // site: the CAMERA's neighbour zones
   nbNudgeLand();                                                                           // site 2026-10-08: the NEIGHBOUR NUDGE — landed protruding: the hold starts
   if (TURN) TURN.autoHint();                                                               // site 2026-10-09: the TURN's ZOOM-IN HINT (TURN_HINT); 2026-10-10: at every landing — a camera move's arrival too (owner: "even when I'm scrolling on it from the zoomed in view from other ones")
+  if (TOUCH) TOUCH.liftPrefetch(self);                                                     // site 2026-10-15: the LIFT — the front card's largest file, fetched (not decoded) while nothing pinches yet
   keyLand();                                                                               // site 2026-10-10: THE KEYS — a press kept from the flight in
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
+  window.__mobile?.guard?.viewClosed();                                                     // site 2026-10-15: SAFARI GUARDS (phone) — the page closed it: its history entry goes (a no-op after a back swipe)
   closeNow();
 }
 /* site 2026-10-09 — HOME AIM (owner: "when the video finished playing the mac one it drifted the camera all the way to the neo companion
@@ -3628,6 +3750,7 @@ function homeAimV() {
 }
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
   perfMark('close ' + cfg.name);
+  if (TOUCH) TOUCH.liftAbort();                                                            // site 2026-10-15: the LIFT never outlives its view (a back swipe mid-lift)
   const aimed = !move && (moved || isFeed()) && state === 'open' && homeAim();             // site 2026-10-09: HOME AIM — a pile the camera moved to lands on screen (its note); FEED: any close whose slot is not wholly on screen
   state = 'close';
   blendOut();                                                                              // site 2026-10-11: the CLIP BLEND's OUT, under the zoom out (its note)
@@ -3817,7 +3940,7 @@ function render() {
     if (REST) { Y -= REST.up * c.h * (1 - v); R += REST.rot * (1 - v) + (REST.hover ?? Math.sign(REST.rot)) * knobs.spreadRot * hw; }
     const z = zOf(zOrder.indexOf(c.j)); c.z = z;                                           // the pile order: its DEPTH in the .cards 3D context (PERF: never a z-index)
     const away = c.away ? AWAY : '';                                                         // PERF: a tucked card is off the table at rest (setLayout())
-    const tf = `${away}translate(${X}px, ${Y}px) rotate(${R}deg) scale(${SC})`, tfz = `translateZ(${z}px) ${tf}`;
+    const tf = `${away}translate(${X}px, ${Y}px) rotate(${R}deg) scale(${SC})`, tfz = `translateZ(${c.lifted ? -5 : z}px) ${tf}`;   // site 2026-10-15: the LIFT's park — under the patch (liftPark(); c.z stays its pile depth: the casts on the cards below keep it)
     if (tfz !== c.tf) { c.tf = tfz; c.el.style.transform = tfz; if (c.fl) c.fl.style.transform = tf; }   // site: FLOOR follows its card (flat, under every card)
     c.pose = { X, Y, R, SC };                                                               // site: CAST reads every card's pose (below)
     // shadows: rest / lifted cross-faded by the lift (flip.html, 1/50 steps: fewer repaints), both × the alpha — p-blended for
@@ -4042,6 +4165,8 @@ const self = {                              // site: what the page sees of this 
   homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: side => expand(side || true),   // site: the CAMERA's neighbour peek and move (side: ±1, the way the camera goes)
   walk, get flying() { return preBack(); },                                 // site 2026-10-10: THE KEYS — a step in OPEN; a flip in the air (a held key's repeats wait)
   canWalk, tfBegin, tfMove, tfEnd, get flipBusy() { return flipActive() || !!tf || !!tfc; },   // site 2026-10-13: the TOUCH FLIP (the page's TOUCH block; phone only)
+  tfTake, liftInfo, liftPark, closeInstant,                                 // site 2026-10-15: the LIFT (the TOUCH block; phone only) · SAFARI GUARDS' back
+  turnUndo: () => !!TURN && TURN.unstart(),                                 // site 2026-10-15: the ZOOM's double tap on the room print
   pVel(v) { p.velocity = v; },                                              // site 2026-10-13: TOUCH — a swipe's release seeds the master spring's velocity (the next drive() tween's Hermite term)
   unlockMedia,                                                              // FEED / touch: the visit's first tap (the TOUCH block)
   mediaFar(far) {                                                           // FEED (spec 05 §4.7): HOME, more than two screens away — its clip's and its hint's players drop their files
@@ -4217,7 +4342,9 @@ function pageLayout() {
   row.style.setProperty('--tile-a', String(kn.shadow));
   ghost.style.cssText = `left:${(W - B) / 2}px;top:${(H - B) / 2}px;width:${B}px;height:${B}px`;
 }
+let zoomDue = false;                        // site 2026-10-15: SAFARI GUARDS — a layout skipped while the page was zoomed (run at ×1)
 function layoutAll(why = '') {              // the page, then every stack's box (the row's positions depend on all of them), then every stack's measure
+  if (why !== 'boot' && window.__mobile?.guard?.zoomed) { zoomDue = true; return; }   // SAFARI GUARDS (phone): zoomed, innerWidth / innerHeight are the magnified view's (and no resize fires) — never laid out for it; again at ×1 (onZoom, at the boot)
   perfMark('layoutAll ' + (typeof why === 'string' ? why : 'event'));
   if (TOUCH) TOUCH.reset();                 // site 2026-10-13: TOUCH (phone) — no drag offset under a re-layout's measures (review #20)
   const M = window.__mobile, was = isFeed(), anc = M?.on ? placeAnchor(was) : null;   // FEED (spec 05 §4.5): the visitor's place in the OLD model
@@ -5222,8 +5349,9 @@ if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(
    pointer listeners are WINDOW CAPTURE, registered before the FILM guard's, and they stop every touch pointer event there
    (stopImmediatePropagation): the page's mouse routing (the document pointerup's expand / moveTo, the viewer's click, the scroller's
    old touch drag, the nzone's stopPropagation, the film guard) never sees a finger, so a tap can't act twice. The compatibility
-   click of a touch is swallowed the same way. touch-action (mobile.js: HOME pinch-zoom, OPEN none) keeps the browser out of the
-   pans, so no preventDefault is needed and every listener is passive.
+   click of a touch is swallowed the same way. touch-action (mobile.js: pan-y everywhere — no page pinch since 2026-10-15's SAFARI
+   GUARDS — OPEN's layers none) keeps the browser out of the pans; mobile.js's guard owns the TOUCH events of two fingers (prevented:
+   no page zoom, the pointers flow on), so every pointer listener here stays passive.
      slop 10 pt: inside it a touch is a TAP, decided on pointerup with ONE hit test at the up point (elementFromPoint), at any
        duration (review #8) — except a press-and-hold on a Live clip that played its hint (a peek: no open).
      axis lock once, at the slop's edge: HOME — the dominant axis, and BOTH move the row (finger up = forward, as a wheel's
@@ -5231,14 +5359,17 @@ if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(
        The dragged thing moves from the lock point, so it never jumps the slop.
      velocity: over the last 100 ms of moves, 0 if the finger rested > 60 ms before lifting (rowRelease()'s estimator).
      flick ≥ 300 pt/s (.3 px/ms) in the gesture's direction; a back-flick ≥ 150 pt/s against it cancels, however far it went.
-     a second finger cancels the gesture (everything springs back); pointercancel (Safari took it: the edge back-swipe, a call,
-       a rotation) = a release with velocity 0 that never commits.
+     a second finger on the OPEN picture ZOOMS it (the ZOOM, below: iOS Photos' pinch, pan and double tap); anywhere else it cancels
+       the gesture (everything springs back); pointercancel (Safari took it: the edge back-swipe, a call, a rotation) = a release with
+       velocity 0 that never commits.
    HOME: a drag moves the row (rowPush(), the row's own physics: 1:1, the rubber band, the lag springs anchored at the finger), the
      release flings it (ROWPHYS.fling); a touch on a moving / stretched row only catches it (RP.caught). A tap opens the pile under
      it (expand(): the zoom, the lid, the clip's sound — inside this pointerup, the gesture). PRESS: a finger still for 300 ms
      (review #7: longer than a tap; never the MacBook) gives the pile its HOVER POSE (hoverTo(1): the fan, a clip's LIVE hint), let go at
      the lock; a tap from it zooms as a desktop click from a hover does.
-   OPEN, horizontal = the arrow keys (keyStep()), with the finger holding what moves (rule 1):
+   OPEN, horizontal = the arrow keys (keyStep()), with the finger holding what moves (rule 1) — 2026-10-15 (owner: "When you swipe on
+     the white space, it will go to left or right next image stack"): a drag that STARTS ON THE WHITE (g.onPic: the stack's zoneAt() at
+     the touch-down, its zone pads counted as the picture) skips the pile and walks to the next stack; one that starts on the picture: ↓
      a card left this way in the run → the TOUCH FLIP (the stack's tfBegin / tfMove / tfEnd: the front card under the finger for
        next, the bottom card in from the left for prev); a flight still in the air → flick only (it joins the flight, as a click);
      the run's end with a neighbour → the CAMERA's drag offset (below) follows the finger, and the release that commits runs moveTo()
@@ -5249,8 +5380,9 @@ if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(
    OPEN, vertical: DOWN closes as Photos does — the whole open page follows the finger and shrinks about the touched point (1 − .55·dy/H,
      ≥ .6); a release past .15 H (not flicked back) or flicked down ≥ 500 pt/s closes (collapse(): HOME AIM, the caption, the lid, the
      clip's stop as a tap-close), the offset decaying with p; otherwise it springs back. UP: the rubber band, springing back.
-   OPEN, tap: one hit test — the play disc (44 pt) → playKey; a neighbour's sliver (≥ 44 pt from its screen edge where there is white)
-     → moveTo; else the stack's zoneAt(): outside → close, a flip zone → flip (as its click), on the item → the item's own action
+   OPEN, tap: one hit test — the play disc (44 pt) → playKey; a neighbour's sliver, or the screen's BORDER over the white (2026-10-15,
+     owner: "When you just tap the left or right border it will also go to the next image stack": the full height, max(44 pt, the sliver
+     + 12)) → moveTo; else the stack's zoneAt(): outside → close, a flip zone → flip (as its click), on the item → the item's own action
      (the room print turns; the laptop plays the film, a clip plays ↔ pauses: playKey()).
    FILM playing: a tap stops it (the guard's click); a drag stops it at its lock and does nothing else (review #2).
    During a zoom / close / camera move: taps are ignored (desktop parity); a horizontal flick is kept for the landing (keyStep()'s keyQ).
@@ -5259,7 +5391,7 @@ if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(
    Its return spring is the row's edge spring (ROWPHYS.edge: 1.7 Hz, critically damped). ?press=0: no press pose. */
 if (window.__mobile?.on) TOUCH = (() => {
   const TC = { slop: 10, bias: 1.4, feedBias: 1.2, win: 100, rest: 60, flick: .3, back: .15, commit: .22, commitMax: 100, downD: .15, downV: .5, shrink: .55, sMin: .6, pressMs: 300, peekMs: 500,
-               press: pageQuery.get('press') !== '0', nzMin: 44, paperPad: 10, tailPx: 8, tailMs: 400 };   // paperPad: FEED, HOME — a tap's reach round a visible paper (V1-3) · tailPx / tailMs: FEED, a snap's TAIL (VR3-2)
+               press: pageQuery.get('press') !== '0', nzMin: 44, nzPad: 12, paperPad: 10, tailPx: 8, tailMs: 400 };   // paperPad: FEED, HOME — a tap's reach round a visible paper (V1-3) · tailPx / tailMs: FEED, a snap's TAIL (VR3-2)
   const finger = e => e.pointerType === 'touch' || e.pointerType === 'pen';
   const DR = { on: false, mode: '', x: 0, y: 0, s: 1, px: 0, py: 0, vx: 0, vy: 0, vs: 0, x0: 0, y0: 0, s0: 1, st: null };   // mode: hold | spring | move | close
   let g = null, upT = -1e9, unlocked = false, feedScrollT = -1e9, fsT = -1e9, fsY = 0, fsV = 0, fsQ = 0, fsK = -1e9;   // FEED: the last scroll event's time / y, its speed (px/ms)
@@ -5281,7 +5413,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     const r = Math.round(y); if (r !== RP.sy) { RP.sy = r; layoutAll('rebase'); }
   }, { passive: true });
   const dead = new Set();                    // the pointers of a multi-touch: ignored until they lift
-  const ctxNow = () => { if (filmGuard()) return 'film'; const a = activeStack; if (!a) return 'home'; return a.state === 'open' && !a.frozen && !RP.move ? 'open' : 'busy'; };
+  const ctxNow = () => { if (LIFT.state !== 'idle') return 'busy'; if (filmGuard()) return 'film'; const a = activeStack; if (!a) return 'home'; return a.state === 'open' && !a.frozen && !RP.move ? 'open' : 'busy'; };   // (the LIFT up: taps ignored)
   /* FEED (fix VR3-2, 2026-10-14) — a finger that lands during a page snap. The context is read once, at the touch-down, so a finger down
      in the snap ('busy') was ignored for its whole life: the page never followed it, even after the landing, and a tap in the snap's
      tail — where the page already looks settled — was dropped (TikTok-style paging starts the next swipe while the last one settles).
@@ -5338,9 +5470,327 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!DR.on) return;
     const [x, y, s] = cur(); DR.x = x; DR.y = y; DR.s = s; DR.vx = clamp(vx, -3, 3); DR.vy = clamp(vy, -3, 3); DR.vs = 0; DR.mode = 'spring'; kick();
   }
+  /* ---------- the ZOOM (the LIFT; 2026-10-15 — notes/pinch-zoom.md, labs fslab/zoom: the owner picked Z3, the iOS Photos model) ----------
+     Owner: "grab with two finger the photo and you can lift it and zoom into it, like in iOS photos app" — then, after the labs: "on zoom
+     z3 is the one". OPEN, a second finger on the front picture (the two fingers' midpoint on its quad + 24 pt, or the first finger went
+     down on it: g.onPic) lifts a COPY of the card (built here from the card's own nodes at its pose NOW: a flip drag's or the page drag's
+     included — the stack's liftInfo()) into #lift, above everything; the card parks under its pile's patch (liftPark()) and the finger's
+     one-finger gesture lets go underneath, unseen (letGo(): a flip back on its seat / a taken prev card made the front one, the page drag
+     springing home).
+       · the pinch: the point under the fingers' midpoint stays under it (L = T(C)·S(σ)·T(−C0)·L0, no rotation), scale = the fingers'
+         distance ratio, free in [1, 3], past it a rubber band in log space (slope .5, ≤ ×.85 below, ×1.25 above); one finger lifting
+         keeps it held (the other pans it, re-based: no jump), a finger landing again re-bases, a third waits until one of the two lifts
+       · the release (Photos): the zoom STAYS — clamped into [1, 3] about the fingers' last midpoint, a pan's momentum projected
+         (UIScrollView's .995 / ms), the picture bounded so it never shows a gap at a screen edge it overhangs (smaller than the screen
+         that way: centred on its seat), on a critically damped spring (.55 s). Below 1× it springs home (.40 s) and the card is un-parked
+         in the frame the copy goes. ZOOMED, every finger is the zoom's: one pans it (1:1, the rubber band past its bounds, the momentum),
+         two pinch it, a double tap goes back to 1×; it never pages, swipes the pile or closes. A double tap on the picture at 1× zooms
+         ×2.5 about the tap (the TOUCH block's openTap(): where a single tap has no action of its own)
+       · the page's own colour (the veil, --viewer-bg) rises over everything else as it grows — all gone at 1.6×, back at 1× (no chrome);
+         its rest shadow gives way to a lifted one by 1.2×
+       · pointer events per finger (this block's), solved ONCE per frame from the latest pair; taps are the zoom's while it is up (ctxNow
+         'busy'); leaving the object (a close, a back swipe, a rotation) resets it at once (abort())
+       · sharpness: the copy's base image IS the card's (its decoded source at its own size: the first frame is the card); the sharp one —
+         the ZOOM TIER (assets/zoom/manifest.json: today's largest src → { file, w, h, bytes }, fetched once, at the first zoom gesture),
+         else the largest existing file — is laid out at its NATIVE size and scaled down (WebKit decodes an image for its drawn size),
+         decoded off the main thread and faded in by 1.02–1.22×. ONE at a time (4 GB phones): released at 1× and on leaving
+     ?lift=0: none · ?liftresp= ?liftzeta= ?liftmax= to try others. window.__liftProbe(rec): every rendered pose (the tests). */
+  const LIFT = (() => {
+    const qn = (k, d) => { const v = parseFloat(pageQuery.get(k)); return Number.isFinite(v) ? v : d; };
+    const K = { on: pageQuery.get('lift') !== '0', smax: qn('liftmax', 3), over: 1.25, under: .85, rbk: .5, veilAt: 1.6, shadowAt: 1.2,
+                resp: qn('liftresp', .40), settle: .55, jump: .38, zeta: qn('liftzeta', 1), pad: 24, minD: 24, rest: 60,
+                dbl: 300, dblPx: 30, dblS: 2.5, tapMs: 350, slop: 10, decel: 199 };   // dbl / dblPx: Z3's double tap (ms between the ups, pt); decel: .995 / ms → v · .995 / .005
+    const sm = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+    const wrapA = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a <= -Math.PI) a += 2 * Math.PI; return a; };
+    const Sim = {                            // a similarity {s, r, x, y}: p → s·R(r)·p + (x, y), screen px (the lab's)
+      I: () => ({ s: 1, r: 0, x: 0, y: 0 }),
+      apply(T, px, py) { const c = Math.cos(T.r) * T.s, n = Math.sin(T.r) * T.s; return [c * px - n * py + T.x, n * px + c * py + T.y]; },
+      mul(A, B) { const [x, y] = Sim.apply(A, B.x, B.y); return { s: A.s * B.s, r: A.r + B.r, x, y }; },
+      inv(A) { const s = 1 / A.s, r = -A.r, c = Math.cos(r) * s, n = Math.sin(r) * s; return { s, r, x: -(c * A.x - n * A.y), y: -(n * A.x + c * A.y) }; },
+      css(T) { const c = Math.cos(T.r) * T.s, n = Math.sin(T.r) * T.s; return `matrix(${c},${n},${-n},${c},${T.x},${T.y})`; },
+      box(cx, cy, w, h, s, r) { const c = Math.cos(r) * s, n = Math.sin(r) * s; return { s, r, x: cx - (c * w / 2 - n * h / 2), y: cy - (n * w / 2 + c * h / 2) }; },
+      hit(T, w, h, x, y, pad) { const [lx, ly] = Sim.apply(Sim.inv(T), x, y), q = pad / T.s; return lx >= -q && ly >= -q && lx <= w + q && ly <= h + q; },
+    };
+    const host = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'lift' }));
+    host.setAttribute('aria-hidden', 'true');
+    const veil = host.appendChild(Object.assign(document.createElement('div'), { className: 'lveil' }));
+    const copy = host.appendChild(Object.assign(document.createElement('div'), { className: 'lcopy' }));
+    let state = 'idle', T = null, parts = null, geo = null, L = Sim.I(), Lr = 0, B = null, dirty = false, lastMoveT = 0, raf = 0, lastT = 0, focal = null;
+    const P = new Map(); let ids = [];
+    const hist = [];                         // [t, cx, cy, s, r] per solve, the last 120 ms
+    const ch = { x: { x: 0, v: 0, to: 0 }, y: { x: 0, v: 0, to: 0 }, s: { x: 1, v: 0, to: 1 }, r: { x: 0, v: 0, to: 0 } };
+    let w0 = 2 * Math.PI / K.resp, ct = null, tapZ = null;   // ct: a one-finger catch of the zoomed picture (still a tap if it never moves); tapZ: its last tap (a double tap's first)
+    /* the soft scale: the raw log scale → the shown scale (rubber bands past 1 / smax) and back */
+    const rb = (x, lim) => lim * (1 - 1 / (1 + K.rbk * x / lim));
+    const irb = (y, lim) => { const q = 1 - y / lim; return q <= 1e-6 ? 1e3 : (lim / K.rbk) * (1 / q - 1); };
+    const soft = lr => { const M = Math.log(K.smax), oM = Math.log(K.over), oU = Math.log(1 / K.under); return Math.exp(lr > M ? M + rb(lr - M, oM) : lr < 0 ? -rb(-lr, oU) : lr); };
+    const unsoft = s => { const M = Math.log(K.smax), oM = Math.log(K.over), oU = Math.log(1 / K.under), l = Math.log(s); return l > M ? M + irb(l - M, oM) : l < 0 ? -irb(-l, oU) : l; };
+    const seatC = () => Sim.apply(T.seat, T.t.w / 2, T.t.h / 2);
+    const centreOf = M => Sim.apply(M, ...seatC());
+    function fromCentre(cx, cy, s, r) { const [x0, y0] = seatC(), c = Math.cos(r) * s, n = Math.sin(r) * s; return { s, r, x: cx - (c * x0 - n * y0), y: cy - (n * x0 + c * y0) }; }
+    /* the zoomed picture's bounds (its centre): no gap at a screen edge it overhangs; smaller than the screen that way: on its seat */
+    function bound(x, y, s) {
+      const W = innerWidth, H = innerHeight, k = s * T.seat.s, w = T.t.w * k, h = T.t.h * k, [sx, sy] = seatC();
+      return [w > W ? clamp(x, W - w / 2, w / 2) : sx, h > H ? clamp(y, H - h / 2, h / 2) : sy];
+    }
+    /* a pose of the stack's (the viewer's frame) → the card box's screen map; drag: through the finger's drag offset (camera()'s DR) */
+    function screenOf(t, q, drag) {
+      const vr = vrect(); let x = q.x, y = q.y, s = q.s;
+      if (drag && DR.on) { const [dx, dy, ds] = cur(); x = ds * x + (1 - ds) * DR.px + dx; y = ds * y + (1 - ds) * DR.py + dy; s *= ds; }
+      return Sim.box(vr.left + x, vr.top + y, t.w, t.h, s, q.r);
+    }
+    const abs = u => { try { return new URL(u, location.href).href; } catch (er) { return u; } };
+    /* ---- the sharp source ---- */
+    const MAN_URL = abs('../assets/zoom/manifest.json');
+    let MAN = null, manP = null;
+    function manifest() {                    // the ZOOM TIER's map, once, at the first zoom gesture (never at boot); a missing one = {}
+      if (!manP) manP = fetch(MAN_URL).then(r => r.ok ? r.json() : {}).catch(() => ({})).then(j => { MAN = j && typeof j === 'object' ? j : {}; return MAN; });
+      return manP;
+    }
+    function sourceOf(t) {                   // the zoom tier's file for this card's largest src (as the site references it), else that largest file
+      const e = MAN && MAN[t.hi];
+      if (e && e.file && +e.w > 0) return { url: abs(/^(\.\.?\/|\/|[a-z][a-z0-9+.-]*:)/i.test(e.file) ? e.file : new URL(e.file, MAN_URL).href), w: +e.w };
+      return { url: abs(t.hi), w: t.hiW };
+    }
+    let HI = null, HIold = null;             // the sharp image held (ONE decoded at a time) · the one it replaces, until it has painted
+    const pf = new Image(); pf.decoding = 'async';   // the landing's prefetch: bytes only (never decoded here)
+    function dropHi(h) { if (!h) return; h.el.removeAttribute('src'); h.el.remove(); }
+    function placeHi(h) {
+      if (!geo) return;
+      Object.assign(h.el.style, { left: geo.l + 'px', top: geo.t + 'px', width: geo.w * h.k + 'px', height: geo.h * h.k + 'px', transform: `scale(${1 / h.k})`,
+                                  clipPath: geo.clip ? geo.clip.replace(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi, n => String(+n * h.k)) : '' });
+      if (h.el.parentNode !== geo.base.parentNode || h.el.previousSibling !== geo.base) geo.base.parentNode.insertBefore(h.el, geo.base.nextSibling);
+    }
+    function hiWant() {                      // the sharp source for the copy now: kept if it is the one held, else a fresh image decoded and swapped in
+      if (!T || !geo) return;
+      const src = sourceOf(T.t), k = clamp(src.w / (geo.w * (devicePixelRatio || 1)), 1, K.smax * K.over);
+      if (src.url === geo.cur || k <= 1.05) return;                                         // the card already shows it / no sharper
+      if (HI && HI.url === src.url) { HI.k = k; placeHi(HI); return; }
+      const el = Object.assign(new Image(), { className: 'lhi', alt: '' }); el.draggable = false; el.decoding = 'async';
+      const h = { el, url: src.url, k, ready: false, at: 0 };
+      if (HI && HI.ready) { dropHi(HIold); HIold = HI; } else dropHi(HI);
+      HI = h; el.style.opacity = '0'; placeHi(h); el.src = src.url;
+      (el.decode ? el.decode() : Promise.resolve()).then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (HI !== h) return;
+        h.ready = true; h.at = performance.now(); dropHi(HIold); HIold = null;
+        if (T) { render(); kick2(); }
+      }))).catch(() => {});
+    }
+    function hiRelease() { dropHi(HI); dropHi(HIold); HI = HIold = null; }
+    function build(t) {                     // the copy: the card's own nodes (its shades, its paper, its image; its table shadow), at rest size
+      const el = t.el, im = t.img, g0 = im ? { l: im.offsetLeft, t: im.offsetTop, w: im.offsetWidth, h: im.offsetHeight } : null;   // (read before any write: the page's layout is clean)
+      const k = el.cloneNode(true), src = [...el.querySelectorAll('img')], dst = [...k.querySelectorAll('img')];
+      dst.forEach((d, i) => { const o = src[i]; if (!o) return; const u = o.currentSrc || o.getAttribute('src'); d.removeAttribute('srcset'); d.removeAttribute('sizes'); d.decoding = 'sync'; if (u) d.src = u; });
+      const base = dst[src.indexOf(im)] || null;
+      for (const n of k.querySelectorAll('video, .live, .scrub, .play, .castbox, .fr-edge, .fr-back')) n.remove();
+      k.classList.add('lcard'); k.style.transform = ''; k.style.margin = ''; k.removeAttribute('id');
+      if (HI) HI.el.remove(); if (HIold) HIold.el.remove();
+      copy.textContent = '';
+      let fl = null;
+      if (t.fl) {
+        fl = t.fl.cloneNode(true); fl.className = 'lfl'; fl.style.transform = ''; fl.style.margin = ''; fl.style.width = fl.style.height = '';
+        const fs = [...t.fl.querySelectorAll('img')]; [...fl.querySelectorAll('img')].forEach((d, i) => { const o = fs[i]; if (!o) return; const u = o.currentSrc || o.getAttribute('src'); d.removeAttribute('srcset'); d.decoding = 'sync'; if (u) d.src = u; });
+        copy.appendChild(fl);
+      }
+      const lsh = copy.appendChild(Object.assign(document.createElement('div'), { className: 'lsh' }));
+      copy.appendChild(k);
+      const sh1 = k.querySelector(':scope > .shade.rest'), sh2 = k.querySelector(':scope > .shade.lifted'), own = !!sh1 && !!sh2 && sh1.style.display !== 'none';
+      if (own) lsh.remove();
+      parts = { fl, of: fl ? +t.fl.style.opacity || 0 : 0, sh1: own ? sh1 : null, sh2: own ? sh2 : null, o1: own ? +sh1.style.opacity || 0 : 0, lsh: own ? null : lsh };
+      copy.style.width = t.w + 'px'; copy.style.height = t.h + 'px';
+      const cp = base && base.style.clipPath;
+      geo = base && g0 && g0.w > 0 ? { base, l: g0.l, t: g0.t, w: g0.w, h: g0.h, clip: cp && cp !== 'none' ? cp : '', cur: abs(im.currentSrc || im.getAttribute('src') || '') } : null;
+    }
+    function render() {
+      const M = Sim.mul(L, T.seat), s = L.s, p = parts;
+      copy.style.transform = Sim.css(M);
+      veil.style.opacity = sm((s - 1) / (K.veilAt - 1)).toFixed(4);
+      const h = sm((s - 1) / K.shadowAt);
+      if (p.sh1) { p.sh1.style.opacity = (p.o1 * (1 - h)).toFixed(3); p.sh2.style.opacity = (p.o1 * h).toFixed(3); }
+      if (p.lsh) p.lsh.style.opacity = h.toFixed(3);
+      if (p.fl) p.fl.style.opacity = (p.of * (1 - h)).toFixed(3);
+      const hs = sm((s - 1.02) / .2);
+      if (HI) HI.el.style.opacity = HI.ready ? Math.min(hs, HIold ? 1 : sm((performance.now() - HI.at) / 150)).toFixed(3) : '0';
+      if (HIold) HIold.el.style.opacity = hs.toFixed(3);
+      const probe = window.__liftProbe;
+      if (probe) probe({ t: performance.now(), state, L: { ...L }, M, F: ids.map(id => { const f = P.get(id); return f ? [f.x, f.y] : null; }), n: P.size, veil: +veil.style.opacity, hi: !!HI?.ready, hiUrl: HI?.url || '' });
+    }
+    function rebase() {
+      if (ids.length >= 2) {
+        const a = P.get(ids[0]), b = P.get(ids[1]);
+        B = { L0: { ...L }, Lr0: Lr, C0: [(a.x + b.x) / 2, (a.y + b.y) / 2], d0: Math.max(K.minD, Math.hypot(b.x - a.x, b.y - a.y)) };
+      } else if (ids.length === 1) { const a = P.get(ids[0]); B = { L0: { ...L }, Lr0: Lr, F0: [a.x, a.y] }; }
+      else B = null;
+    }
+    function solve() {
+      if (state !== 'hold' || !B) return;
+      if (ids.length >= 2 && B.C0) {
+        const a = P.get(ids[0]), b = P.get(ids[1]);
+        const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, d = Math.max(K.minD, Math.hypot(b.x - a.x, b.y - a.y));
+        Lr = B.Lr0 + Math.log(d / B.d0);
+        const s = soft(Lr), sig = s / B.L0.s;
+        L = { s, r: B.L0.r, x: sig * (B.L0.x - B.C0[0]) + cx, y: sig * (B.L0.y - B.C0[1]) + cy };   // the midpoint's point stays under it
+        focal = [cx, cy];
+      } else if (ids.length === 1 && B.F0) {
+        const a = P.get(ids[0]), raw = { s: B.L0.s, r: B.L0.r, x: B.L0.x + a.x - B.F0[0], y: B.L0.y + a.y - B.F0[1] };
+        L = raw;
+        if (raw.s > 1.001) {                 // zoomed: past its bounds the rubber band (UIScrollView's)
+          const [cx, cy] = centreOf(raw), [bx, by] = bound(cx, cy, raw.s), ox = cx - bx, oy = cy - by;
+          if (ox || oy) L = fromCentre(bx + Math.sign(ox) * rubberBand(Math.abs(ox), innerWidth), by + Math.sign(oy) * rubberBand(Math.abs(oy), innerHeight), raw.s, raw.r);
+        }
+        focal = [a.x, a.y];
+      }
+      const now = performance.now(), [cx, cy] = centreOf(L);
+      hist.push([now, cx, cy, L.s, L.r]); while (hist.length > 2 && now - hist[0][0] > 120) hist.shift();
+      render();
+    }
+    function velocity() {                    // per ms over the last 100 ms (0 after a rest: the release decides)
+      const n = hist.length; if (n < 2) return null;
+      const b = hist[n - 1]; let a = hist[0]; for (const q of hist) if (b[0] - q[0] <= 100) { a = q; break; }
+      const dt = b[0] - a[0]; if (dt <= 0) return null;
+      return { x: (b[1] - a[1]) / dt, y: (b[2] - a[2]) / dt, s: (b[3] - a[3]) / dt, r: (b[4] - a[4]) / dt };
+    }
+    function target(g0) {                    // L11: OPEN, at rest (but the finger's own drag) — the stack's front card, or null
+      if (!K.on || state !== 'idle') return null;
+      const a = activeStack;
+      if (!a || (g0 && a !== g0.a) || a.state !== 'open' || a.frozen || RP.move || filmGuard() || DR.mode === 'move' || DR.mode === 'close') return null;
+      return a.liftInfo();
+    }
+    function attach(a, t) {                  // the copy on the card's place and look, the card parked under it (the same frame)
+      T = { a, t, seat: screenOf(t, t.seat, false) };
+      const now = screenOf(t, t.now, true);
+      build(t);
+      L = Sim.mul(now, Sim.inv(T.seat)); Lr = unsoft(L.s); focal = null;
+      render(); copy.style.opacity = '1';
+      a.liftPark(true, t.c);
+      hiWant(); manifest().then(() => { if (T && T.t === t) hiWant(); });
+      perfMark('zoom ' + t.name);
+    }
+    function letGo(g0) {                     // the finger's one-finger gesture, let go under the copy (unseen: its picture is parked)
+      clearTimeout(g0.pt);
+      if (g0.kind === 'flip') g0.a.tfTake();
+      else if (DR.on && DR.mode === 'hold') springHome();
+    }
+    function begin(g0, e) {                  // a second finger: the pinch from 1×
+      if (!g0 || g0.ctx !== 'open' || g0.nat || dead.size) return false;
+      const x = e.clientX, y = e.clientY, t = target(g0); if (!t) return false;
+      if (!g0.onPic && !Sim.hit(screenOf(t, t.now, true), t.w, t.h, (g0.x + x) / 2, (g0.y + y) / 2, K.pad)) return false;
+      attach(g0.a, t);
+      state = 'hold'; P.clear(); ids = []; hist.length = 0; ct = null;
+      for (const [id, fx, fy] of [[g0.id, g0.x, g0.y], [e.pointerId, x, y]]) { P.set(id, { x: fx, y: fy }); ids.push(id); }
+      letGo(g0);
+      rebase(); solve(); kick2();
+      return true;
+    }
+    function down(e) {                       // a finger while the zoom is up: held → one more (a third waits); zoomed → it catches (one pans, two pinch)
+      const id = e.pointerId, x = e.clientX, y = e.clientY;
+      if (state === 'hold') { if (ct && ct.id !== id) ct = null; P.set(id, { x, y }); if (ids.length < 2) { solve(); ids.push(id); rebase(); } return true; }
+      if (state === 'zoomed' || state === 'settle' || (state === 'return' && T && Sim.hit(Sim.mul(L, T.seat), T.t.w, T.t.h, x, y, K.pad))) {
+        ct = state !== 'return' ? { id, x0: x, y0: y, t0: e.timeStamp, moved: false } : null;
+        state = 'hold'; P.clear(); ids = [id]; P.set(id, { x, y }); hist.length = 0; Lr = unsoft(L.s); rebase(); solve(); kick2(); return true;
+      }
+      dead.add(id); return true;
+    }
+    function move(e) {
+      const f = P.get(e.pointerId); if (!f) return false;
+      f.x = e.clientX; f.y = e.clientY;
+      if (ct && ct.id === e.pointerId && Math.hypot(f.x - ct.x0, f.y - ct.y0) > K.slop) ct.moved = true;
+      if (ids.includes(e.pointerId)) { dirty = true; lastMoveT = e.timeStamp; kick2(); }
+      return true;
+    }
+    function up(e, cancel) {
+      const id = e.pointerId, f = P.get(id); if (!f) return false;
+      if (ids.includes(id) && !cancel) { f.x = e.clientX; f.y = e.clientY; solve(); }       // its last place first
+      P.delete(id);
+      const i = ids.indexOf(id);
+      if (i >= 0) {
+        ids.splice(i, 1);
+        for (const k of P.keys()) if (ids.length < 2 && !ids.includes(k)) ids.push(k);   // a waiting third finger takes its place
+        if (ids.length && !cancel) rebase();
+        else { const v = cancel || e.timeStamp - lastMoveT > K.rest ? null : velocity(); P.clear(); ids = []; release(v); }
+      }
+      if (ct && ct.id === id) {              // a tap on the zoomed picture: a double tap goes back to 1×
+        const c = ct; ct = null;
+        if (!c.moved && !cancel && e.timeStamp - c.t0 < K.tapMs) {
+          const m = tapZ; tapZ = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+          if (m && e.timeStamp - m.t < K.dbl && Math.hypot(e.clientX - m.x, e.clientY - m.y) < K.dblPx) { tapZ = null; zoomTo(e.clientX, e.clientY, 1); }
+        }
+      }
+      return true;
+    }
+    function seed(c, x, to, v, away) {       // a channel from x toward its rest with velocity v (/s): toward it ≤ ω·|d| (no overshoot)
+      c.x = x; c.to = to; const d = to - x;
+      c.v = v * d > 0 ? Math.sign(v) * Math.min(Math.abs(v), w0 * Math.abs(d)) : Math.sign(v) * Math.min(Math.abs(v), away);
+      if (!Number.isFinite(c.v)) c.v = 0;
+    }
+    function go(to, v, resp) {               // every channel to the rest `to` (screen centre, scale, rotation over the seat)
+      const [cx, cy] = centreOf(L); L.r = wrapA(L.r); w0 = 2 * Math.PI / resp;
+      state = to.s === 1 ? 'return' : 'settle';
+      seed(ch.x, cx, to.x, v ? v.x * 1000 : 0, 1500); seed(ch.y, cy, to.y, v ? v.y * 1000 : 0, 1500);
+      seed(ch.s, L.s, to.s, v ? v.s * 1000 : 0, 3); seed(ch.r, L.r, 0, v ? v.r * 1000 : 0, 3);
+      kick2();
+    }
+    function release(v) {                    // the last finger up: Photos — the zoom stays (clamped, the pan's momentum, bounded); below 1×: home
+      B = null;
+      const [cx, cy] = centreOf(L), [sx, sy] = seatC();
+      let s = clamp(L.s, 1, K.smax), x = cx, y = cy;
+      if (v && Math.abs(L.s - s) < 1e-3) { x += v.x * K.decel; y += v.y * K.decel; }
+      if (focal && s !== L.s) { x = focal[0] + (cx - focal[0]) * s / L.s; y = focal[1] + (cy - focal[1]) * s / L.s; }
+      if (s <= 1 + 1e-3) go({ x: sx, y: sy, s: 1 }, v, K.resp);
+      else { [x, y] = bound(x, y, s); go({ x, y, s }, v, K.settle); }
+    }
+    function zoomTo(px, py, s1) {            // a double tap: ×s1 about (px, py) from 1×, or back to 1× from a zoom
+      if (state === 'hold') return false;
+      if (state === 'idle') { const t = target(null); if (!t) return false; attach(activeStack, t); }
+      const [cx, cy] = centreOf(L), [sx, sy] = seatC();
+      if (L.s > 1.05 || s1 <= 1) go({ x: sx, y: sy, s: 1 }, null, K.jump);
+      else { const k = s1 / L.s, [x, y] = bound(px + (cx - px) * k, py + (cy - py) * k, s1); go({ x, y, s: s1 }, null, K.jump); }
+      return true;
+    }
+    function finish() {                      // home at 1×: the card back to its depth in the frame the copy goes (nothing moves, nothing re-rasters)
+      L = Sim.I(); render();
+      T.a.liftPark(false);
+      copy.style.opacity = '0'; veil.style.opacity = '0';
+      state = 'idle'; T = null; ct = null; hiRelease();
+    }
+    function abort(drop) {                   // a re-layout, a close, a back swipe: 1× at once
+      if (state !== 'idle') { P.clear(); ids = []; B = null; finish(); }
+      if (drop) pf.removeAttribute('src');
+    }
+    function step(c, dt) { const z = K.zeta, n = Math.max(1, Math.ceil(dt / .002)), h = dt / n; for (let i = 0; i < n; i++) { const a = -w0 * w0 * (c.x - c.to) - 2 * z * w0 * c.v; c.v += a * h; c.x += c.v * h; } }
+    function kick2() { if (!raf) raf = requestAnimationFrame(frame); }
+    function frame(now) {
+      raf = 0;
+      const dt = lastT ? Math.min(.05, (now - lastT) / 1000) : 1 / 60; lastT = now;
+      const fading = HI && HI.ready && performance.now() - HI.at < 200;
+      if (state === 'hold') { if (dirty) { dirty = false; solve(); } else if (fading) render(); }
+      else if (state === 'return' || state === 'settle') {
+        for (const k of ['x', 'y', 's', 'r']) step(ch[k], dt);
+        L = fromCentre(ch.x.x, ch.y.x, Math.max(.05, ch.s.x), ch.r.x);
+        render();
+        if (Math.abs(ch.x.x - ch.x.to) < .05 && Math.abs(ch.y.x - ch.y.to) < .05 && Math.abs(ch.s.x - ch.s.to) < 2e-4 && Math.abs(ch.r.x) < 2e-4 &&
+            Math.abs(ch.x.v) + Math.abs(ch.y.v) < 2 && Math.abs(ch.s.v) < .01) {
+          if (state === 'return') finish();
+          else { L = fromCentre(ch.x.to, ch.y.to, ch.s.to, 0); Lr = unsoft(L.s); render(); state = 'zoomed'; }
+        }
+      } else if (state === 'zoomed' && fading) render();
+      if (state === 'hold' || state === 'return' || state === 'settle' || (state === 'zoomed' && fading)) raf = requestAnimationFrame(frame); else lastT = 0;
+    }
+    function prefetch(a) {                   // the landing / a touch-down: the front card's sharp file, its bytes only (decoded at a zoom)
+      if (!K.on || !a?.liftInfo) return;
+      const t = a.liftInfo(true); if (!t || !t.hi) return;
+      const src = sourceOf(t);
+      if (src.w <= (t.img?.naturalWidth || 0) * 1.05 || pf.getAttribute('src') === src.url) return;
+      pf.src = src.url;
+    }
+    return { begin, down, move, up, abort, prefetch, zoomTo, owns: id => P.has(id), get state() { return state; }, get L() { return { ...L }; },
+             get matrix() { return T ? Sim.mul(L, T.seat) : null; }, get seat() { return T ? { ...T.seat } : null; },
+             get hi() { return HI ? { url: HI.url, ready: HI.ready, k: HI.k } : null; }, get manifest() { return MAN; },
+             get fingers() { return ids.length; }, K, Sim, screenOf };
+  })();
   /* ---------- OPEN, horizontal ---------- */
   function kindOf(a, dir) {
-    if (a.canWalk(dir)) return a.flipBusy ? 'flick' : 'flip';
+    if (a.canWalk(dir) && (g.onPic || isFeed())) return a.flipBusy ? 'flick' : 'flip';    // 2026-10-15: a drag from the WHITE skips the pile (the row; the feed's pile walk is its only horizontal)
     if (isFeed()) return 'end';                                                            // FEED: no side neighbours (they are above / below): the pile's end is the rubber band
     const b = nbOf(dir);
     return !b ? 'end' : b.state === 'home' && !b.blocked() ? 'move' : 'flick';
@@ -5365,13 +5815,13 @@ if (window.__mobile?.on) TOUCH = (() => {
     const d = g.x - g.lx, fd = g.dir > 0 ? -1 : 1, along = v * fd;                          // fd: the finger's direction for this step
     if (!g.kind) {                           // site 2026-10-15: locked on its LAST move (a quick flick over a busy frame: down, one move, up) — nothing was held, so it was dropped; a flick still steps, as a 'flick' does
       const m = d || v, dir = m < 0 ? 1 : -1;
-      if (!cancel && m && Math.sign(v) === Math.sign(m) && Math.abs(v) >= TC.flick && kindOf(g.a, dir) !== 'end') keyStep(dir);   // ('end': the row's / the feed's pile end — nothing, as its rubber band would)
+      if (!cancel && m && Math.sign(v) === Math.sign(m) && Math.abs(v) >= TC.flick && kindOf(g.a, dir) !== 'end') { if (g.onPic || isFeed()) keyStep(dir); else camStep(dir); }   // ('end': the row's / the feed's pile end — nothing, as its rubber band would; from the white: the camera, past the pile)
       return;
     }
     const commit = !cancel && along > -TC.back && (Math.abs(d) >= Math.min(TC.commit * RP.W, TC.commitMax) || along >= TC.flick);
     const a = g.a;
     if (g.kind === 'flip') { a.tfEnd(commit, v); return; }
-    if (g.kind === 'flick') { if (commit && along >= TC.flick) keyStep(g.dir); return; }
+    if (g.kind === 'flick') { if (commit && along >= TC.flick) { if (g.onPic || isFeed()) keyStep(g.dir); else camStep(g.dir); } return; }
     if (g.kind === 'move' && commit) {
       const b = nbOf(g.dir);
       if (b && b.state === 'home' && !b.blocked() && a.state === 'open') {
@@ -5384,6 +5834,10 @@ if (window.__mobile?.on) TOUCH = (() => {
       }
     }
     springHome(g.kind === 'end' ? 0 : v);
+  }
+  function camStep(dir) {                    // 2026-10-15: from the white — the camera to the next stack, past the pile's cards (keyStep()'s second half)
+    const b = nbOf(dir);
+    if (b && b.state === 'home' && !b.blocked() && activeStack?.state === 'open') moveTo(b);
   }
   /* ---------- OPEN, vertical ---------- */
   /* FEED (spec 05 §2.3): the vertical PAGE — the finger holds the open page 1:1 (to ½ H, then the rubber band); up = the next object,
@@ -5438,13 +5892,28 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (a.zoneAt(x, y) !== null) return null;
     for (const z of [nzL, nzR]) {
       const r = z.getBoundingClientRect(), side = +z.dataset.side;
-      if (!r.width || y < r.top || y > r.bottom) continue;
+      if (!r.width) continue;
+      if (!isFeed()) {                       // 2026-10-15 (owner: "tap the left or right border"): the row's BORDER band, the screen's full height, max(44 pt, the sliver + 12) wide
+        const band = Math.max(TC.nzMin, (side < 0 ? r.right : RP.W - r.left) + TC.nzPad);
+        if (side < 0 ? x <= band : x >= RP.W - band) return z;
+        continue;
+      }
+      if (y < r.top || y > r.bottom) continue;
       if (side < 0 ? x <= Math.max(r.right, TC.nzMin) : x >= Math.min(r.left, RP.W - TC.nzMin)) return z;
     }
     return null;
   }
+  /* 2026-10-15 — the DOUBLE TAP (the ZOOM, Z3; owner: "double tap zooms in or out about the tap point" — single taps must stay
+     instant): a single tap that has an action of its own acts AT ONCE as before (a flip zone flips, a clip plays, the white closes, a
+     border moves on), and a second tap there acts again (a quick two-card walk); where the picture's single tap has NO action of its own
+     (a print, a pile's middle band) a second tap within Z3's 300 ms / 30 pt zooms ×2.5 about it — nothing to wait for, nothing to undo.
+     The room print (its tap turns it) acts on the first tap and UNDOES it when the second lands (turnUndo(): it had only begun to lift —
+     the teaser's spring takes it back), then zooms. tapMem: the last OPEN tap. */
+  let tapMem = null;
+  const dblOf = (x, y) => { const m = tapMem; return m && performance.now() - m.t < LIFT.K.dbl && Math.hypot(x - m.x, y - m.y) < LIFT.K.dblPx ? m.kind : ''; };
   function openTap(x, y) {
-    const a = activeStack, el = document.elementFromPoint(x, y);
+    const a = activeStack, el = document.elementFromPoint(x, y), dbl = dblOf(x, y), mem = kind => { tapMem = kind ? { t: performance.now(), x, y, kind } : null; };
+    mem('');
     const pr = a.playKey(false) && a.playBtn?.getBoundingClientRect(), ps = 4;                // the play disc FIRST, by its rect (not elementFromPoint: a neighbour's
     if (pr && pr.width && x >= pr.left - ps && x <= pr.right + ps && y >= pr.top - ps && y <= pr.bottom + ps) { a.playKey(true); return; }   // sliver, z-index 100, lies over its right half on a phone — fix D1 2026-10-13); ps: the :active .92 press scale
     if (el?.closest?.('.play') && a.playKey(true)) return;                                  // the play disc
@@ -5452,9 +5921,11 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (nz) { const b = nbOf(+nz.dataset.side); if (b && b.state === 'home' && !b.blocked()) moveTo(b); return; }
     const z = a.zoneAt(x, y);
     if (z === null) a.collapse();
-    else if (z) a.flip(z);
-    else if (a.turn) a.turnAt(x, y);
-    else a.playKey(true);                                                                   // the item itself: the laptop's film, a clip's play ↔ pause
+    else if (z) { a.flip(z); mem('act'); }
+    else if (a.turn) { if (dbl === 'turn' && LIFT.zoomTo(x, y, LIFT.K.dblS)) return; a.turnAt(x, y); mem('turn'); }   // (the turn was undone at the second touch-down: down())
+    else if (a.playKey(true)) mem('act');                                                   // the item itself: the laptop's film, a clip's play ↔ pause
+    else if (dbl === 'zoom') LIFT.zoomTo(x, y, LIFT.K.dblS);                                // the picture with no action of its own: the double tap's zoom
+    else mem('zoom');
   }
   /* FEED, HOME (spec 05 §2.2: "a tap on the name, the sign-off or the white does nothing") — the stack whose VISIBLE paper is under
      (x, y), + TC.paperPad: its cards' real quads at the REST pose (homeCorners(…, vis)), not its square .cards box, which reached ~48 pt
@@ -5506,13 +5977,19 @@ if (window.__mobile?.on) TOUCH = (() => {
     e.stopImmediatePropagation();
     lastX = e.clientX; lastY = e.clientY; lastTouch = true;
     if (STG?.hold()) return;                                                                 // the STAGE (mobile.js): upright under the rotate prompt, or the ENTRY — every finger is the document's
-    if (dead.size || g) {                                                                   // a second finger: the one-finger gesture lets go; a pinch is not ours
+    if (LIFT.state !== 'idle') { LIFT.down(e); return; }                                    // the ZOOM up: every finger is its own (one pans, two pinch, a double tap)
+    if (g && !dead.size && LIFT.begin(g, e)) { g = null; return; }                         // a second finger on the open picture: the ZOOM takes both (the drag let go under it)
+    if (dead.size || g) {                                                                   // a second finger elsewhere: the one-finger gesture lets go
       if (g) { dead.add(g.id); end(null, true); }
       dead.add(e.pointerId); return;
     }
     const t = e.timeStamp;
     g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: t, q: [[t, e.clientX, e.clientY]], ctx: ctxNow(), lock: '', lx: 0, ly: 0, pc: 0,
-          dir: 0, kind: '', a: activeStack, caught: false, pressed: null, pt: 0, tail: false };
+          dir: 0, kind: '', a: activeStack, caught: false, pressed: null, pt: 0, tail: false, onPic: false };
+    if (g.ctx === 'open') {
+      g.onPic = !isFeed() && g.a.zoneAt(g.x0, g.y0) !== null; LIFT.prefetch(g.a);
+      if (dblOf(g.x0, g.y0) === 'turn') g.a.turnUndo();                                     // the room print's double tap: the turn its first tap began goes back (openTap())
+    }                                                                                         // 2026-10-15: on the picture? (once, at the touch-down: the swipe model) · the ZOOM's sharp file, in case
     if (g.ctx === 'busy' && isFeed()) g.tail = tailPx() <= TC.tailPx;                                  // FEED (VR3-2): down in a snap's tail
     if (g.ctx === 'home' && isFeed()) { g.caught = performance.now() - feedScrollT < 120; if (TC.press && !g.caught) g.pt = setTimeout(press, TC.pressMs); }   // FEED
     else if (g.ctx === 'home') {
@@ -5538,6 +6015,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!finger(e)) return;
     e.stopImmediatePropagation();
     lastX = e.clientX; lastY = e.clientY; lastTouch = true;
+    if (LIFT.move(e)) return;                                                               // a finger of the ZOOM's
     if (!g || e.pointerId !== g.id) return;
     const t = e.timeStamp;
     g.x = e.clientX; g.y = e.clientY;
@@ -5583,6 +6061,7 @@ if (window.__mobile?.on) TOUCH = (() => {
   function up(e, cancel) {
     if (!finger(e)) return;
     e.stopImmediatePropagation();
+    if (LIFT.up(e, cancel)) { upT = performance.now(); return; }                            // the ZOOM's: the last one up — it stays zoomed (below 1×: home)
     if (dead.delete(e.pointerId)) { upT = performance.now(); return; }
     if (!g || e.pointerId !== g.id) { if (!g && STG) upT = performance.now(); return; }   // (the STAGE's gate: its click swallowed too)
     end(e, cancel);
@@ -5598,7 +6077,24 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (e.pointerType === 'touch' || e.pointerType === 'pen' || g || performance.now() - upT < 800) { e.stopImmediatePropagation(); e.preventDefault(); }
   }, { capture: true });
   const pinAt = () => !DR.on ? [0, 0] : DR.mode === 'move' ? [DR.x0, DR.y0] : DR.mode === 'hold' && RP.move ? [DR.x, DR.y] : [0, 0];   // rowWrite(): a pinned caption's offset (capPinT; 'hold' + a move: the commit's own write, before the mode turns)
-  return { apply, key, busy, step, reset, land, pinAt, get gesture() { return g; }, get drag() { return { ...DR }; }, TC, paperAt };   // paperAt: debug (the probes: V1-3)
+  /* the SAFARI GUARDS' hooks (mobile.js): the ZOOM held by one finger — its moves are the page's (the guard prevents them: no native pan);
+     a back swipe (popstate) closes the open view — at once when Safari already animated its swipe over the HOME snapshot (instant), the
+     zoom out otherwise; a forward swipe re-opens it */
+  const GU = window.__mobile?.guard;
+  if (GU) {
+    GU.claim = () => LIFT.state === 'hold';
+    GU.onBack = ({ instant }) => {
+      LIFT.abort();
+      filmGuard()?.stop();
+      const a = activeStack; if (!a) return;
+      const go = n => { if (a !== activeStack) return; if (a.state === 'open') { if (!(instant && a.closeInstant())) a.collapse(); } else if (a.state === 'zoom' && n < 90) requestAnimationFrame(() => go(n + 1)); };
+      go(0);
+    };
+    GU.onForward = id => { if (activeStack || LIFT.state !== 'idle') return; const s = stacks.find(k => k.name === id); if (s && s.state === 'home' && !s.blocked()) s.expand(); };
+  }
+  return { apply, key, busy, step, land, pinAt, get gesture() { return g; }, get drag() { return { ...DR }; }, TC, paperAt,   // paperAt: debug (the probes: V1-3)
+           reset: () => { LIFT.abort(true); reset(); },                                   // layoutAll()'s: the ZOOM too (a resize / a rotation: 1× at once)
+           liftAbort: () => LIFT.abort(true), liftPrefetch: a => LIFT.prefetch(a), lift: LIFT };   // the ZOOM: closeNow()'s, enterOpen()'s; debug
 })();
 if (TOUCH) window.__touch = TOUCH;          // debug (the probes)
 
@@ -6033,6 +6529,7 @@ function ringSign(el, V) {
 const RING = RING_VARS[pageQuery.get('ring')] || null;
 if (RING) window.__ring = ringSign($('sign'), RING);
 layoutAll('boot');
+window.__mobile?.onZoom?.(z => { if (!z && zoomDue) { zoomDue = false; layoutAll('zoom'); } });   // site 2026-10-15: SAFARI GUARDS — back at ×1: the layout the zoom held back
 sinkPark(); if (SINK) addEventListener('load', sinkPark);   // the WHEEL SINK: mid-range (the layout is clean here: no extra pass)
 for (const s of stacks) s.boot();
 // (KEEPALIVE: keepImg(), at each image's load — see the DOM section)

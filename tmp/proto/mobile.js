@@ -95,15 +95,37 @@
   /* ---------- the CSS (phone only) ---------- */
   const css = `
   html.phone { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-               touch-action: manipulation; }
+               -webkit-user-select: none; user-select: none; }
+  /* SAFARI GUARDS (2026-10-15, notes/safari-guards.md W1 — the owner's two-thumb zoom): EVERY element pan-y — touch-action is not
+     inherited and resets at scroll containers, and Safari blocks its page pinch only when a finger's own value lacks pinch-zoom /
+     manipulation (WKTouchActionGestureRecognizer, read once at the press in the UI process). pan-y keeps the STAGE's entry swipe and the
+     FEED's column (a real document scroll); OPEN's layers stay none (below: every finger motion there is the page's, the LIFT's pinch) */
+  html.phone, html.phone * { touch-action: pan-y; }
+  html.sg-zoomed, html.sg-zoomed * { touch-action: auto !important; }   /* zoomed anyway (a restored zoom): the user's own pinch / double-tap may undo it (the guard) */
   html.phone img, html.phone video { -webkit-user-drag: none; -webkit-touch-callout: none; }
+  /* Live Text / Visual Look Up / the image sheet: only an <img> under the press starts them (touch-callout does not) — the cards' images
+     are not hit at all (the TOUCH block's hits are .closest('.cards'): the card's own box answers) */
+  html.phone .cards img, html.phone .cards video { pointer-events: none; }
   /* the visible viewport: the toolbar's height is not the page's (spec 7: 100dvh, 100vh where unknown) */
   html.phone .viewer { height: 100vh; height: 100dvh; }
-  /* no double-tap zoom anywhere (pinch-zoom excludes it, keeps the pinch: accessibility); the scroller is already pinch-zoom */
-  html.phone .shield, html.phone .zone, html.phone .nzone, html.phone .play, html.phone .eff { touch-action: pinch-zoom; }
-  /* OPEN: every finger motion is the page's (part 2, the TOUCH block in site.html: swipe = walk, swipe down = close, the rubber bands) —
-     no page pinch / pan / double-tap there (spec 04 §6: the touch-action map); HOME keeps the pinch (the .scroller's pinch-zoom) */
+  /* OPEN: every finger motion is the page's (part 2, the TOUCH block in site.html: swipe = walk, swipe down = close, the rubber bands,
+     two fingers = the LIFT) — no page pinch / pan / double-tap there (spec 04 §6: the touch-action map) */
   html.phone .viewer.open .shield, html.phone .viewer.open .zone, html.phone .viewer.open .nzone, html.phone .viewer.open .play { touch-action: none; }
+  /* the LIFT (the TOUCH block): the copy above everything, the veil (the page's own colour) under it — permanent layers, never
+     display-toggled (website-perf-pass: a positioned node shown over the composited row stalls the open frame); hit-tested by nothing */
+  #lift { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 2147480000; pointer-events: none; touch-action: none; contain: strict; }
+  #lift .lveil { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--viewer-bg); opacity: 0; will-change: opacity; }
+  #lift .lcopy { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; opacity: 0; will-change: transform, opacity; }
+  #lift .lcard { left: 0; top: 0; margin: 0; transform: none; }
+  #lift .lfl { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; will-change: opacity; }
+  #lift .lfl > img { position: absolute; display: block; left: calc(-100% * var(--fx)); top: calc(-100% * var(--fy));
+                     width: calc(100% * (1 + 2 * var(--fx))); height: calc(100% * (1 + 2 * var(--fy))); }
+  #lift .lsh { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; will-change: opacity;
+               box-shadow: 0 6px 18px rgba(0, 0, 0, .16), 0 2px 5px rgba(0, 0, 0, .08); }
+  #lift img.lhi { position: absolute; z-index: 2; max-width: none; transform-origin: 0 0; opacity: 0; will-change: opacity; }
+  /* the park (the stack's liftPark()): an opaque page-coloured patch in the pile's own 3D context, over its floor (z 0), under every card
+     (z ≥ 1); the lifted card drops under it (translateZ(−5)): a depth change only, never opacity / visibility / z-index (the re-raster laws) */
+  .liftpatch { position: absolute; left: 50%; top: 50%; background: var(--viewer-bg); opacity: 0; pointer-events: none; will-change: opacity; }
   /* the play disc: a 44 pt target, a 34 pt disc (spec 6: hit ≥ 44, seen ≥ 30) */
   html.phone .play { background: transparent; }
   html.phone .play::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--play-gray); }
@@ -136,11 +158,10 @@
      centred column; the name's scroll-edge fade (iOS 26's soft edge: the passing work dissolves under the name instead of running into it) */
   const cssFeed = `
   html.phone.feed { overflow-x: hidden; overflow-y: auto; }
-  html.phone.feed, html.phone.feed body { overscroll-behavior-y: auto; overscroll-behavior-x: none; }
+  html.phone.feed, html.phone.feed body { overscroll-behavior: none; }   /* (SAFARI GUARDS W3, 2026-10-15: was overscroll-behavior-y auto — the column's bounce turned the pull-to-refresh back on; none on the root: no bounce, no refresh) */
   html.phone.feed .viewer { height: auto; }
   html.phone.feed .backdrop, html.phone.feed .shield, html.phone.feed .zone, html.phone.feed .nzone, html.phone.feed .eff, html.phone.feed .ghost,
   html.phone.feed .keep, html.phone.feed .hdr-root { position: fixed; }
-  html.phone.feed .scroller { touch-action: manipulation; }
   html.phone.feed .row { flex-direction: column; align-items: center; }
   html.phone.feed .row > .wrap, html.phone.feed .row > .sign { align-self: center; }
   html.phone.feed .sign { text-align: center; }
@@ -206,12 +227,111 @@
   const st = document.createElement('style'); st.id = 'mobile-css'; st.textContent = css + cssFeed + (STAGE ? cssStage : '');
   document.head.appendChild(st);
 
-  /* the viewport: cover the notch bands (the viewer paints them, so OPEN's #FCFCFC reaches the edges); the pinch stays (no maximum-scale) */
+  /* the viewport: cover the notch bands (the viewer paints them, so OPEN's #FCFCFC reaches the edges). SAFARI GUARDS (M5, 2026-10-15):
+     maximum-scale=1 — Safari ignores it (it forces the limit to ≥ 5: ignoresViewportScaleLimits), the in-app WKWebViews (LinkedIn,
+     Instagram: the FEED's browsers) obey it: no pinch, no double-tap, no focus zoom there at the scroll view's level. Phone only. */
   const vp = document.querySelector('meta[name="viewport"]');
-  if (vp && !/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
+  if (vp) vp.content = 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover';
 
   /* a long press on a picture: no callout / Save Image / Look Up (spec 6; phone only — the desktop keeps right-click → Save Image) */
   document.addEventListener('contextmenu', e => { if (e.target.closest?.('.viewer')) e.preventDefault(); });
+
+  /* ---------- the SAFARI GUARDS (2026-10-15; notes/safari-guards.md, lab fslab/guard) ----------
+     Owner: "prevent anything that messes up with the safari itself, aka swiping on the left border will go back the page, and loading
+     the page zoomed in or accidentally zooming in the page with two thumbs will mess everything up". Layers, cheapest first:
+     1. CSS (above): every element pan-y (no page pinch, no zoom pan), OPEN's layers none; no callout / selection / drag / Live Text.
+     2. WebKit's GestureEvents: prevented (non-passive).
+     3. Two fingers: the second finger's touchstart and every touchmove with 2+ touches are prevented — the page never pinches, while the
+        POINTER events keep flowing (the LIFT's two-finger pinch): WebKit cancels pointers only when its own zoom starts. Disjoint from
+        the STAGE's one-finger lock below. claim(): the LIFT holding the picture with ONE finger left — its moves are the page's too.
+     4. Double-tap: a second touchend within 350 ms / 40 pt is prevented and a dblclick listener exists — at the initial scale WebKit's
+        double tap is a NON-BLOCKING recogniser that still zooms when the second tap hits no click target, and touch-action never sees
+        it (bug 325368). The site's taps are pointer events: nothing of theirs is lost.
+     5. HISTORY: Safari's edge swipe cannot be blocked (no page event defers it), so it is given somewhere harmless to land — every open
+        view pushes ONE same-document entry inside its tap (viewOpened: expand(), a user activation, so WebKit's back list never skips
+        it); a back swipe → popstate → the view closes (onBack; instantly when Safari already animated the swipe: hasUAVisualTransition,
+        Safari 18+). ?back=both (the default): also ONE 'home' entry on the first tap, so a back swipe at HOME stays on the page too —
+        re-armed only by a later tap: two deliberate back swipes in a row still leave the site (never a trap). ?back=view: the views
+        only · ?back=0: none.
+     6. ZOOM WATCH: visualViewport.scale ≠ 1 (a restored zoom, a pinch that slipped through, a rotation while zoomed) → every layer above
+        stands down (html.sg-zoomed: touch-action auto) so the user's own pinch / double-tap can undo it, and `zoomed` tells the STAGE's
+        bar test and layoutAll() not to measure (innerWidth / innerHeight shrink by the zoom and no resize fires). Back at ×1 they
+        re-arm (onZoom). Safari has no script reset: a page RESTORED zoomed (reload, back / forward, a tab restore) is loaded once more
+        at the same URL (FrameLoadType::Same restores no view state), once per tab.
+     Test hooks: window.__sgEmu = { scale } stands in for visualViewport.scale (Playwright cannot zoom). */
+  const guard = (() => {
+    const NP = { passive: false, capture: true };
+    const G = { zoomed: false, scale: 1, claim: null, onBack: null, onForward: null, onZoom: null, stats: {}, last: '' };
+    const note = k => { G.stats[k] = (G.stats[k] || 0) + 1; G.last = k; };
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, e => {
+      if (G.zoomed) return; if (e.cancelable) e.preventDefault(); if (t === 'gesturestart') note('gesture');
+    }, NP);
+    document.addEventListener('touchstart', e => { if (!G.zoomed && e.touches.length > 1 && e.cancelable) { e.preventDefault(); note('touch2'); } }, NP);
+    document.addEventListener('touchmove', e => {
+      if (G.zoomed || !e.cancelable) return;
+      if (e.touches.length > 1 || G.claim?.()) e.preventDefault();
+    }, NP);
+    let lt = -1e9, lx = 0, ly = 0;
+    document.addEventListener('touchend', e => {
+      if (G.zoomed || e.touches.length || e.changedTouches.length !== 1) return;
+      const t = e.changedTouches[0], now = e.timeStamp;
+      if (now - lt < 350 && Math.hypot(t.clientX - lx, t.clientY - ly) < 40) { if (e.cancelable) e.preventDefault(); note('dbltap'); lt = -1e9; return; }
+      lt = now; lx = t.clientX; ly = t.clientY;
+    }, NP);
+    document.addEventListener('dblclick', e => { if (!G.zoomed) e.preventDefault(); }, NP);
+    document.addEventListener('dragstart', e => e.preventDefault(), NP);
+    document.addEventListener('selectstart', e => e.preventDefault(), NP);
+
+    /* 5. history */
+    const MODE = Q.get('back') === '0' ? '' : Q.get('back') === 'view' ? 'view' : 'both';
+    let cur = history.state && history.state.sg || null, expect = 0;
+    if (cur === 'view' && MODE) {                                        // reloaded / restored on a view's entry: the page starts at HOME
+      cur = MODE === 'both' ? 'home' : null;
+      try { history.replaceState(cur ? { sg: 'home' } : null, ''); } catch (er) {}
+    }
+    G.viewOpened = id => {                                               // in the tap that opens a view (a camera move: the same entry, re-named)
+      if (!MODE) return;
+      try { if (cur === 'view') history.replaceState({ sg: 'view', id }, ''); else history.pushState({ sg: 'view', id }, ''); cur = 'view'; note('push view'); } catch (er) {}
+    };
+    G.viewClosed = () => { if (!MODE || cur !== 'view') return; expect++; history.back(); };   // the page closed it itself (a tap, a pull): its entry goes
+    if (MODE === 'both') addEventListener('pointerup', e => {           // capture: before the page's own tap pushes a view
+      if (cur || e.pointerType === 'mouse') return;
+      try { history.pushState({ sg: 'home' }, ''); cur = 'home'; note('push home'); } catch (er) {}
+    }, { passive: true, capture: true });
+    if (MODE) addEventListener('popstate', e => {
+      const prev = cur, next = e.state && e.state.sg || null, instant = !!e.hasUAVisualTransition;
+      cur = next;
+      if (expect) { expect--; return; }                                  // our own history.back() after a tap-close
+      if (next === 'view') { note('forward'); G.onForward?.(e.state.id); return; }
+      if (prev === 'view') { note('back'); G.onBack?.({ instant }); return; }
+      note('back home');                                                 // a back swipe at HOME: the page stayed (re-armed by the next tap)
+    });
+    Object.defineProperty(G, 'entry', { get: () => cur });
+
+    /* 6. the zoom watch */
+    const vv = window.visualViewport;
+    const scaleNow = () => { const E = window.__sgEmu; return E && E.scale ? E.scale : vv ? vv.scale : 1; };
+    G.check = () => {
+      const s = scaleNow(), z = Math.abs(s - 1) > .01; G.scale = s;
+      if (z === G.zoomed) return z;
+      G.zoomed = z; root.classList.toggle('sg-zoomed', z); note(z ? 'zoomed' : 'unzoomed');
+      try { G.onZoom?.(z, s); } catch (er) { setTimeout(() => { throw er; }); }
+      return z;
+    };
+    const KEY = 'sg-zoom-replace';
+    function boot(final) {                                               // a page restored zoomed: once more, at the same URL (once per tab)
+      if (window.__sgEmu?.noReplace) { G.check(); return; }
+      let done = false; try { done = sessionStorage.getItem(KEY) === '1'; } catch (er) {}
+      if (G.check()) { if (!done) { try { sessionStorage.setItem(KEY, '1'); } catch (er) {} location.replace(location.href); } return; }
+      if (final) try { sessionStorage.removeItem(KEY); } catch (er) {}
+    }
+    if (vv) { vv.addEventListener('resize', G.check); vv.addEventListener('scroll', G.check); }
+    addEventListener('orientationchange', () => setTimeout(G.check, 400));
+    addEventListener('pageshow', e => { if (e.persisted) boot(false); else G.check(); });
+    addEventListener('load', () => { boot(false); setTimeout(() => boot(false), 300); setTimeout(() => boot(true), 1000); }, { once: true });
+    G.check();
+    return G;
+  })();
 
   /* ---------- the safe area (env() read off a probe; 0 where unknown) ---------- */
   let probe = null;
@@ -599,12 +719,13 @@
     return Math.abs(dy) > Math.abs(dx) && dy < 0;                       // the bars showing: an upward swipe hides them again
   }
   function sync() {                                                     // the lock follows the bars, the orientation and the entry
+    if (guard.zoomed) return;                                          // SAFARI GUARDS: zoomed, innerHeight is the magnified view's — the last lock state stands (re-run at ×1: onZoom)
     const b = bars(); barsNow = b;
     locked = EN.done && isLand() && b !== 'showing';
     const pan = !locked;
     if (pan === panOK) return;
     panOK = pan;
-    const sc = byId('scroller'); if (sc) sc.style.touchAction = pan ? 'pan-y pinch-zoom' : '';
+    const sc = byId('scroller'); if (sc) sc.style.touchAction = pan ? 'pan-y' : '';   // (SAFARI GUARDS W1: never pinch-zoom; locked = the CSS's pan-y, the lock's touchmove prevents the pan)
     for (const id of ['shield', 'zoneL', 'zoneR', 'nzoneL', 'nzoneR']) { const el = byId(id); if (el) el.style.touchAction = pan ? 'pan-y' : ''; }
   }
   /* the invisible document is finite (2400 lvh) and every swipe that hides the bars again spends a swipe + its momentum (1–2 k px); at its
@@ -625,6 +746,9 @@
     get entry() { return { on: EN.on, done: EN.done, x: EN.x, D: EN.D, dragging: !!EN.f, anim: !!EN.raf }; },   // debug (the probes)
     get locked() { return locked; }, get bars() { return barsNow; }, sync,
   } : null;
+  const zoomCbs = [];                                                   // SAFARI GUARDS: back at ×1 — the STAGE's lock, then the engine's deferred layout
+  guard.onZoom = (z, s) => { for (const fn of zoomCbs) fn(z, s); };
+  if (STAGE) zoomCbs.push(z => { if (!z) { panOK = null; sync(); } });
   if (STAGE) {
     const E = window.__barsEmu; if (E && E.l) root.style.setProperty('--stage-h', E.l + 'px');
     const mk = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; document.body.appendChild(d); return d; };
@@ -676,5 +800,6 @@
   }
 
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
-                      vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage };
+                      vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
+                      onZoom: fn => zoomCbs.push(fn) };
 })();
