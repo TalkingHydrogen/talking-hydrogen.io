@@ -637,7 +637,7 @@
 <div class="cursor" id="cursor" aria-hidden="true"><div class="cursor-down" id="cursorDown"><div class="cursor-disc" id="cursorDisc"></div><div class="cursor-arrow" id="cursorArrow"></div></div></div>
 </div>
 
-<script src="mobile.js"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=1a5d9a5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5779,7 +5779,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     function prefetch(a) {                   // the landing / a touch-down: the front card's sharp file, its bytes only (decoded at a zoom)
       if (!K.on || !a?.liftInfo) return;
       const t = a.liftInfo(true); if (!t || !t.hi) return;
-      const src = sourceOf(t);
+      const src = { url: abs(t.hi), w: t.hiW };   // never the ZOOM TIER here: its big files load only at a zoom gesture (begin / zoomTo), not at every landing (owner 2026-10-15: "only when you zoom")
       if (src.w <= (t.img?.naturalWidth || 0) * 1.05 || pf.getAttribute('src') === src.url) return;
       pf.src = src.url;
     }
