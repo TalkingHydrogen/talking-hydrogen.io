@@ -637,7 +637,8 @@
 <div class="cursor" id="cursor" aria-hidden="true"><div class="cursor-down" id="cursorDown"><div class="cursor-disc" id="cursorDisc"></div><div class="cursor-arrow" id="cursorArrow"></div></div></div>
 </div>
 
-<script src="mobile.js?v=1a5d9a5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
+<script src="mobile.js?v=cbc2ad3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
