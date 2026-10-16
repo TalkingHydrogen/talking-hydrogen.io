@@ -178,7 +178,7 @@
       rgba(255,255,255,.84) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .25), rgba(255,255,255,.5) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .5),
       rgba(255,255,255,.16) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .75), rgba(255,255,255,.02) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .9),
       rgba(255,255,255,0) 100%); z-index: -1; pointer-events: none; }
-  html.phone.feed .hdr .name { position: relative; }
+  html.phone.feed .hdr .name { position: relative; text-align: center; margin-left: 0; }   /* owner 2026-10-16: "center viktor dune on the top of the page" — the feed's name line centred (the desktop's .2em = the laptop's left edge: not here) */
   `;
   /* STAGE (landscape-first; its block below): the document is a tall invisible page under a FIXED stage (the viewer), so the visitor's
      first upward swipe is a real document scroll — the only thing that makes Safari collapse its bars — while nothing on screen scrolls.
