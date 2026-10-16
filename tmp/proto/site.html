@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=7d3507b."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=20976fc."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -688,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=7d3507b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=20976fc"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1728,40 +1728,58 @@ const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('fil
 { const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
   const d = parseFloat(pageQuery.get('turnhintat')); if (Number.isFinite(d)) TURN_HINT.delay = clamp(d, 0, 5000); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
-  const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose)
+  const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose — the phone: the rest pose)
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
   host.classList.add('lidcard');
-  let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false, hintT = 0;   // vis: the clip on screen (null: the poster)
-  /* site 2026-10-16 — the PHONE's lid (owner: "the laptop doesnt lift on the page load as it does on the desktop"). iOS Safari may stop a
-     preload="auto" clip at its metadata (Low Data Mode, cellular, power) and refuses even a muted play() outside a gesture in Low Power
-     Mode: ready() waited for every clip's first frame (readyState 2) and the hint for a fully buffered clip, so on an iPhone the lid
-     never moved. On a phone a clip is ready once its metadata is in (the swap's seek fetches the frame; a stall mid-move beats no move),
-     and a refused play() is retried from the visitor's first touch (unlock(): each clip played + paused inside the touchend, which
-     lifts WebKit's gesture rule for that element for good). A desktop: unchanged. */
+  let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false, hintT = 0, wPick = 0;   // vis: the clip on screen (null: the poster)
+  /* site 2026-10-16 — the PHONE's lid (owner: "on the phone, since the laptop is so very thin, it needs to be opened a little bit that it
+     suggests that it can be clicked. So from that position it should open the amount it opens on the desktop from fully closed to that
+     … on load just open a little bit more from that and retract back to the initial position"). A phone has no hover, so its lid RESTS
+     at the desktop hint's top (J.rest = J.hint, 16 of 101; the rest poster lid-poster-rest.webp is that frame, MACBOOK) and its load-time
+     hint is the LIFT clip — the same rise again from there, the hint's timing (lidvideo.py: lift REST → LIFT → REST; landr = the land
+     clip's brake onto the rest: the close). The phone's set: lift (its frame 0 is the rest), open (entered at the rest), rev + landr;
+     fwd and the desktop's hint only once the film plays (more(): the film lands the laptop SHUT, so its end shows the closed poster
+     and the lid lifts from 0 to the rest on the hint clip, stopped at its top). Goals as the desktop's: 'closed' and 'crack' are both
+     the rest there. Before (2026-10-14, VR3-3) the feed's lid rested fully OPEN on the fwd clip; the owner never saw it move on a real
+     iPhone. A desktop: unchanged.
+     iOS: a preload="auto" clip may stop at its metadata (Low Data Mode, cellular, power), it may defer some of many media elements, and
+     a muted play() outside a gesture is refused in Low Power Mode. So on a phone a clip is entered once ITS metadata is in (okK: the
+     swap's seek fetches the frame; no move waits for every clip), the hint needs only the lift clip, and a refused play() is retried
+     from the visitor's first touch (unlock(): each clip played + paused inside the touchend, which lifts WebKit's gesture rule for that
+     element for good; a refused hint plays then). */
   const PH = !!window.__mobile?.on, RS = PH ? 1 : 2;
   let refused = false, freed = false;
-  const ready = () => !!J && vids.every(K => K === V.hint || K.el.readyState >= RS);   // the hint clip is never waited on (LID_HINT: its own test in hint())
-  function load() {                         // the page's load, or the first hover: lid.json, then the six clips (preload auto)
+  const okK = K => !!K && K.el.readyState >= RS;                                       // this clip can be entered (the phone: at its metadata)
+  const ready = () => !!J && !!cur && (PH || vids.every(K => K === V.hint || okK(K)));   // a desktop: every clip (a move may swap mid-way; the hint clip is never waited on: hint()); the phone: per clip, at the swap (okK)
+  const R = () => PH ? J.rest : 0, C = () => PH ? J.rest : J.crack;                     // the REST pose; the CATCH pose a close brakes onto (land / landr) = the hover's crack (the phone: the rest)
+  const HK = () => PH ? V.lift : V.hint;                                                 // the load-time hint's clip
+  function add(name) {                      // one clip's element (DOM order = stacking: a later clip on top)
+    const c = J.clips[name], el = document.createElement('video');
+    el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
+    el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
+    el.preload = 'auto'; el.style.opacity = '0';
+    el.src = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
+    el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
+    if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
+    el.dataset.clip = name;                                                // (?dbg=1's readout)
+    host.appendChild(el);
+    vids.push(V[name] = { name, el, fps: c.fps, pose: c.pose, last: c.pose.length - 1 });
+  }
+  function load() {                         // the page's load, or the first hover: lid.json, then the clips (preload auto)
     if (loaded) return; loaded = true;
     fetch(L.base + L.json).then(r => r.json()).then(j => {
-      J = j; const ws = j.w.slice().sort((a, b) => a - b), w = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
-      const names = ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];
-      if (LID_HINT.on && j.clips.hint && !isFeed()) names.push('hint');    // site 2026-10-07: the load-time HINT's clip (LID_HINT) — FEED: none (the lid opens to its rest instead: VR3-3)
-      for (const name of names) {                                            // DOM order = stacking (a later clip on top)
-        const c = j.clips[name], el = document.createElement('video');
-        el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
-        el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
-        el.preload = 'auto'; el.style.opacity = '0';
-        el.src = L.base + j.src[kind].replace('{clip}', name).replace('{w}', w);
-        el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
-        if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
-        el.dataset.clip = name;                                                // (?dbg=1's readout)
-        host.appendChild(el);
-        vids.push(V[name] = { name, el, fps: c.fps, pose: c.pose, last: c.pose.length - 1 });
-      }
-      V.hint?.el.addEventListener('ended', () => { if (cur === V.hint && goal === 'hint') { goal = 'closed'; perfMark('lid hint end'); } });   // the HINT lands closed
-      cur = V.fwd;                          // at rest: the poster = fwd's frame 0 (closed)
+      J = j; const ws = j.w.slice().sort((a, b) => a - b); wPick = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
+      const names = PH ? ['lift', 'open', 'rev', 'landr'] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the lift first: the hint's)
+      if (!PH && LID_HINT.on && j.clips.hint) names.push('hint');          // site 2026-10-07: the load-time HINT's clip (LID_HINT)
+      for (const name of names) add(name);
+      HK()?.el.addEventListener('ended', () => { if (cur === HK() && goal === 'hint') { goal = 'closed'; perfMark('lid hint end'); } });   // the HINT lands at the rest
+      cur = PH ? V.lift : V.fwd;            // at rest: the poster = fwd's frame 0 (closed) — the phone: the lift's frame 0 (the rest)
     }).catch(() => {});
+  }
+  function more() {                         // the phone, at the film's play: the clips its end needs (the note) + the closed poster, well before the outro
+    if (!PH || !J || V.fwd) return;
+    for (const name of ['fwd', 'hint']) add(name);
+    new Image().src = L.base + 'lid-poster.webp';
   }
   const frameOf = K => Math.min(K.last, Math.max(0, Math.floor(K.el.currentTime * K.fps + 1e-4)));
   const poseNow = () => cur ? cur.pose[frameOf(cur)] : 0;
@@ -1779,7 +1797,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     const s = poseNow();
     if (stopAt.dir > 0 ? s >= stopAt.s : s <= stopAt.s) {
       const then = stopAt.then; stopAt = null;
-      if (then) { swap(V[then], s, ++seq); return; }   // rev at J.land: the land clip brakes it onto the crack
+      if (then && okK(V[then])) { swap(V[then], s, ++seq); return; }   // rev at the land pose: the land clip brakes it onto the catch pose (the phone: landr; not entered yet → it waits here, its loadedmetadata resumes)
       K.el.pause(); perfMark('lid stop ' + goal); return;
     }
     raf = requestAnimationFrame(tick);
@@ -1796,50 +1814,58 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     K.el.addEventListener('seeked', () => requestAnimationFrame(() => { if (my !== seq) return; cur = K; show(K); play(K); }), { once: true });
   }
   function to(g) {
-    if (goal === 'hint' && (g === 'closed' || g === 'hint')) return;      // the HINT ends closed on its own (its clip's end; a hover / click takes it from here)
+    if (goal === 'hint' && (g === 'closed' || g === 'hint')) return;      // the HINT ends at the rest on its own (its clip's end; a hover / click takes it from here)
     goal = g; const my = ++seq;
     if (!ready() || !cur) return;
-    const s = poseNow(), t = g === 'open' ? J.n - 1 : g === 'crack' ? J.crack : 0, C = J.crack, playing = !cur.el.paused;
+    const Cc = C(), s = poseNow(), t = g === 'open' ? J.n - 1 : g === 'crack' ? Cc : R(), playing = !cur.el.paused;
     if (Math.abs(t - s) < .5 && !(playing && endOf(cur) === t)) { if (playing) cur.el.pause(); stopAt = null; return; }   // there (a clip landing on it plays on)
-    const dir = t > s ? 1 : -1, land = dir < 0 && t === C;                         // land: closing onto the crack — rev, then the land clip from J.land
-    const toLand = { s: J.land, dir, then: 'land' };
+    const dir = t > s ? 1 : -1, land = dir < 0 && t === Cc;                         // land: closing onto the catch pose — rev, then the land clip from its start pose
+    const Ls = PH ? J.landr : J.land, LK = PH ? V.landr : V.land, toLand = { s: Ls, dir, then: PH ? 'landr' : 'land' };
     if (playing && dirOf(cur) === dir && (dir > 0 ? endOf(cur) >= t : endOf(cur) <= t)) {   // already heading there: keep it
-      if (land && cur === V.rev) { if (s > J.land) { stopAt = toLand; arm(); } else { stopAt = null; swap(V.land, s, my); } return; }
+      if (land && cur === V.rev) { if (s > Ls) { stopAt = toLand; arm(); } else if (okK(LK)) { stopAt = null; swap(LK, s, my); } return; }
       stopAt = endOf(cur) === t ? null : { s: t, dir }; arm(); return;
     }
-    const K = dir > 0 ? (t <= C ? V.crack : s >= C - 1 ? V.open : V.fwd)
-                      : (s <= C + .5 ? V.uncrack : land && s <= J.land + .5 ? V.land : V.rev);
+    const K = dir > 0 ? (t <= Cc ? (PH ? V.hint : V.crack) : s >= Cc - 1 ? V.open : V.fwd)   // up to the catch pose: the crack clip — the phone (from under the rest, after the film): the hint clip, stopped at its top = the rest
+                      : (!PH && s <= Cc + .5 ? V.uncrack : land && s <= Ls + .5 ? LK : V.rev);
+    if (!okK(K)) return;                                                           // (the phone) not entered yet: its loadedmetadata re-runs to(goal)
     stopAt = endOf(K) === t ? null : land && K === V.rev ? toLand : { s: t, dir };
     swap(K, s, my);
   }
-  function hint() {                         // site 2026-10-07, the load-time HINT (LID_HINT): its clip once, from rest closed — true: started · false: the lid is busy (or no hint clip) · null: not loaded yet
-    const K = V.hint;
+  function hint() {                         // site 2026-10-07, the load-time HINT (LID_HINT): its clip once, from the rest — true: started · false: the lid is busy (or no hint clip) · null: not loaded yet
+    const K = HK();
     if (!J || !cur || !ready()) return null;
     if (!K) return false;
     const b = K.el.buffered;
-    if (PH ? K.el.readyState < 1 : K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play)
-    if (goal !== 'closed' || !cur.el.paused || poseNow() > .5) return false;
+    if (PH ? !okK(K) : K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play)
+    if (goal !== 'closed' || !cur.el.paused || Math.abs(poseNow() - R()) > .5) return false;
     goal = 'hint'; perfMark('lid → hint'); stopAt = null;
-    clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends closed
-    swap(K, 0, ++seq);
+    clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends at the rest
+    swap(K, R(), ++seq);
     return true;
   }
-  function unlock() {                       // the phone (its note at PH): inside a touchend — every paused clip played + paused at once
+  function unlock() {                       // the phone (its note): inside a touchend — every paused clip played + paused at once
     if (!J || freed) return;
     for (const K of vids) {
       if (!K.el.paused) continue;
       const pr = K.el.play(); K.el.pause();
       if (pr && pr.then) pr.then(() => { freed = true; }, e => { if (!e || e.name !== 'NotAllowedError') freed = true; });   // an AbortError (the pause) = allowed
     }
-    if (refused && goal !== 'hint') { refused = false; const g = goal; requestAnimationFrame(() => to(g)); }   // the move a refused play() left undone
+    if (!refused) return; refused = false;
+    const g = goal;
+    requestAnimationFrame(() => {           // the move a refused play() left undone
+      if (g === 'hint' && goal === 'hint' && cur === HK() && cur.el.paused) play(cur);                                       // the hint, on screen at its first frame (the rest): on
+      else if (goal === 'closed' && cur === HK() && cur.el.paused && Math.abs(poseNow() - R()) < .5) hint();                // … or its timer gave up on it meanwhile: again
+      else if (goal !== 'hint') to(goal);
+    });
   }
   if (PH) addEventListener('touchend', () => { if (!freed) unlock(); }, { capture: true, passive: true });
   function snap() {                         // site 2026-09-30, FILM: the closed pose at once, no move (the film landed the laptop shut): the poster, every clip hidden
     ++seq; stopAt = null; goal = 'closed';
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     for (const K of vids) { if (!K.el.paused) K.el.pause(); K.el.style.opacity = '0'; }
+    if (PH && poster.dataset.pose !== '0') { poster.srcset = ''; poster.src = L.base + 'lid-poster.webp'; poster.dataset.pose = '0'; }   // the phone: the rest poster → the CLOSED one (more() fetched it) under the film's shut laptop; lidSync() then lifts the lid back to the rest (to(): the hint clip)
     vis = null; poster.style.visibility = '';
-    if (J) { cur = V.fwd; if (cur.el.currentTime !== 0) cur.el.currentTime = 0; }
+    if (J) { cur = V.fwd || V.lift; if (cur.el.currentTime !== 0) cur.el.currentTime = 0; }
   }
   function redraw() {                       // site: FILM — the card shown again after the film: its clip's frame re-seeked, resolved a frame after (or 250 ms)
     const K = vis; if (!K) return Promise.resolve();
@@ -1849,8 +1875,8 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
       K.el.currentTime = t;
     });
   }
-  return { to, load, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
-           get shut() { return !cur || (cur.el.paused && poseNow() < .5); },   // shut: closed and at rest (lidSync()'s close tail)
+  return { to, load, more, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
+           get shut() { return !cur || (cur.el.paused && Math.abs(poseNow() - R()) < .5); },   // shut: at the rest and still (lidSync()'s close tail)
            get eta() {                      // s until the lid is fully open (its opening clip's last frame) — null unless it is on its way there (capFadeIn())
              if (goal !== 'open' || !cur || cur.el.paused || dirOf(cur) <= 0 || endOf(cur) !== J.n - 1) return null;
              return (cur.last - cur.el.currentTime * cur.fps) / cur.fps / (cur.el.playbackRate || 1);
@@ -2832,6 +2858,7 @@ function filmCtl(F) {
   }
   function settle() {                       // faded in: the card hides, the film drops under the row elements — one frame, nothing changes on screen
     fs = 'play'; perfMark('film play');
+    lid?.more();                                                                      // the phone: fwd + the hint clip and the closed poster for the outro (makeLid's PHONE note)
     cardEl().style.visibility = 'hidden'; el.classList.remove('up');
     clearTimeout(wake); wake = setTimeout(kick, Math.max(0, (FILM.land[0] - tau() - .3) * 1000));   // the loop idles until the landing
   }
@@ -3923,33 +3950,24 @@ function lidSync() {
   if (state === 'zoom' || state === 'open') lidTail = false;
   else if (state === 'close') lidTail = true;
   else if (lidTail && lid.shut) lidTail = false;
-  const rest = isFeed() && lidRest ? 'open' : 'closed';                    // FEED (fix VR3-3): the lid RESTS open, the frog screen lit
-  lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 && !lidTail ? 'crack' : rest);
+  lid.to(state === 'zoom' || state === 'open' ? 'open' : state === 'home' && hover.target === 1 && !lidTail ? 'crack' : 'closed');   // (a phone: 'closed' and 'crack' are its rest pose — makeLid's PHONE note)
 }
-/* FEED (fix VR2-2, then VR3-3, 2026-10-14) — the lid's REST POSE. On the phone the first object is the closed MacBook seen edge-on: a
-   187 × 6 pt silver line under the name that read as a divider rule (and, as the lone top peek over the open room print, as a sheet
-   grabber). VR2-2 rested it on the hint's top (J.hint, 16 of 101) and then the crack (13): measured on the clips' own frames, both are
-   a ~12–18 pt sliver at 187 pt wide — still a thin line for a recruiter's first screen. So in the feed the lid RESTS OPEN (J.n − 1, the
-   frog screen): at the hint's moment the closed laptop opens itself on the fwd clip (Apple's lid curve, 1.2 s) — the load-time
-   affordance — instead of the hint clip, and stays open; a close leaves it open (the zoom is a pure expansion: "when you zoom in, the
-   image expands"). It opens into the white already reserved above the slab (the column's MacBook top is its card box: mobile.js
-   column()), so nothing moves; no new UI. From the hint's moment on (its timer, or the visitor's first touch): lidRest. A desktop and
-   the landscape row: the lid rests shut, as approved (rest 'closed'); a rotation to the row shuts it at once (feedSwitch()). */
-let lidRest = false;
-function restLid() { if (lidRest) return; lidRest = true; if (isFeed()) lidSync(); }
+/* FEED, the lid's REST POSE: 2026-10-14 (VR2-2 / VR3-3) the feed's lid rested fully OPEN (the closed MacBook seen edge-on read as a rule, so
+   the fwd clip opened it at the hint's moment and a close left it open). 2026-10-16 the owner, who never saw it move on a real iPhone:
+   on a phone it rests a LITTLE open (the desktop hint's top) and the load hint lifts it the same again — makeLid's PHONE note; the
+   feed's column reserves that lift's reach (mobile.js column(): pic.vis), no longer the open lid's. */
 /* site 2026-10-07: the lid's load-time HINT (LID_HINT) — armed at BOOT; called off for good by the visitor's first press / wheel / key
    / touch, or when its moment finds the page elsewhere (away from HOME, the pointer on the laptop, the laptop off screen) */
 function armLidHint() {
   const evs = ['pointerdown', 'wheel', 'keydown', 'touchstart'];
   let t = 0, t0 = 0, done = false;
-  const stop = () => { done = true; clearTimeout(t); for (const e of evs) removeEventListener(e, stop, true); document.removeEventListener('visibilitychange', seen); restLid(); };   // FEED: from here the lid rests open (restLid())
+  const stop = () => { done = true; clearTimeout(t); for (const e of evs) removeEventListener(e, stop, true); document.removeEventListener('visibilitychange', seen); };
   function seen() { if (done || document.hidden) return; t0 = performance.now(); clearTimeout(t); t = setTimeout(go, LID_HINT.delay); }   // the load, or a hidden tab coming into view
   function go() {
     if (done || document.hidden) return;
     const r = cardsEl.getBoundingClientRect(), seenW = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
     if (LID_HINT.rm.matches || blocked() || state !== 'home' || activeStack || hover.target !== 0 || film?.owns ||
         seenW < r.width / 2 || r.bottom < 0 || r.top > innerHeight) return stop();
-    if (isFeed()) return stop();                                            // FEED (fix VR3-3): no hint clip — the lid opens to its rest (stop() → restLid())
     const ok = lid.hint();
     if (ok === null && performance.now() - t0 < LID_HINT.within) { t = setTimeout(go, 100); return; }   // its clip still loading
     stop();
@@ -4195,7 +4213,6 @@ applyConfigs();
 syncHomeSlots();
 if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete') ld(); else addEventListener('load', ld, { once: true }); }   // site: the lid's clips after the page (the poster is the card's image)
 if (lid && LID_HINT.on) { if (STG) STG.then(armLidHint); else armLidHint(); }   // site 2026-10-07: … and its HINT once they can play (LID_HINT) — the STAGE: after the ENTRY's landing and the name (the desk was below the screen; the entry's swipe would have called it off)
-else if (lid) restLid();                                                  // FEED, no hint (?lidhint=0): the rest pose from the start
 resetOrder();
 for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
 function boot() {
@@ -4268,7 +4285,7 @@ const self = {                              // site: what the page sees of this 
     if (go) playPress();
     return true;
   },
-  lidSync,                                                                  // FEED (fix VR2-2): a rotation re-picks the lid's rest pose (feedSwitch())
+  lidSync,                                                                  // FEED: a rotation re-syncs the lid (feedSwitch())
   restRot: REST ? REST.rot : 0,                                             // site: its HOME tilt (the NB tilt cancels it on a peeking neighbour)
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
@@ -4660,10 +4677,7 @@ function feedSwitch(now) {                  // the mode changed (a rotation): th
   if (now) { for (const e of RP.els) e.o = e.v = 0; RP.S = RP.sPrev = RP.sl = 0; scroller.scrollLeft = 0; RP.V = 0; RP.drive = 'rest'; RP.touch = null; }
   else { window.__mobile.uncolumn({ row, viewer }); scrollTo(0, 0); shield.style.pointerEvents = ''; shield.style.touchAction = ''; }
   if (now && activeStack) { shield.style.pointerEvents = 'auto'; shield.style.touchAction = 'none'; activeStack.reScroll(); }   // (its open translate from the column's x: no row scroll)
-  for (const s of stacks) if (s.lid) {                                     // the lid's rest: open in the feed, shut in the row (fix VR3-3)
-    if (!now && s.state === 'home' && !s.film?.owns) s.lid.snap();          // … to the row: shut at once, not a 1.2 s close after the turn (and never left part-open by a hint: VREG-R3-1)
-    s.lidSync();
-  }
+  for (const s of stacks) if (s.lid) s.lidSync();                          // (the lid's rest pose is the same in both: makeLid's PHONE note)
 }
 function openSeatV(a) {                     // FEED, a rotation in OPEN: the frozen scroll = the open slot's visible paper centred (clamped)
   const v = a.homeBox(false, false, true), yb = row.offsetTop + a.wrap.offsetTop + a.wrap.offsetHeight;
@@ -6250,8 +6264,9 @@ const MB = '../assets/macbook/';
    margin 1.13); to the screen it is the polaroids' pair: margin 194 · text 88 · gap 106 (.55), the base's corner 33 px right of the type. */
 const MB_CAPTION = { text: 'B\n\nAI Agent\n\n\n\n\n\nViktor Dune', edge: .099,   // owner 2026-10-07 (typed on the SWAP page, "apply current values"): 2.5 lines before the name (was 1.5)
                      lock: 'B\n\nAI Agent\n\n\n\nViktor Dune' };   // site 2026-10-07: LOCK — the reference = the text of the morning: the type's corner stays where it put it
-const MACBOOK = [{ id: 'macbook', src: MB + 'lid-poster.webp', w: 1920, h: 1110, vis: [.0104, .9333, .9911, .9865],
-                   lid: { base: MB, json: 'lid.json' } }];   // the clips + their pose table (makeLid())
+const MB_PHONE = !!window.__mobile?.on;   // site 2026-10-16: a phone's MacBook rests a little open (makeLid's PHONE note): its card image is the REST poster (lid-poster-rest*.webp, the hint's top) and vis = the machine with the lid at the LIFT's top (the load hint's reach: the feed's column reserves it)
+const MACBOOK = [{ id: 'macbook', src: MB + (MB_PHONE ? 'lid-poster-rest.webp' : 'lid-poster.webp'), w: 1920, h: 1110, vis: MB_PHONE ? [.0104, .7090, .9922, .9892] : [.0104, .9333, .9911, .9865],
+                   lid: { base: MB, json: 'lid.json' } }];   // the clips + their pose table (makeLid()); vis: the closed machine's box (alpha > 30: lidvideo.py prints them)
 stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBOOK, deck: [0],
                                       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0, hoverScale: 1 },
                                       rest: { rot: 0, up: -(1920 / 1110 - 1) / 2 },

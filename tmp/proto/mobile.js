@@ -575,7 +575,7 @@
   /* FEED, OPEN: the neighbours' peek edges (viewport y): the previous object's lowest visible point, the next one's highest */
   function peek() { const H = innerHeight; return { top: SA.t + P.peek, bot: H - SA.b - P.peek }; }
   /* FEED, HOME: the column's rhythm — each object's margin so its VISIBLE paper (homeBox(…, vis): the cards, the fans, no shadow; the
-     MacBook: its card box, the lid's reach, so the load hint opens into white) stands gapF name-lines under the one above; each centred on
+     MacBook: the machine with the lid at its load hint's top, so the hint lifts into white) stands gapF name-lines under the one above; each centred on
      the column's axis by its visible bbox (a fan's centre, not its box's); the document ends 4 lines under the sign-off (+ safe-bottom).
      layoutAll() calls it after the stacks' first measure (the margins need their arranged poses), then measures again. */
   function column({ stacks, row, viewer }) {
@@ -586,7 +586,7 @@
     for (const el of els) {
       const st = stacks.find(s => s.wrap === el), h = el.offsetHeight;
       let t = -h, b = 0, l = 0, r = 0;
-      if (st) { const v = st.name === 'macbook' ? st.homeBox(false) : st.homeBox(false, false, true); t = v.t; b = v.b; l = v.l; r = v.r; }
+      if (st) { const v = st.homeBox(false, false, true); t = v.t; b = v.b; l = v.l; r = v.r; }   // (the MacBook's vis = the lift's reach: site.html's MACBOOK; before 2026-10-16 its whole card box, the open lid's)
       el.style.marginTop = (prevB === null ? -(h + t) : G + prevB - h - t) + 'px';
       el.style.left = (-(l + r) / 2).toFixed(2) + 'px';
       prevB = b;
