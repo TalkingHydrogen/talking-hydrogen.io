@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=690fa3a."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=c20ec39."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -638,7 +638,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=690fa3a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=c20ec39"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1682,7 +1682,15 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
   host.classList.add('lidcard');
   let J = null, cur = null, vis = null, goal = 'closed', stopAt = null, seq = 0, raf = 0, loaded = false, hintT = 0;   // vis: the clip on screen (null: the poster)
-  const ready = () => !!J && vids.every(K => K === V.hint || K.el.readyState >= 2);   // the hint clip is never waited on (LID_HINT: its own test in hint())
+  /* site 2026-10-16 — the PHONE's lid (owner: "the laptop doesnt lift on the page load as it does on the desktop"). iOS Safari may stop a
+     preload="auto" clip at its metadata (Low Data Mode, cellular, power) and refuses even a muted play() outside a gesture in Low Power
+     Mode: ready() waited for every clip's first frame (readyState 2) and the hint for a fully buffered clip, so on an iPhone the lid
+     never moved. On a phone a clip is ready once its metadata is in (the swap's seek fetches the frame; a stall mid-move beats no move),
+     and a refused play() is retried from the visitor's first touch (unlock(): each clip played + paused inside the touchend, which
+     lifts WebKit's gesture rule for that element for good). A desktop: unchanged. */
+  const PH = !!window.__mobile?.on, RS = PH ? 1 : 2;
+  let refused = false, freed = false;
+  const ready = () => !!J && vids.every(K => K === V.hint || K.el.readyState >= RS);   // the hint clip is never waited on (LID_HINT: its own test in hint())
   function load() {                         // the page's load, or the first hover: lid.json, then the six clips (preload auto)
     if (loaded) return; loaded = true;
     fetch(L.base + L.json).then(r => r.json()).then(j => {
@@ -1696,6 +1704,8 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
         el.preload = 'auto'; el.style.opacity = '0';
         el.src = L.base + j.src[kind].replace('{clip}', name).replace('{w}', w);
         el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
+        if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
+        el.dataset.clip = name;                                                // (?dbg=1's readout)
         host.appendChild(el);
         vids.push(V[name] = { name, el, fps: c.fps, pose: c.pose, last: c.pose.length - 1 });
       }
@@ -1726,7 +1736,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   }
   function play(K) {
     K.el.playbackRate = K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1;
-    K.el.play().catch(() => {});
+    K.el.play().catch(e => { if (e && e.name === 'NotAllowedError') refused = true; });   // the phone: Low Power Mode (unlock())
     arm();
   }
   function swap(K, s, my) {                 // K from its frame nearest pose s, shown once it holds it (seeked + a frame)
@@ -1757,13 +1767,23 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     if (!J || !cur || !ready()) return null;
     if (!K) return false;
     const b = K.el.buffered;
-    if (K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all
+    if (PH ? K.el.readyState < 1 : K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play)
     if (goal !== 'closed' || !cur.el.paused || poseNow() > .5) return false;
     goal = 'hint'; perfMark('lid → hint'); stopAt = null;
     clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends closed
     swap(K, 0, ++seq);
     return true;
   }
+  function unlock() {                       // the phone (its note at PH): inside a touchend — every paused clip played + paused at once
+    if (!J || freed) return;
+    for (const K of vids) {
+      if (!K.el.paused) continue;
+      const pr = K.el.play(); K.el.pause();
+      if (pr && pr.then) pr.then(() => { freed = true; }, e => { if (!e || e.name !== 'NotAllowedError') freed = true; });   // an AbortError (the pause) = allowed
+    }
+    if (refused && goal !== 'hint') { refused = false; const g = goal; requestAnimationFrame(() => to(g)); }   // the move a refused play() left undone
+  }
+  if (PH) addEventListener('touchend', () => { if (!freed) unlock(); }, { capture: true, passive: true });
   function snap() {                         // site 2026-09-30, FILM: the closed pose at once, no move (the film landed the laptop shut): the poster, every clip hidden
     ++seq; stopAt = null; goal = 'closed';
     if (raf) { cancelAnimationFrame(raf); raf = 0; }

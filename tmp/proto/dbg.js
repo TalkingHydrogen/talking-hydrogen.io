@@ -28,6 +28,18 @@
   let tmN = 0, tmP = 0;
   addEventListener('touchmove', e => { tmN++; if (e.defaultPrevented) tmP++; }, { passive: true });
   for (const t of ['gesturestart', 'gestureend']) document.addEventListener(t, e => setTimeout(() => log(`${t} scale=${(+e.scale || 0).toFixed(2)} prev=${e.defaultPrevented}`), 0));
+  const mp = HTMLMediaElement.prototype.play;                           // every refused / failed play(), with its clip
+  HTMLMediaElement.prototype.play = function () {
+    const el = this, pr = mp.apply(el, arguments);
+    if (pr && pr.catch) pr.catch(e => { if (e && e.name !== 'AbortError') log('play ' + (el.dataset.clip || (el.currentSrc || el.src || '').split('/').pop()) + ' ' + e.name); });
+    return pr;
+  };
+  const lidLine = () => {
+    const v = [...document.querySelectorAll('video.lid')];
+    if (!v.length) return 'lid: no clips yet';
+    return 'lid ' + v.map(e => (e.dataset.clip || '?') + ':' + e.readyState + (e.paused ? '' : '>') + (e.style.opacity === '1' ? '*' : '')).join(' ') +
+      ' rm=' + matchMedia('(prefers-reduced-motion: reduce)').matches + ' load=' + document.readyState;
+  };
   addEventListener('popstate', e => log('popstate ' + JSON.stringify(e.state) + ' ua=' + !!e.hasUAVisualTransition));
   addEventListener('pageshow', e => log('pageshow persisted=' + e.persisted));
   function paint() {
@@ -48,6 +60,7 @@
       'mobile=' + !!M.on + ' feed=' + !!M.feed + ' stage=' + !!S + (S ? ' lock=' + S.locked + ' bars=' + S.bars + ' entry=' + (S.entry.done ? 'done' : 'wait') : '') + ' cls=' + document.documentElement.className,
       G ? 'guard zoomed=' + G.zoomed + ' hist=' + G.entry + '/' + history.length + ' ' + JSON.stringify(G.stats) : 'guard -',
       'open ' + on + ' lift=' + (window.__touch && window.__touch.lift ? window.__touch.lift.state : '-') + ' tm=' + tmN + '/' + tmP + 'p ' + gsnap(),
+      lidLine(),
       '—',
     ];
     box.textContent = head.concat(L).join('\n');
