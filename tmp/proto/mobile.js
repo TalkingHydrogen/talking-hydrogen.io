@@ -806,5 +806,6 @@
 
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
                       vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
+                      get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's feedLag() caps the lag by it)
                       onZoom: fn => zoomCbs.push(fn) };
 })();

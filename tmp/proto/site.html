@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=20976fc."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=e3b6bb5."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -688,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=20976fc"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=e3b6bb5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -4742,6 +4742,24 @@ function rowWheel(dx, dy) {                 // one wheel event (px, both axes)
   }
   kick();
 }
+/* FEED, the LAG (2026-10-16, owner: "on the phone there is no image inertia there at all as there is on the website"): the column's
+   scroll is the document's own (native: Safari's bars collapse with it), so S never moves there and nothing fed the elements' springs.
+   Now each scroll event feeds them its Δy as rowStep feeds ΔS — an element is held back by Δy·r (r = LAG.amount × its distance from the
+   FINGER's y / (LAG.reach · H), at most amount: the element under the finger stays glued to it, as the native scroll keeps it) and
+   springs home in rowStep's loop (LAG.hz / zeta), shown on y through the same tanh cap at LAG.cap × the column's gap between two
+   papers (mobile.js feedGap: P.gapF name lines). The finger = the last touch's clientY (RP.fy, the TOUCH block: the native scroll
+   takes the pointer stream after the slop, the touches keep coming); none yet: the middle of the screen. Only a scroll stream's later
+   events count (the first after a pause may be a restore, a rotation's placeRestore or a status-bar tap: a jump, no lag; a finger's
+   first event is its slop) and a jump over H / 2 resets the springs. HOME only: in OPEN the scroll is frozen. The knobs ?rowlag=
+   ?rowhz= ?rowzeta= apply as on the desktop. */
+function feedLag(dy) {
+  const L = ROWPHYS.lag, H = RP.H;
+  if (!dy || !L.amount || activeStack) return;
+  if (Math.abs(dy) > H / 2) { for (const e of RP.els) e.o = e.v = 0; return; }
+  const fy = RP.fy >= 0 ? RP.fy : H / 2, R = Math.max(1, L.reach * H), sy = Math.max(0, scrollY);
+  for (const e of RP.els) e.o += dy * L.amount * Math.min(Math.abs(RP.rowTop + e.cy + e.o - sy - fy) / R, 1);   // held back by its distance from the finger
+  kick();
+}
 function rowStep(dt) {                      // the frame loop: S (release / fling / edge spring), then every element's spring
   if (!rowActive()) return;
   const E = ROWPHYS.edge, F = ROWPHYS.fling, L = ROWPHYS.lag, M = RP.M, n = Math.max(1, Math.ceil(dt)), h = dt / n;
@@ -4995,7 +5013,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
   const m = RP.move, pa = RP.part ? RP.part.progress : 0, fo = RP.part ? RP.part.filmOut || 0 : 0;   // fo: site FILM — the neighbours' slide out
   RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0) + (TOUCH ? TOUCH.key() : '');
-  const cap = ROWPHYS.lag.cap * RP.gap, pv = pageP();
+  const fvL = isFeed(), cap = ROWPHYS.lag.cap * (fvL ? window.__mobile.feedGap : RP.gap), pv = pageP();   // FEED: the lag's cap from the column's gap (feedLag())
   const up = !!RP.part && pv > 0, W = RP.W, H = RP.H;                                      // PARKING (above): the cover is up
   const cv = up ? String(Math.round((255 - 3 * pv) * 100) / 100) : '';
   if (cv !== RP.cv) { if (!RP.cv !== !cv) perfMark('cover ' + (up ? 'up' : 'down')); RP.cv = cv; cover.style.visibility = up ? 'visible' : ''; if (up) for (const d of cover.children) d.style.backgroundColor = `rgb(${cv}, ${cv}, ${cv})`; }
@@ -5004,7 +5022,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   const held = !!RP.hAim && RP.hAim.out && !!RP.part && RP.part.progress >= .5;          // site 2026-10-09: HOME AIM — the name held at its old place (homeAim())
   const [pcx, pcy] = TOUCH && !isFeed() ? TOUCH.pinAt() : [0, 0];                         // PHONE, the row (landscape): a pinned caption stays where the finger's drag left it (capPinT)
   for (const e of RP.els) {
-    const t0 = sl - RP.S + (cap > 0 ? cap * Math.tanh(e.o / cap) : e.o), xh = e.cx - sl + t0;
+    const lo = cap > 0 ? cap * Math.tanh(e.o / cap) : e.o, t0 = sl - RP.S + (fvL ? 0 : lo), xh = e.cx - sl + t0;   // lo: its lag spring's offset — on x in the row, on y in the FEED (feedLag())
     const eL = (e.eL ?? e.w) + PARK_PX, eR = (e.eR ?? e.w) + PARK_PX;
     const homeOn = isFeed() ? (e.bot ?? 1) > 0 && (e.top ?? 0) < H : xh + eR > 0 && xh - eL < W;   // FEED: on screen in y
     if (e.st?.scrub) e.st.scrubAt(xh, e.w, W);                                              // site: SCROLL IS TIME — its film's time from its HOME place
@@ -5016,7 +5034,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
               + (m ? (1 - u) * (RP.nvFrom || 0) * nudgeDir(RP.dFrom, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward (a move: only the leaving framing's, fading)
               + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * (isFeed() ? H : W) : 0);   // site: FILM — out of the film's way (FEED: up / down)
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
-      const fv = isFeed(), yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * yh + C.y + (fv ? d : 0);   // FEED: the peek shift on y              // its centre on screen
+      const fv = isFeed(), yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * (yh + (fv ? lo : 0)) + C.y + (fv ? d : 0);   // FEED: the peek shift and the lag on y              // its centre on screen
       let kk = C.k, vx = xh - t0, vy = yh;                                                    // … its slot scale, its drawn centre before the slot (its layout centre at p = 0)
       if (ps > 0) { const M = frameOf(st, ps); kk = C.k / M.k; vx = M.k * (xh - t0) + M.x; vy = M.k * yh + M.y; }
       park = up && !mover && ps === 0 && homeOn && (X - eL * C.k > W || X + eR * C.k < 0 || Y + (e.top - yh) * C.k > H || Y + (e.bot - yh) * C.k < 0);
@@ -5043,7 +5061,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
       const other = up && e.el !== RP.part.wrap, x = xh + pv * (e.awayX || 0);
       park = other && homeOn && (x - eL > W || x + eR < 0);                                   // home on screen, its way off screen
       const w = park ? 0 : pv;
-      tx = t0 + w * (e.awayX || 0); ty = w * (e.awayY || 0); z = park ? -2 : 0;
+      tx = t0 + w * (e.awayX || 0); ty = w * (e.awayY || 0) + (fvL ? lo : 0); z = park ? -2 : 0;
     }
     const v = Math.abs(tx) < .005 && Math.abs(ty) < .005 && !z ? ''
             : `${tx.toFixed(2)}px ${Math.abs(ty) < .005 ? '0' : ty.toFixed(2) + 'px'}${z ? ' ' + z + 'px' : ''}`;
@@ -5503,17 +5521,20 @@ if (window.__mobile?.on) TOUCH = (() => {
      HOME (a status-bar tap, VoiceOver, find-in-page): a RE-BASE — the frozen scroll follows and the page is re-laid at it (the open
      picture is scroll-invariant at p = 1: measured 0.00 pt) */
   addEventListener('scroll', () => {
-    const now = performance.now(), y = Math.max(0, scrollY);
-    if (now - fsT < 200) fsV = .6 * fsV + .4 * Math.abs(y - fsY) / Math.max(1, now - fsT); else fsV = 0;
+    const now = performance.now(), y = Math.max(0, scrollY), dy = y - fsY, stream = now - fsT < 200;
+    if (stream) fsV = .6 * fsV + .4 * Math.abs(dy) / Math.max(1, now - fsT); else fsV = 0;
     fsT = feedScrollT = now; fsY = y;
     if (!isFeed()) return;
     if (!activeStack) {
+      if (stream) feedLag(dy);                                                                // the LAG (feedLag(): a stream's later events)
       ageSync(); liveSync(); clearTimeout(fsQ); fsQ = setTimeout(() => { fsV = 0; liveSync(); keepWindow(); }, 120);   // (the speed gate re-opens when it stops)
       if (now - fsK > 250) { fsK = now; keepWindow(); }                                     // the decode window, ≤ 4 Hz
       return;
     }
     const r = Math.round(y); if (r !== RP.sy) { RP.sy = r; layoutAll('rebase'); }
   }, { passive: true });
+  RP.fy = -1;                                // FEED: the finger's y (feedLag()'s glued point) — the first touch's, while it moves
+  for (const t of ['touchstart', 'touchmove']) addEventListener(t, e => { const f = e.touches[0]; if (f && e.touches.length === 1) RP.fy = f.clientY; }, { capture: true, passive: true });
   const dead = new Set();                    // the pointers of a multi-touch: ignored until they lift
   const ctxNow = () => { if (LIFT.state !== 'idle') return 'busy'; if (filmGuard()) return 'film'; const a = activeStack; if (!a) return 'home'; return a.state === 'open' && !a.frozen && !RP.move ? 'open' : 'busy'; };   // (the LIFT up: taps ignored)
   /* FEED (fix VR3-2, 2026-10-14) — a finger that lands during a page snap. The context is read once, at the touch-down, so a finger down
