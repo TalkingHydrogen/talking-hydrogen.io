@@ -35,7 +35,7 @@ let capEl = pol.capEl;                                        // let: the SWAP p
    shouldnt be changable"): every stack with a caption, in row order — ↑ ↓ (or 1 2 3) open the next one; its text types the same way. The
    place is the site's LOCK (the .caption.lock CSS): the type's corner stays where the reference text puts it, so nothing here moves it. */
 const CAPS = [...document.querySelectorAll('#row > .wrap')].map(w => (window.__stacks || []).find(s => s.wrap === w && s.capEl)).filter(Boolean);
-const CAP_NAME = { polaroids: 'Polaroids', macbook: 'MacBook', dandelion: 'CD', trianglebob: 'Dandelion · Triangle Bob' };
+const CAP_NAME = { polaroids: 'Polaroids', macbook: 'MacBook', dandelion: 'CD', trianglebob: 'Triangle Bob', thedot: 'The Dot', friends: 'Dandelion' };
 const blockOf = st => st.capEl.querySelector('.cap-live') || st.capEl.firstElementChild;   // the type: the lines (a locked caption's live lines)
 const VAR = new URLSearchParams(location.search).get('var');
 const BARE = new URLSearchParams(location.search).has('swap');   // the SWAP page: no UI but the text and the arrows

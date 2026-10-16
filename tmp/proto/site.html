@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=c20ec39."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=7d3507b."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -431,6 +431,10 @@
   .caption.lock > div { position: relative; }
   .caption .cap-live { position: absolute; left: 0; top: 0; }
   .caption .cap-ref { visibility: hidden; }
+  /* site 2026-10-16, MID (owner, the Eye 1 clip: "this one text to be mid centered"): a locked caption with cfg.caption.mid keeps the lock's LEFT
+     edge but centres its live lines on the reference's middle (= the viewer's height: the open card's centre) — a short text hung from NEO's
+     top-left corner sat in the card's upper half. */
+  .caption.mid .cap-live { top: 50%; transform: translateY(-50%); }
   /* site 2026-10-05, TYPE · MA (owner: "be my typography intern … unchud … it must be in japanese MA - empty space" — the name + this
      caption only). URL-only variants: without ?ma / ?anchor / ?masize the page is untouched. Research: brew/design-guide/typography-ma-notes.md.
        ?ma=1  two tones: the name + the title in Apple's text near-black #1D1D1F, every other line Apple's secondary gray #86868B
@@ -551,9 +555,46 @@
        All dump/tree ai logo.png's bottom cluster; cut from that 5241 px source at the screenshot's framing, 5 : 3, the cluster centred,
        a stray sliver of the grey tree above it erased), printed as the room print (photoprint.py --long 1920 --border-px 49 →
        assets/photo/trees-print.webp 2018 × 1250 + its table shadow; the card's white = the paper's, so the print is one sheet).
-       TREES in BOOT; data-size 1; data-age 22, the polaroids' (the age rolls to 19 at the Triangle Bob print, as before) -->
+       TREES in BOOT; data-size 1; data-age 22, the polaroids' (the age rolls to 20 at The Dot print, then 19) -->
   <div class="wrap" id="trees" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): TREES in BOOT -->
+  </div></div>
+  <!-- site 2026-10-16: EYE 1 (owner: "i have this prototype piece that i need to add to my website as a portfolio piece … the ar glasses
+       for translation … put it … right next to on the right of the 1x work"): the owner's video of the glasses ("AR glasses I made for
+       translation", youtu.be/KIe1BsMkAns, 68 s; filmed on a phone through the lens) as the NEO dance clip's kind — the poster, the LIVE hint,
+       the whole video with its sound on the zoom (the CLIP BLEND) — but TALL: the phone's 9 : 16 frame (608 × 1080, cropped out of YouTube's
+       pillarbox; the real picture, not upscaled). Poster = frame 800: the face box on a pinned photo, the Ukrainian line under it; the LIVE
+       hint = 744 … 800, "pick Українські" rewriting itself into the sentence. brew/neofilm/eye1film.py → assets/eye1/. EYE1 in BOOT;
+       data-size .9 (the polaroids' height); data-age 21 (owner 2026-10-16: "age is 21": the roll 22 → 21 → 20 at The Dot) -->
+  <div class="wrap" id="eye1" data-size=".9" data-age="21"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): EYE1 in BOOT -->
+  </div></div>
+  <!-- site 2026-10-16: the EYE 1 IMAGE right of its clip (owner: "lets do image not polaroid, but with borders, and make 3 different
+       versions, one for sure with the head cropped cuz its weird wehn its floating cut off"): their render of the glasses on a whole
+       mannequin head (Eye 1/full head.png, 4507 × 6096) as a PHOTO PRINT, the trees print's kind — white paper round it (brew/polaroid
+       photoprint.py --long 1920 --border-px 49: the row's print border), its table shadow — every version CROPPED so the bust's flat
+       cut (y ≈ 4990) is out of the frame: the shoulders run off the bottom edge instead of floating. Crops in Eye 1/print/:
+         ?eyeimg=1 (default)  4 : 5 portrait, head + shoulders   (568, 850) … (3768, 4850)   data-size .9
+         ?eyeimg=2            square close-up, cut at the neck   (618, 1400) … (3718, 4500)  data-size .9
+         ?eyeimg=3            5 : 4 landscape, head + shoulders  (0, 1350) … (4375, 4850)    data-size 1.1
+       → assets/eye1/eye1-head-v{1,2,3}-print.webp + -floor.webp. EYE1IMG in BOOT (sets data-size); data-age 21. The polaroid pile
+       right of the clip (the five phone photos, then the mannequin, then the full head) is gone; its sources stay in Eye 1/ -->
+  <div class="wrap" id="eye1img" data-size=".9" data-age="21"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card: EYE1IMG in BOOT -->
+  </div></div>
+  <!-- site 2026-10-15: THE DOT (owner: "pull ts vid and put it on the website. Use the youtube preview for now"): the third game's trailer
+       ("The Dot . Trailer", youtu.be/0Alq8veJD8c, 1080p60, 76.5 s; on Steam 2023-11-14, Viktor Dunets) as the Triangle Bob print is — a
+       16 : 9 print whose photo is YouTube's thumbnail (the title card with the pigeons; a placeholder until the owner's own preview), the
+       whole trailer playing in its window on the zoom with its sound and the CLIP BLEND. brew/neofilm/thedotfilm.py → assets/photo/thedot-print.webp
+       2018 × 1178 + assets/thedot/. THEDOT in BOOT; data-size 1.4 (the Triangle Bob print's: the same print, the same height); data-age 20
+       (Nov 2023, assumed from the owner's other ages: the age rolls 22 → 20 → 19 here). Left of the Dandelion record: the row runs newest first.
+       2026-10-16 (owner: "the videos for the dot and [triangle bob] are in the frame image, they must be like a neo 1x video or the
+       dandelion"): BARE — the NEO clip's plain treatment (the Dandelion trailer's): the thumbnail alone, no paper, border or shadow,
+       straight, data-size 1.2, the open box CLIP_ZOOM × the page's (assets/thedot/thedot-poster.webp, thedotfilm.py --only poster).
+       Same day ("add the shadows … just no white frame of the image"): the prints' shadows back, the paper not (GAME_FLOOR in BOOT).
+       ?gameprint=1 = the print (data-size 1.4, set by BOOT) -->
+  <div class="wrap" id="thedot" data-size="1.2" data-age="20"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): THEDOT in BOOT -->
   </div></div>
   <!-- the DANDELION demo OST (2021 Dandelion/Dandelion Demo OST Art.png) as a sealed 12" record, exported by the designer from
        brew/sleeve/sleeve-lab.html 2026-09-26 (protrusion 1.3 mm, the designer's light untouched; brew/sleeve/final/dandelion-sleeve-lab-1.3mm.png): shrink
@@ -577,8 +618,17 @@
        screenshots (All dump/triangle-type.png, bob-type.png) sit on the old words' ink boxes at the print scale, the little triangle as it was →
        All dump/triangle-bob-src-v2.png 1920 × 1550), printed as the room print (photoprint.py --long 1920 --border-px 49 → assets/photo/trianglebob-print.webp
        2018 × 1648 + its table shadow; the card's white = the paper's, so the print is one sheet). TRIANGLEBOB in BOOT; data-size 1; data-age 19,
-       the CD's (the age doesn't change across it) -->
-  <div class="wrap" id="trianglebob" data-size="1" data-age="19"><div class="box">
+       the CD's (the age doesn't change across it).
+       2026-10-13 (owner: "for this video there is a triangle bob on our website. i need you to pull that video and put it on for it to play
+       as a triangle bob on the website. also make sure the current ratio of the preview (the triangle bob) is wide enough for it to seamlessly
+       blend between the preview and the first frame of the video"): the print PLAYS the game's trailer ("My Desktop Buddy - Triangle Bob",
+       youtu.be/zUQR_7I0bnI, 1080p60, 44 s) in its photo window, with the CLIP BLEND; its photo WIDENED to the film's 16 : 9 (white added
+       left and right, the type as it was → assets/photo/trianglebob-wide-print.webp 2018 × 1178), data-size 1.4: as tall as the old print,
+       the type the same size, only wider. brew/neofilm/trianglebobfilm.py. ?tbclip=0 = the old print (data-size 1, set by BOOT).
+       2026-10-16 (owner, as THE DOT's): BARE as the Dandelion trailer — the widened title card alone (assets/trianglebob/trianglebob-poster.webp,
+       trianglebobfilm.py --only poster), straight, data-size 1.2. Its white is the page's: at rest the type and the little triangle stand
+       on the page itself; the film's frame appears with the film. Same day: its shadows back, no paper (as THE DOT's). ?gameprint=1 = the 16 : 9 print (data-size 1.4, set by BOOT) -->
+  <div class="wrap" id="trianglebob" data-size="1.2" data-age="19"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): TRIANGLEBOB in BOOT -->
   </div></div>
   <!-- site 2026-10-08: a BORDERLESS PIC right of the CD stack (owner: "put ts right to the cd stack as the borderless pic"): an animation still
@@ -638,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=c20ec39"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=7d3507b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1539,7 +1589,7 @@ const CAP_GROUP = { on: pageQuery.get('capgroup') !== '0', z: '0 0 -.8px' };
    the next pic lands alone, its text fades in `ms` later. The MacBook's caption (no group) is pinned the same way now (rowWrite(),
    render(): under both moving piles at CAP_GROUP.z) — before, it rode its pile through its fade out. */
 const CAP_GROUPS = CAP_GROUP.on ? { neo: { owner: 'polaroids', members: ['room', 'shelves', 'sunroom', 'inspect', 'neofilm', 'neodance', 'polaroids'] },
-                                    dandelion: { owner: 'trianglebob', members: ['trianglebob', 'friends'] } } : {};   // site 2026-10-13: DT_CAPTION (the Triangle Bob print + the Dandelion trailer: one text)
+                                    eye1: { owner: 'eye1img', members: ['eye1', 'eye1img'] } } : {};   // site 2026-10-16: Eye 1's clip + image
 function capGroup(g) {                      // its state now: on (seen), ride (the member it sits beside — riding its zoom, unless pin: CAP_WAIT)
   const m = RP.move, a = activeStack, inG = s => !!s && s.capGroup === g;
   if (m && inG(m.from) && inG(m.to)) {
@@ -2017,7 +2067,7 @@ if (capEl) {
     return kids;
   };
   if (cfg.caption.lock != null && cfg.caption.text != null && CAP_LOCK) {   // site 2026-10-07: LOCK (the .caption.lock CSS) — the live lines on the reference's corner
-    capEl.classList.add('lock');
+    capEl.classList.add('lock'); if (cfg.caption.mid) capEl.classList.add('mid');   // site 2026-10-16: MID (the .caption.mid CSS)
     const live = document.createElement('div'), ref = document.createElement('div');
     live.className = 'cap-live'; ref.className = 'cap-ref'; ref.setAttribute('aria-hidden', 'true');
     live.append(...textKids(cfg.caption.text)); ref.append(...textKids(cfg.caption.lock)); inner.append(live, ref);
@@ -6364,24 +6414,105 @@ const FRIENDS_STILL = pageQuery.get('friendsclip') === '0';
 const FRIENDS_CLIP = { base: '../assets/friendsfilm/', sizes: [1280], window: [0, 0, 1, 1], src: { hevc: 'friendsfilm-{w}-wk.mp4', h264: 'friendsfilm-{w}.mp4' }, type: NEOFILM_CLIP.type,
                        blend: pageQuery.get('blend') !== '0' };   // site 2026-10-11: the whole trailer; the CLIP BLEND at its start and end (?blend=0: the plain dissolve on p, as the NEO)
 const FRIENDS_LIVE = { base: '../assets/friendsfilm/', sizes: [1280], src: { hevc: 'friendsfilm-live-{w}-wk.mp4', h264: 'friendsfilm-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
+/* site 2026-10-13 DESCRIPTIONS (owner: "put out a description tool where I could add stuff to dandelion and triangle bob, it must share
+   description"; 2026-10-14 the text typed on the SWAP page: "like ts, also same for the dandelion", then "triangle bob description is triangle
+   bob not dandelion"): the Dandelion trailer (#friends) and the Triangle Bob print each have their OWN caption, its own title over the SHARED
+   credits (DT_BODY: Founder / ½ / Accidental Tree / 3 lines / Alex Tykh / Viktor Dune). lock = the vinyl's reference (DAN_CAPTION's: the
+   type starts where the CD's did). The tool: site.html?swap=1&cap=friends | trianglebob (poslab.js). (A one-text CAPTION GROUP of the two,
+   2026-10-13 – 14, is gone with the split.) */
+const DT_BODY = '\n\n\n\n\nFounder\n\nAccidental Tree\n\n\n\n\n\nAlex Tykh\nViktor Dune', DT_LOCK = 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune';
+const DF_CAPTION = { text: 'Dandelion' + DT_BODY, lock: DT_LOCK };
+const TB_CAPTION = { text: 'Triangle Bob' + DT_BODY, lock: DT_LOCK };
 stacks.push(makeStack($('friends'), FRIENDS_STILL
   ? { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/still/friends.webp', w: 2804, h: 1568 }], deck: [0],
       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(2804 / 1568 - 1) / 2 },
-      openB: (W, H) => pageB(W, H, CLIP_ZOOM) }
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: DF_CAPTION }
   : { name: 'friends', idp: 'fr-', images: [{ id: 'friends', src: '../assets/friendsfilm/friendsfilm-poster.webp', w: 1920, h: 1080 }], deck: [0],
       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: FRIENDS_CLIP, live: FRIENDS_LIVE,
-      openB: (W, H) => pageB(W, H, CLIP_ZOOM) }));
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: DF_CAPTION }));
 /* site 2026-10-09: the TRIANGLE BOB print (the markup's comment): the room print's treatment, a tilt of its own (+1.2°: the CD left of it
    leans −2°), on the row's baseline, the hover turning it left as the prints */
-const TRIANGLEBOB = [{ id: 'trianglebob', src: '../assets/photo/trianglebob-print.webp', w: 2018, h: 1648 }];
-/* site 2026-10-13 (owner: "lets start adding descriptions. put out a description tool where I could add stuff to dandelion and triangle bob,
-   it must share description"): the Triangle Bob print and the Dandelion trailer (#friends) are one CAPTION GROUP (CAP_GROUPS.dandelion) —
-   the print owns the text, the clip shows it beside itself. It starts as the owner's Dandelion text of 2026-10-07 (DAN_CAPTION's, the
-   vinyl's, off the row since 10-10); lock = that caption's reference, so it starts where the CD's did. Typed on the SWAP page
-   (site.html?swap=1&cap=trianglebob), ported here. */
-const DT_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nViktor Dune', lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };
-stacks.push(makeStack($('trianglebob'), { name: 'trianglebob', idp: 'tb-', images: TRIANGLEBOB, deck: [0], knobs: POL_KNOBS, castOnly: true, caption: DT_CAPTION,
-                                          floor: { src: '../assets/photo/trianglebob-floor.webp', fx: .03331, fy: .04080 }, rest: { rot: 1.2, up: -(2018 / 1648 - 1) / 2, hover: -1 } }));
+/* site 2026-10-13 (the markup's comment): the print PLAYS the trailer — a print whose photo moves (the NEO clip's first try, ?clipprint=1's
+   kind): cfg.video over its photo window (TB_CLIP: frames 3 … 2641 of YouTube's 1080p60 — after its 3 black frames, to the "Link in the
+   description" card; its sound with it; 1280 / 1920, the 1920 H.264 the master's own frames, bit-exact) with blend: true — the CLIP BLEND
+   (its note): the title card recedes, blurred, under the film's first frame (the desktop, the triangle drawn in Paint) as a Live Photo's
+   playback starts, and settles back at the film's end. Its photo is the film's 16 : 9 now (the title card widened: white added left and
+   right at its own scale), so the poster and the film share one window. Open box: the clips' (CLIP_ZOOM) for that WINDOW — × 2018 / 1920
+   for the paper round it — so the film plays as large as the Dandelion trailer's beside it. No LIVE hint (the poster is not a frame of
+   the film). ?tbclip=0 = the old print, still (2018 × 1648, data-size 1) */
+/* site 2026-10-16 (owner: "the videos for the dot and [triangle bob] are in the frame image, they must be like a neo 1x video or the
+   dandelion"): the two game trailers are BARE, as the Dandelion trailer (#friends) — the poster alone (1920 × 1080: the print's photo
+   without its paper), PLAIN knobs, straight, the film over the whole card (window [0, 0, 1, 1]), the open box CLIP_ZOOM × the page's.
+   GAME_PRINT (?gameprint=1) = the prints as they were (2026-10-13 / 15: paper, table shadow, tilt, data-size 1.4).
+   Same day (owner: "add the shadows for traingle and the dot, just no white frame of the image"): the prints' SHADOWS back on the bare
+   cards — POL_KNOBS + castOnly (the measured shadows, at home and in the viewer) and a TABLE shadow per card baked for the bare 16 : 9 at
+   data-size 1.2 (trianglebobfilm.bare_card: photoprint.py --border 0 → assets/<name>/<name>-floor.webp, fx .02776 fy .04934); the poster
+   carries the print's cut edge (a white card on the white page has no lit edge otherwise). Still straight: no tilt, no hover turn */
+const GAME_PRINT = pageQuery.get('gameprint') === '1';
+const GAME_FLOOR = name => ({ src: `../assets/${name}/${name}-floor.webp`, fx: .02776, fy: .04934 });
+const GAME_WINDOW = GAME_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1];
+const TB_STILL = pageQuery.get('tbclip') === '0';
+const TRIANGLEBOB = TB_STILL ? [{ id: 'trianglebob', src: '../assets/photo/trianglebob-print.webp', w: 2018, h: 1648 }]
+                  : GAME_PRINT ? [{ id: 'trianglebob', src: '../assets/photo/trianglebob-wide-print.webp', w: 2018, h: 1178 }]
+                  : [{ id: 'trianglebob', src: '../assets/trianglebob/trianglebob-poster.webp', w: 1920, h: 1080 }];
+const TB_CLIP = { base: '../assets/trianglebob/', sizes: [1280, 1920], window: GAME_WINDOW,
+                  src: { hevc: 'trianglebob-{w}-wk.mp4', h264: 'trianglebob-{w}.mp4' }, type: NEOFILM_CLIP.type, blend: pageQuery.get('blend') !== '0' };
+if (TB_STILL) $('trianglebob').dataset.size = '1';
+else if (GAME_PRINT) $('trianglebob').dataset.size = '1.4';
+stacks.push(makeStack($('trianglebob'), TB_STILL
+  ? { name: 'trianglebob', idp: 'tb-', images: TRIANGLEBOB, deck: [0], knobs: POL_KNOBS, castOnly: true, caption: TB_CAPTION,
+      floor: { src: '../assets/photo/trianglebob-floor.webp', fx: .03331, fy: .04080 }, rest: { rot: 1.2, up: -(2018 / 1648 - 1) / 2, hover: -1 } }
+  : GAME_PRINT
+  ? { name: 'trianglebob', idp: 'tb-', images: TRIANGLEBOB, deck: [0], knobs: POL_KNOBS, castOnly: true, caption: TB_CAPTION,
+      floor: { src: '../assets/photo/trianglebob-wide-floor.webp', fx: .02380, fy: .04076 }, rest: { rot: 1.2, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: TB_CLIP,
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM * 2018 / 1920) }
+  : { name: 'trianglebob', idp: 'tb-', images: TRIANGLEBOB, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: GAME_FLOOR('trianglebob'),
+      rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: TB_CLIP,
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: TB_CAPTION }));
+/* site 2026-10-16: EYE 1 (the markup's comment): the NEO dance clip's engine and look as they are — PLAIN knobs, straight (rot 0: no
+   hover turn), cfg.video (the whole video, its sound raised to the site's level by eye1film.py) with blend: true, cfg.live (744 … 800,
+   muted, its last frame the poster) — on a 9 : 16 card: on the row's baseline as it is (rest.up 0: a portrait card fills its box's
+   height), the page's open box (no openB: the card's height = B, the polaroids' open height). One size, the picture's own (608).
+   Caption: placeholder text (owner to confirm the name / role / year), on the NEO caption's place (its lock), mid-centred; its owner is the image (EYE1IMG) */
+const EYE1_CAPTION = { text: 'Eye 1\n\nAR Translation Glasses\nPrototype\n\n\n\n\n\n\nViktor Dune', lock: POL_V1.text, mid: true };   // owner 2026-10-16: "this one text to be mid centered" (MID)
+const EYE1_CLIP = { base: '../assets/eye1/', sizes: [608], window: [0, 0, 1, 1], src: { hevc: 'eye1-{w}-wk.mp4', h264: 'eye1-{w}.mp4' }, type: NEOFILM_CLIP.type,
+                    blend: pageQuery.get('blend') !== '0' };
+const EYE1_LIVE = { base: '../assets/eye1/', sizes: [608], src: { hevc: 'eye1-live-{w}-wk.mp4', h264: 'eye1-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
+stacks.push(makeStack($('eye1'), { name: 'eye1', idp: 'e1-', images: [{ id: 'eye1', src: '../assets/eye1/eye1-poster.webp', w: 608, h: 1080 }], deck: [0],
+                                   knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 }, video: EYE1_CLIP, live: EYE1_LIVE }));
+/* site 2026-10-16: the EYE 1 IMAGE (the markup's comment): a pile of one, the photo prints' treatment — POL_KNOBS + castOnly, its table
+   shadow baked by photoprint.py per version (fx / fy), straight (rot 0: no hover turn), a landscape lowered onto the row's baseline by
+   (w/h − 1)/2; the caption's OWNER (CAP_GROUPS.eye1: the clip shares its text). ?eyeimg=1 | 2 | 3 = the versions (1 by default) */
+const EYE1IMG_VARS = {
+  1: { v: 'v1', w: 1634, h: 2018, size: .9,  fx: .04573, fy: .03704 },    // 4 : 5 portrait, head + shoulders
+  2: { v: 'v2', w: 2018, h: 2018, size: .9,  fx: .03701, fy: .03701 },    // square close-up, cut at the neck
+  3: { v: 'v3', w: 2018, h: 1634, size: 1.1, fx: .03028, fy: .03741 },    // 5 : 4 landscape, head + shoulders
+};
+const EYE1IMG = EYE1IMG_VARS[pageQuery.get('eyeimg')] || EYE1IMG_VARS[1];
+$('eye1img').dataset.size = String(EYE1IMG.size);
+stacks.push(makeStack($('eye1img'), { name: 'eye1img', idp: 'e1i-', images: [{ id: 'eye1-head-' + EYE1IMG.v, src: `../assets/eye1/eye1-head-${EYE1IMG.v}-print.webp`, w: EYE1IMG.w, h: EYE1IMG.h }],
+                                      deck: [0], knobs: POL_KNOBS, castOnly: true, floor: { src: `../assets/eye1/eye1-head-${EYE1IMG.v}-floor.webp`, fx: EYE1IMG.fx, fy: EYE1IMG.fy },
+                                      rest: { rot: 0, up: EYE1IMG.w > EYE1IMG.h ? -(EYE1IMG.w / EYE1IMG.h - 1) / 2 : 0 }, caption: EYE1_CAPTION }));
+/* site 2026-10-15: THE DOT (the markup's comment): the Triangle Bob print's kind as it is — POL_KNOBS, castOnly, its table shadow (the same
+   2018 × 1178 card: fx .02380 fy .04076), on the row's baseline, +1° (the trees print left of it leans −1°: the prints alternate), the hover
+   turning it left; cfg.video over its photo window (TD_CLIP: frames 0 … 4592, the whole trailer as on YouTube — frame 0 a keyframe, no
+   black head — to the dim "The Dot" title on black, its music out at 69 s; 1280 / 1920, the 1920 H.264 the master's own frames, bit-exact)
+   with blend: true (the poster is not a frame of the film: the CLIP BLEND). Open box: TB's (the window as large as the trailers'). No LIVE
+   hint. Caption: the games' own (owner 2026-10-16: "same description for the dot, just the dot instead of dandelion or triangle bob"):
+   its title over DT_BODY (Founder / Accidental Tree / Alex Tykh / Viktor Dune), on DT_LOCK's place as the games right of it */
+const TD_CAPTION = { text: 'The Dot' + DT_BODY, lock: DT_LOCK };
+const THEDOT = GAME_PRINT ? [{ id: 'thedot', src: '../assets/photo/thedot-print.webp', w: 2018, h: 1178 }]
+                          : [{ id: 'thedot', src: '../assets/thedot/thedot-poster.webp', w: 1920, h: 1080 }];   // 2026-10-16: BARE (GAME_PRINT's note)
+const TD_CLIP = { base: '../assets/thedot/', sizes: [1280, 1920], window: GAME_WINDOW,
+                  src: { hevc: 'thedot-{w}-wk.mp4', h264: 'thedot-{w}.mp4' }, type: NEOFILM_CLIP.type, blend: pageQuery.get('blend') !== '0' };
+if (GAME_PRINT) $('thedot').dataset.size = '1.4';
+stacks.push(makeStack($('thedot'), GAME_PRINT
+  ? { name: 'thedot', idp: 'td-', images: THEDOT, deck: [0], knobs: POL_KNOBS, castOnly: true, caption: TD_CAPTION,
+      floor: { src: '../assets/photo/thedot-floor.webp', fx: .02380, fy: .04076 }, rest: { rot: 1, up: -(2018 / 1178 - 1) / 2, hover: -1 }, video: TD_CLIP,
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM * 2018 / 1920) }
+  : { name: 'thedot', idp: 'td-', images: THEDOT, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: GAME_FLOOR('thedot'),
+      rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: TD_CLIP,
+      openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: TD_CAPTION }));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
@@ -6479,7 +6610,7 @@ const DAN_CD = !DAN_CD_ON ? [DANDELION[1]] : DAN_SLEEVE ? DANDELION : [{ ...DAND
 /* site 2026-10-07 (owner: "add to …?swap=1 ability to modify spacing and text to cd and macbook open"): the CD's caption, the MACBOOK's manner —
    a TEXT caption, title / ½ line / role / 1.5 lines / name, in the band left of the open CD (split 646 : 354, to the case's edge). The text is a
    placeholder (Dandelion / Demo OST / Viktor Dune) until the owner typed theirs on the SWAP page. lock: the LOCK's reference text = that placeholder (the place). */
-const DAN_CAPTION = { text: 'Dandelion\n\n\nFounder\n\n\n\n\n\n\nAlex Tykh\nViktor Dune',   // owner 2026-10-07 (typed on the SWAP page, "apply current values"): Dandelion / 1 line / Founder / 3 lines / Alex Tykh, Viktor Dune
+const DAN_CAPTION = { text: DF_CAPTION.text,   // 2026-10-14: the Dandelion text (DF_CAPTION); was the owner's of 2026-10-07 (typed on the SWAP page, "apply current values"): Dandelion / 1 line / Founder / 3 lines / Alex Tykh, Viktor Dune
                       lock: 'Dandelion\n\nDemo OST\n\n\n\nViktor Dune' };   // lock: the reference (LOCK) — this placeholder: the owner's text will start where it starts
 /* site 2026-10-10 (owner: "also rm the vynyl with music"): the Dandelion pile — the sleeve and its song — is OFF the row: its .wrap leaves
    the DOM here, before the first layout measures the row (RP.els — the neighbours, the camera, the age roll — come from the DOM). ?vinyl=1
