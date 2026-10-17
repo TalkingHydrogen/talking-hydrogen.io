@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=19a16d8."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=32c48ab."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -688,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=19a16d8"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=32c48ab"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -3717,11 +3717,13 @@ const flipActive = () => phase !== 'rest' || !flipDone();
 /* FEED: from the tap that zooms until HOME the document must not move under the page: the fixed .shield takes EVERY touch (inline
    pointer-events + touch-action: none — nothing toggles overflow on <html>: the PERF law); RP.sy = the frozen scroll. Released at HOME. */
 function feedFreeze() {
+  feedAdopt();                              // FEED SCROLL: the column stops where it is (a tap is never taken from a moving one: feedHold())
   RP.sy = Math.max(0, Math.round(scrollY)); RP.rowTop = row.offsetTop - RP.sy;
   shield.style.pointerEvents = 'auto'; shield.style.touchAction = 'none';
 }
 function feedThaw() {
   if (RP.sy) { RP.sy = 0; RP.rowTop = row.offsetTop; }
+  feedAdopt();                              // FEED SCROLL: the column from the scroll OPEN left (HOME AIM's)
   if (shield.style.pointerEvents) { shield.style.pointerEvents = ''; shield.style.touchAction = ''; }
 }
 function lockPage() { if (!SINK && !isFeed() && !STG) scrollTo(0, 0); }    // to the top. PERF 2026-09-28: the root's overflow is hidden for good (the html CSS rule) — writing it here stalled every transition's first frame
@@ -3859,7 +3861,7 @@ function homeAimV() {
   if (Math.abs(S1 - RP.sy) < 1) return;
   perfMark('home aim v ' + RP.sy + ' → ' + S1);
   if (p.value !== 1) p.jump(1);
-  RP.sy = S1; RP.rowTop = row.offsetTop - S1; scrollTo(0, S1); AGE.i = -1;
+  RP.sy = S1; RP.rowTop = row.offsetTop - S1; scrollTo(0, S1); feedAdopt(); AGE.i = -1;
   return true;
 }
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
@@ -4630,7 +4632,7 @@ var TOUCH = null;                           // site 2026-10-13: PHONE MODE's ges
 var feedSpeed = () => 0;                    // FEED: the document scroll's speed, px/ms (the TOUCH block's scroll listener)
 const rowLog = DIAG ? a => { const L = RP.log; L.push(a); if (L.length > 6000) L.splice(0, 2000); } : () => {};   // PERF: ?hud=1 / ?perf=1 only
 const rowOver = S => S < 0 ? -S : S > RP.M ? S - RP.M : 0;
-const rowActive = () => RP.drive !== 'rest' || RP.els.some(e => e.o || e.v) || RP.S !== Math.round(RP.S);
+const rowActive = () => RP.drive !== 'rest' || FS.drive !== 'rest' || FS.pend || RP.els.some(e => e.o || e.v) || RP.S !== Math.round(RP.S);   // FS: the FEED SCROLL
 function rowSync() {                        // adopt a scrollLeft the browser set on its own (a resize clamp, find-in-page)
   const cur = scroller.scrollLeft;
   if (cur !== RP.sl) { const d = cur - RP.sl; RP.S += d; RP.sPrev += d; RP.sl = cur; }
@@ -4662,7 +4664,7 @@ function placeRestore(a) {
   const u = k[a.i] + a.t * (k[a.i + 1] - k[a.i]);
   if (feed) {
     const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
-    scrollTo(0, a.end > 0 ? max : a.end < 0 ? 0 : Math.round(clamp(u - RP.H / 2, 0, max)));
+    scrollTo(0, a.end > 0 ? max : a.end < 0 ? 0 : Math.round(clamp(u - RP.H / 2, 0, max))); feedAdopt();
   } else {
     const S1 = a.end > 0 ? RP.M : a.end < 0 ? 0 : Math.round(clamp(u - RP.W / 2, 0, RP.M));
     for (const e of RP.els) e.o = e.v = 0;
@@ -4673,9 +4675,9 @@ function placeRestore(a) {
 }
 function feedSwitch(now) {                  // the mode changed (a rotation): the other model's inline styles go, the scrolls reset
   perfMark('feed ' + (now ? 'on' : 'off'));
-  RP.sy = 0;
+  RP.sy = 0; feedAdopt();
   if (now) { for (const e of RP.els) e.o = e.v = 0; RP.S = RP.sPrev = RP.sl = 0; scroller.scrollLeft = 0; RP.V = 0; RP.drive = 'rest'; RP.touch = null; }
-  else { window.__mobile.uncolumn({ row, viewer }); scrollTo(0, 0); shield.style.pointerEvents = ''; shield.style.touchAction = ''; }
+  else { window.__mobile.uncolumn({ row, viewer }); scrollTo(0, 0); feedAdopt(); shield.style.pointerEvents = ''; shield.style.touchAction = ''; }
   if (now && activeStack) { shield.style.pointerEvents = 'auto'; shield.style.touchAction = 'none'; activeStack.reScroll(); }   // (its open translate from the column's x: no row scroll)
   for (const s of stacks) if (s.lid) s.lidSync();                          // (the lid's rest pose is the same in both: makeLid's PHONE note)
 }
@@ -4683,14 +4685,14 @@ function openSeatV(a) {                     // FEED, a rotation in OPEN: the fro
   const v = a.homeBox(false, false, true), yb = row.offsetTop + a.wrap.offsetTop + a.wrap.offsetHeight;
   const max = Math.max(0, document.documentElement.scrollHeight - innerHeight);
   RP.sy = Math.round(clamp(yb + (v.t + v.b) / 2 - innerHeight / 2, 0, max)); RP.rowTop = row.offsetTop - RP.sy;
-  scrollTo(0, RP.sy);
+  scrollTo(0, RP.sy); feedAdopt();
 }
 function openSeatH(a) {                     // the row, a rotation in OPEN: the frozen row centred on the open item
   const W = scroller.clientWidth, M = Math.max(0, row.offsetWidth - W), S1 = Math.round(clamp(a.wrap.offsetLeft + a.wrap.offsetWidth / 2 - W / 2, 0, M));
   RP.S = RP.sPrev = RP.sl = S1; scroller.scrollLeft = S1; a.reScroll();
 }
 function rowMeasure(anc = null) {           // layoutAll(): the range, the gap, each row element's unscrolled centre (anc: FEED, placeAnchor())
-  RP.W = scroller.clientWidth || 1; RP.H = vH() || 1; RP.rowTop = row.offsetTop - (RP.sy || 0);
+  RP.W = scroller.clientWidth || 1; RP.H = vH() || 1; RP.rowTop = row.offsetTop - (RP.sy || 0); if (isFeed()) FS.M = feedMax();   // FS.M: FEED SCROLL's range
   RP.M = Math.max(0, row.offsetWidth - scroller.clientWidth);
   RP.gap = parseFloat(getComputedStyle(row).columnGap) || 0;
   const had = new Map(RP.els.map(e => [e.el, e]));
@@ -4742,23 +4744,92 @@ function rowWheel(dx, dy) {                 // one wheel event (px, both axes)
   }
   kick();
 }
-/* FEED, the LAG (2026-10-16, owner: "on the phone there is no image inertia there at all as there is on the website"): the column's
-   scroll is the document's own (native: Safari's bars collapse with it), so S never moves there and nothing fed the elements' springs.
-   Now each scroll event feeds them its Δy as rowStep feeds ΔS — an element is held back by Δy·r (r = LAG.amount × its distance from the
-   FINGER's y / (LAG.reach · H), at most amount: the element under the finger stays glued to it, as the native scroll keeps it) and
-   springs home in rowStep's loop (LAG.hz / zeta), shown on y through the same tanh cap at LAG.cap × the column's gap between two
-   papers (mobile.js feedGap: P.gapF name lines). The finger = the last touch's clientY (RP.fy, the TOUCH block: the native scroll
-   takes the pointer stream after the slop, the touches keep coming); none yet: the middle of the screen. Only a scroll stream's later
-   events count (the first after a pause may be a restore, a rotation's placeRestore or a status-bar tap: a jump, no lag; a finger's
-   first event is its slop) and a jump over H / 2 resets the springs. HOME only: in OPEN the scroll is frozen. The knobs ?rowlag=
-   ?rowhz= ?rowzeta= apply as on the desktop. */
-function feedLag(dy) {
-  const L = ROWPHYS.lag, H = RP.H;
-  if (!dy || !L.amount || activeStack) return;
-  if (Math.abs(dy) > H / 2) { for (const e of RP.els) e.o = e.v = 0; return; }
-  const fy = RP.fy >= 0 ? RP.fy : H / 2, R = Math.max(1, L.reach * H), sy = Math.max(0, scrollY);
-  for (const e of RP.els) e.o += dy * L.amount * Math.min(Math.abs(RP.rowTop + e.cy + e.o - sy - fy) / R, 1);   // held back by its distance from the finger
-  kick();
+/* FEED SCROLL (2026-10-17, owner: "the itertia feels so rough there, first of all it must be entirely written for the touchscreen input
+   with velocity etc. … when scrooled up, it hits an invisible wall, then unstops and then bumps into the actuall top"): the column's
+   scroll is the page's own, as the row's is (ROW PHYSICS above). It was the document's native scroll, the LAG (2026-10-16, owner: "on the
+   phone there is no image inertia there at all as there is on the website") fed after the fact by its scroll events — another thread's
+   clock, read late and in bursts — and the root's overscroll-behavior: none stopped a coast DEAD at the top while the lagging papers carried
+   on into it and sprang back (the wall, the unstop, the bump). Now one engine, one clock:
+     - the finger moves FS.Y 1:1 (from the slop on, as UIScrollView); past an end, iOS's rubber band from the pull's start (rubberBand(),
+       over the screen's height);
+     - the release flings it: the finger's velocity over its last 100 ms (0 after a 60 ms rest: the TOUCH block's vel()), iOS's normal
+       deceleration (ROWPHYS.fling .998 / ms), ≤ FEEDPHYS.vmax; a coast that runs into an end BOUNCES — its velocity × edge.vin (≤ edge.vmax)
+       into the row's critically damped edge spring (EDGE.hz, the stretch capped at edge.max × H); let go stretched: that spring from
+       there, with the finger's velocity;
+     - a touch on a moving / stretched column only CATCHES it (no tap, no press), as on iOS;
+     - the LAG springs (ROWPHYS.lag, iMessage's) are fed FS.Y's change each FRAME (rowStep), anchored at the finger (RP.fy: the element
+       under it stays glued, the far ones trail), in the frame the scroll is written;
+     - the write (rowWrite): the document's scroll = FS.Y rounded into [0, M] (the document stays the scroller: Safari's bars, every
+       reader of scrollY and the fixed layers as they were), the rest — the stretch, the sub-pixel — on every element's y (FS.d).
+   The finger is the page's: the SAFARI GUARDS' touchmove (mobile.js) asks claim() → feedClaim(), which prevents every one-finger move at
+   HOME, so Safari never pans the column — except a swipe UP while its bars are showing (decided at the first touchmove: WebKit defers its
+   pan to that answer), the one thing that makes Safari hide them: that finger is the document's (g.nat), its scroll and momentum
+   FOLLOWED (drive 'native': FS.Y = scrollY each frame, fsStep(), the lag fed by it), as is any scroll the page didn't write (a status-bar tap,
+   find-in-page). Probe: website-perf/mobile (lib.mjs: a prevented touchmove now keeps its pointers). ?rowlag= ?rowhz= ?rowzeta= ?rowedge=
+   tune it as on the desktop; ?fsvmax= the fling's cap. */
+const FEEDPHYS = { vmax: 8, catchV: .05, quiet: 150, natMs: 120 };   // vmax: px/ms (iOS flicks reach 5–8 pt/ms) · catchV: faster = a touch only catches it · quiet: ms without a scroll = the document's own is over · natMs: a native scroll this recent = moving
+{ const v = parseFloat(pageQuery.get('fsvmax')); if (Number.isFinite(v) && v > 0) FEEDPHYS.vmax = v; }
+const FS = { Y: 0, V: 0, prev: 0, w: 0, d: 0, M: 0, drive: 'rest', base: null, natT: -1e9, pend: false, fingers: 0 };
+// Y: the column's scroll (document px; < 0 or > M = the stretch) · prev: last frame's (the lag's Δ) · w: the scroll written / adopted (integer) · d: w − Y, on every element's y
+// drive: 'rest' | 'touch' (a finger holds it) | 'free' (a fling / a bounce) | 'native' (the document's own scroll, followed) · base: the drag's { fy, raw } · pend: the last write after a coast · fingers: touches down
+const feedMax = () => Math.max(0, document.documentElement.scrollHeight - innerHeight);
+const unBand = (y, dim) => { const D = Math.max(1, dim), c = ROWPHYS.edge.c, q = Math.min(.999, y / D); return D / c * (1 / (1 - q) - 1); };   // rubberBand()'s inverse
+const feedOver = Y => Y < 0 ? -Y : Y > FS.M ? Y - FS.M : 0;
+function feedAdopt() {                      // the document's scroll as it is (a page jump: a rotation's place, HOME AIM, a restore) — no lag; off the feed: at rest
+  FS.V = 0; FS.base = null; FS.drive = 'rest'; FS.pend = false; FS.d = 0;
+  if (isFeed()) { FS.Y = FS.prev = FS.w = Math.max(0, Math.round(scrollY)); FS.M = feedMax(); }
+}
+function feedHold() {                       // TOUCH, a finger down at HOME: the column held where it is — true = it was moving (this touch only catches it)
+  const now = performance.now(), caught = feedOver(FS.Y) > 1 || (FS.drive === 'free' && Math.abs(FS.V) > FEEDPHYS.catchV) || (FS.drive === 'native' && now - FS.natT < FEEDPHYS.natMs);
+  if (FS.drive === 'rest' || FS.drive === 'native') { const y = Math.max(0, Math.round(scrollY)); FS.Y = FS.prev = FS.w = y; FS.d = 0; }
+  FS.M = feedMax(); FS.drive = 'touch'; FS.V = 0; FS.base = null; kick();
+  return caught;
+}
+function feedGrab(fy) { FS.base = { fy, raw: FS.Y < 0 ? -unBand(-FS.Y, RP.H) : FS.Y > FS.M ? FS.M + unBand(FS.Y - FS.M, RP.H) : FS.Y }; }   // the slop passed: 1:1 from here (a stretch picked up where it is)
+function feedDrag(fy) {                     // the finger at fy: 1:1, rubber-banded past an end (from the pull's start)
+  if (!FS.base || FS.drive !== 'touch') return;
+  const raw = FS.base.raw - (fy - FS.base.fy), H = RP.H, M = FS.M;
+  FS.Y = raw < 0 ? -rubberBand(-raw, H) : raw > M ? M + rubberBand(raw - M, H) : raw; kick();
+}
+function feedRelease(v) {                   // let go (v: px/ms, + = the column forward): the fling, the spring back from a stretch, or rest
+  if (FS.drive !== 'touch') return;
+  const E = ROWPHYS.edge, lim = feedOver(FS.Y) ? E.vmax : FEEDPHYS.vmax;
+  FS.base = null; FS.V = clamp(v, -lim, lim); FS.drive = 'free'; kick();
+}
+function feedNative() { FS.drive = 'native'; FS.natT = performance.now(); FS.base = null; FS.V = 0; FS.d = 0; FS.M = feedMax(); kick(); }   // the document scrolls itself (its bars' swipe, a status-bar tap): followed
+function feedExternal(y) {                  // the scroll listener: a scroll the page didn't write
+  if (FS.drive === 'touch') { FS.w = y; return; }                                        // (held: never panned — the claim prevents it; a clamp)
+  if (FS.drive === 'free' && FS.w > (FS.M = feedMax())) { FS.w = y; return; }           // (the range shrank under a fling — Safari's bars: it bounces off the new end)
+  if (FS.drive !== 'native') feedNative(); else FS.natT = performance.now();
+}
+function fsStep(n, h) {                     // rowStep(): FS.Y advanced (a fling, a bounce; the document's own scroll followed), the LAG fed by its change
+  if (FS.drive === 'native') {
+    const y = Math.max(0, scrollY), now = performance.now();
+    if (y !== FS.w) { FS.w = y; FS.natT = now; }
+    FS.Y = y;
+    if (now - FS.natT > FEEDPHYS.quiet && !FS.fingers) { FS.Y = FS.w = Math.round(y); FS.drive = 'rest'; }
+  } else if (FS.drive === 'free') {
+    const E = ROWPHYS.edge, F = ROWPHYS.fling, M = FS.M, w = 2 * Math.PI * E.hz / 1000, cap = E.max * RP.H;
+    for (let i = 0; i < n; i++) {
+      const Y = FS.Y;
+      if (Y < 0 || Y > M) {                                              // past an end: critically damped back to it
+        const e = Y < 0 ? 0 : M, x = Y - e;
+        FS.V += (-w * w * x - 2 * w * FS.V) * h; FS.Y += FS.V * h;
+        const nx = FS.Y - e;
+        if (Math.abs(nx) > cap) { FS.Y = e + Math.sign(nx) * cap; FS.V = 0; }
+        if (nx * x <= 0 || (Math.abs(nx) < .3 && Math.abs(FS.V) < .005)) { FS.Y = e; FS.V = 0; FS.drive = 'rest'; FS.pend = true; break; }
+      } else {                                                           // inside: the coast (iOS's deceleration)
+        FS.Y += FS.V * h; FS.V *= F.decay ** h;
+        if (feedOver(FS.Y)) FS.V = clamp(FS.V * E.vin, -E.vmax, E.vmax);  // it ran into an end: its velocity into the bounce
+        else if (Math.abs(FS.V) < F.stop) { FS.V = 0; FS.Y = Math.round(FS.Y); FS.drive = 'rest'; FS.pend = true; break; }
+      }
+    }
+  }
+  const dY = FS.Y - FS.prev, L = ROWPHYS.lag; FS.prev = FS.Y;
+  if (!dY || !L.amount || activeStack) return;
+  if (Math.abs(dY) > RP.H / 2) { for (const e of RP.els) e.o = e.v = 0; return; }             // a jump (find-in-page): no lag
+  const H = RP.H, fy = RP.fy >= 0 ? RP.fy : H / 2, R = Math.max(1, L.reach * H);
+  for (const e of RP.els) e.o += dY * L.amount * Math.min(Math.abs(RP.rowTop + e.cy + e.o - FS.Y - fy) / R, 1);   // held back by its distance from the finger
 }
 function rowStep(dt) {                      // the frame loop: S (release / fling / edge spring), then every element's spring
   if (!rowActive()) return;
@@ -4781,6 +4852,7 @@ function rowStep(dt) {                      // the frame loop: S (release / flin
       }
     }
   }
+  if (isFeed()) fsStep(n, h);               // FEED SCROLL: the column's scroll, its lag impulses (integrated below)
   const dS = RP.S - RP.sPrev; RP.sPrev = RP.S;
   const ax = RP.touch ? RP.touch.x : lastX >= 0 ? lastX : RP.W / 2, R = Math.max(1, L.reach * RP.W);
   const w = 2 * Math.PI * L.hz / 1000, z = L.zeta;
@@ -5009,11 +5081,16 @@ function nudgeV() {
 const nudgeDir = (d, e) => { const j = RP.els.indexOf(e); return !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * (isFeed() ? .5 * window.__mobile.P.peek : NB.nudge * NB.rest * PG.KV); };   // the whole side, inward (FEED: + ½ peek, 16 pt, on y)
 const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
+  if (isFeed() && !activeStack && (FS.drive === 'touch' || FS.drive === 'free' || FS.pend)) {   // FEED SCROLL: the document's scroll = FS.Y in range; the stretch + the sub-pixel on y (FS.d)
+    const w = Math.round(clamp(FS.Y, 0, FS.M));
+    if (w !== FS.w) { FS.w = w; scrollTo(0, w); }
+    FS.d = w - FS.Y; FS.pend = false;
+  } else FS.d = 0;
   const sl = Math.round(clamp(RP.S, 0, RP.M));
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
   const m = RP.move, pa = RP.part ? RP.part.progress : 0, fo = RP.part ? RP.part.filmOut || 0 : 0;   // fo: site FILM — the neighbours' slide out
   RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0) + (TOUCH ? TOUCH.key() : '');
-  const fvL = isFeed(), cap = ROWPHYS.lag.cap * (fvL ? window.__mobile.feedGap : RP.gap), pv = pageP();   // FEED: the lag's cap from the column's gap (feedLag())
+  const fvL = isFeed(), cap = ROWPHYS.lag.cap * (fvL ? window.__mobile.feedGap : RP.gap), pv = pageP();   // FEED: the lag's cap from the column's gap (FEED SCROLL)
   const up = !!RP.part && pv > 0, W = RP.W, H = RP.H;                                      // PARKING (above): the cover is up
   const cv = up ? String(Math.round((255 - 3 * pv) * 100) / 100) : '';
   if (cv !== RP.cv) { if (!RP.cv !== !cv) perfMark('cover ' + (up ? 'up' : 'down')); RP.cv = cv; cover.style.visibility = up ? 'visible' : ''; if (up) for (const d of cover.children) d.style.backgroundColor = `rgb(${cv}, ${cv}, ${cv})`; }
@@ -5022,7 +5099,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   const held = !!RP.hAim && RP.hAim.out && !!RP.part && RP.part.progress >= .5;          // site 2026-10-09: HOME AIM — the name held at its old place (homeAim())
   const [pcx, pcy] = TOUCH && !isFeed() ? TOUCH.pinAt() : [0, 0];                         // PHONE, the row (landscape): a pinned caption stays where the finger's drag left it (capPinT)
   for (const e of RP.els) {
-    const lo = cap > 0 ? cap * Math.tanh(e.o / cap) : e.o, t0 = sl - RP.S + (fvL ? 0 : lo), xh = e.cx - sl + t0;   // lo: its lag spring's offset — on x in the row, on y in the FEED (feedLag())
+    const lo = (cap > 0 ? cap * Math.tanh(e.o / cap) : e.o) + (fvL ? FS.d : 0), t0 = sl - RP.S + (fvL ? 0 : lo), xh = e.cx - sl + t0;   // lo: its lag spring's offset — on x in the row, on y in the FEED (+ the column's stretch / sub-pixel: FEED SCROLL)
     const eL = (e.eL ?? e.w) + PARK_PX, eR = (e.eR ?? e.w) + PARK_PX;
     const homeOn = isFeed() ? (e.bot ?? 1) > 0 && (e.top ?? 0) < H : xh + eR > 0 && xh - eL < W;   // FEED: on screen in y
     if (e.st?.scrub) e.st.scrubAt(xh, e.w, W);                                              // site: SCROLL IS TIME — its film's time from its HOME place
@@ -5243,7 +5320,7 @@ function moveTo(b) {
   rowPart();
   if (isFeed()) keepWindow();                                                               // FEED: the decode window follows the page
 }
-window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
+window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite, FS, FEEDPHYS };   // debug / tuning (FS: FEED SCROLL)
 window.__cap = { groups: CAP_GROUPS, wait: CAP_WAIT, group: capGroup };   // site 2026-10-11: the CAPTION GROUP and CAP_WAIT (debug / tuning)
 
 /* ============================================================
@@ -5514,7 +5591,7 @@ if (window.__mobile?.on) TOUCH = (() => {
                press: pageQuery.get('press') !== '0', nzMin: 44, nzPad: 12, paperPad: 10, tailPx: 8, tailMs: 400 };   // paperPad: FEED, HOME — a tap's reach round a visible paper (V1-3) · tailPx / tailMs: FEED, a snap's TAIL (VR3-2)
   const finger = e => e.pointerType === 'touch' || e.pointerType === 'pen';
   const DR = { on: false, mode: '', x: 0, y: 0, s: 1, px: 0, py: 0, vx: 0, vy: 0, vs: 0, x0: 0, y0: 0, s0: 1, st: null };   // mode: hold | spring | move | close
-  let g = null, upT = -1e9, unlocked = false, feedScrollT = -1e9, fsT = -1e9, fsY = 0, fsV = 0, fsQ = 0, fsK = -1e9;   // FEED: the last scroll event's time / y, its speed (px/ms)
+  let g = null, upT = -1e9, unlocked = false, fsT = -1e9, fsY = 0, fsV = 0, fsQ = 0, fsK = -1e9;   // FEED: the last scroll event's time / y, its speed (px/ms)
   let tailTap = null;                        // FEED (VR3-2): a tap made in a page snap's tail, acted on at its landing (land())
   feedSpeed = () => performance.now() - fsT > 120 ? 0 : fsV;
   /* FEED (spec 05 §4.1): the document's own scroll, listened to only (passive) — HOME: the catch time, the age, the Live hints; away from
@@ -5523,18 +5600,33 @@ if (window.__mobile?.on) TOUCH = (() => {
   addEventListener('scroll', () => {
     const now = performance.now(), y = Math.max(0, scrollY), dy = y - fsY, stream = now - fsT < 200;
     if (stream) fsV = .6 * fsV + .4 * Math.abs(dy) / Math.max(1, now - fsT); else fsV = 0;
-    fsT = feedScrollT = now; fsY = y;
+    fsT = now; fsY = y;
     if (!isFeed()) return;
     if (!activeStack) {
-      if (stream) feedLag(dy);                                                                // the LAG (feedLag(): a stream's later events)
+      if (Math.abs(y - FS.w) >= 1 && FS.drive !== 'native') feedExternal(y);               // FEED SCROLL: a scroll the page didn't write (the document's own: followed)
       ageSync(); liveSync(); clearTimeout(fsQ); fsQ = setTimeout(() => { fsV = 0; liveSync(); keepWindow(); }, 120);   // (the speed gate re-opens when it stops)
       if (now - fsK > 250) { fsK = now; keepWindow(); }                                     // the decode window, ≤ 4 Hz
       return;
     }
     const r = Math.round(y); if (r !== RP.sy) { RP.sy = r; layoutAll('rebase'); }
   }, { passive: true });
-  RP.fy = -1;                                // FEED: the finger's y (feedLag()'s glued point) — the first touch's, while it moves
-  for (const t of ['touchstart', 'touchmove']) addEventListener(t, e => { const f = e.touches[0]; if (f && e.touches.length === 1) RP.fy = f.clientY; }, { capture: true, passive: true });
+  RP.fy = -1;                                // FEED: the finger's y (the LAG's glued point: FEED SCROLL) — the first touch's, while it moves
+  for (const t of ['touchstart', 'touchmove']) addEventListener(t, e => { FS.fingers = e.touches.length; const f = e.touches[0]; if (f && e.touches.length === 1) RP.fy = f.clientY; }, { capture: true, passive: true });
+  for (const t of ['touchend', 'touchcancel']) addEventListener(t, e => { FS.fingers = e.touches.length; }, { capture: true, passive: true });   // (a native scroll is over once no finger holds it: fsStep())
+  /* FEED SCROLL — the SAFARI GUARDS' claim (mobile.js: every one-finger touchmove, non-passive): at HOME the column's moves are the page's
+     (prevented: Safari never pans it), decided at the finger's first move; a swipe UP while Safari's bars show is the document's (g.nat:
+     the only thing that hides them — its scroll followed, feedNative()) unless the column is stretched or at its end (nothing to scroll) */
+  const barsShow = () => window.__mobile?.bars?.() === 'showing';
+  function feedClaim(e) {
+    if (!g || !isFeed() || g.ctx !== 'home' || e.touches.length !== 1 || g.nat) return false;
+    if (g.own === null) {
+      const f = e.touches[0], dx = f.clientX - g.x0, dy = f.clientY - g.y0;
+      if (!dx && !dy) return false;                                                          // (no direction yet)
+      g.own = !(dy < 0 && -dy >= Math.abs(dx) && FS.Y >= 0 && FS.Y < FS.M - 1 && barsShow());
+      if (!g.own) { g.nat = true; clearTimeout(g.pt); if (g.pressed) { g.pressed.letGo(); g.pressed = null; } feedNative(); }
+    }
+    return g.own;
+  }
   const dead = new Set();                    // the pointers of a multi-touch: ignored until they lift
   const ctxNow = () => { if (LIFT.state !== 'idle') return 'busy'; if (filmGuard()) return 'film'; const a = activeStack; if (!a) return 'home'; return a.state === 'open' && !a.frozen && !RP.move ? 'open' : 'busy'; };   // (the LIFT up: taps ignored)
   /* FEED (fix VR3-2, 2026-10-14) — a finger that lands during a page snap. The context is read once, at the touch-down, so a finger down
@@ -6108,13 +6200,13 @@ if (window.__mobile?.on) TOUCH = (() => {
     }
     const t = e.timeStamp;
     g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: t, q: [[t, e.clientX, e.clientY]], ctx: ctxNow(), lock: '', lx: 0, ly: 0, pc: 0,
-          dir: 0, kind: '', a: activeStack, caught: false, pressed: null, pt: 0, tail: false, onPic: false };
+          dir: 0, kind: '', a: activeStack, caught: false, pressed: null, pt: 0, tail: false, onPic: false, own: null, nat: false };   // own / nat: FEED SCROLL — the claim's answer (feedClaim())
     if (g.ctx === 'open') {
       g.onPic = !isFeed() && g.a.zoneAt(g.x0, g.y0) !== null; LIFT.prefetch(g.a);
       if (dblOf(g.x0, g.y0) === 'turn') g.a.turnUndo();                                     // the room print's double tap: the turn its first tap began goes back (openTap())
     }                                                                                         // 2026-10-15: on the picture? (once, at the touch-down: the swipe model) · the ZOOM's sharp file, in case
     if (g.ctx === 'busy' && isFeed()) g.tail = tailPx() <= TC.tailPx;                                  // FEED (VR3-2): down in a snap's tail
-    if (g.ctx === 'home' && isFeed()) { g.caught = performance.now() - feedScrollT < 120; if (TC.press && !g.caught) g.pt = setTimeout(press, TC.pressMs); }   // FEED
+    if (g.ctx === 'home' && isFeed()) { g.caught = feedHold(); if (TC.press && !g.caught) g.pt = setTimeout(press, TC.pressMs); }   // FEED: held where it is (FEED SCROLL: a moving column only caught)
     else if (g.ctx === 'home') {
       g.caught = rowOver(RP.S) > 1 || (RP.drive === 'free' && Math.abs(RP.V) > .05);         // a moving / stretched row: this touch only catches it
       rowSync(); RP.touch = { id: e.pointerId, x: e.clientX, q: [] }; RP.drive = 'input'; RP.V = 0; RP.swallow = false; kick();   // held where it is (and the lag springs anchored here)
@@ -6128,6 +6220,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     const feedLock = (ax > TC.feedBias * ay ? 'h' : 'v');                                     // FEED (spec 05 §2.1): vertical is the pager (the primary axis) — horizontal only within ~40° of horizontal
     g.lock = g.ctx === 'open' || (g.ctx === 'film' && isFeed()) ? (isFeed() ? feedLock : ay > TC.bias * ax ? 'v' : 'h') : ax >= ay ? 'h' : 'v';
     g.lx = g.x; g.ly = g.y; g.pc = g.lock === 'h' ? g.x : g.y;
+    if (g.ctx === 'home' && isFeed()) feedGrab(g.y);                                         // FEED SCROLL: 1:1 from here (either axis: its y, as UIScrollView)
     if (g.ctx === 'film') {                                                                   // a drag stops the film …
       filmGuard()?.stop();
       if (isFeed() && g.lock === 'v' && activeStack?.state === 'open') { g.ctx = 'open'; g.a = activeStack; }   // … FEED: a vertical one carries on as the page drag (a swipe means "next": spec 05 §2.5)
@@ -6147,7 +6240,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (RP.touch && g.ctx === 'home') RP.touch.x = g.x;
     if (g.ctx === 'busy' && isFeed() && ctxNow() === 'open') adopt();                     // FEED (VR3-2): the snap landed under this finger — it holds the page from here
     if (!g.lock) { const dx = g.x - g.x0, dy = g.y - g.y0; if (Math.hypot(dx, dy) <= TC.slop) return; lockOn(dx, dy); }
-    if (g.ctx === 'home' && isFeed()) return;                                               // FEED: the browser's pan (a pointercancel follows)
+    if (g.ctx === 'home' && isFeed()) { feedDrag(g.y); return; }                             // FEED SCROLL: the column follows the finger
     if (g.ctx === 'home') { const c = g.lock === 'h' ? g.x : g.y, d = c - g.pc; g.pc = c; if (d) { rowPush(-d); kick(); } }   // finger left / up = forward
     else if (g.ctx === 'open' && g.a === activeStack) { if (g.lock === 'h') hFollow(g.x - g.lx); else vFollow(g.x - g.lx, g.y - g.ly); }
   }
@@ -6160,7 +6253,10 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (!unlocked && !cancel && !g.lock && isFeed()) { unlocked = true; for (const s of stacks) s.unlockMedia(); }   // FEED (spec 05 §2.4.3): the visit's first tap, before it acts
     upT = performance.now();
     if (g.ctx === 'busy' && isFeed() && !g.lock && ctxNow() === 'open') adopt();          // FEED (VR3-2): a tap that began in the snap, lifted after its landing: it acts
-    if (g.ctx === 'home' && isFeed()) { if (!g.lock && !cancel) homeTap(g.x, g.y, t - g.t0); else g.pressed?.letGo(); }   // FEED
+    if (g.ctx === 'home' && isFeed()) {                                                      // FEED
+      if (!g.nat) feedRelease(g.lock && !cancel ? -vy : 0);                                   // FEED SCROLL: the fling (finger up = forward), the spring back from a stretch, or rest
+      if (!g.lock && !cancel) homeTap(g.x, g.y, t - g.t0); else g.pressed?.letGo();
+    }
     else if (g.ctx === 'home') {
       const v = !g.lock ? 0 : g.lock === 'h' ? -vx : -vy;                                   // the row's own release (rowRelease()): the fling, or the spring back from a stretch
       RP.touch = null; RP.drive = 'free'; RP.V = clamp(v, -ROWPHYS.edge.vmax, ROWPHYS.edge.vmax); kick();
@@ -6205,7 +6301,7 @@ if (window.__mobile?.on) TOUCH = (() => {
      zoom out otherwise; a forward swipe re-opens it */
   const GU = window.__mobile?.guard;
   if (GU) {
-    GU.claim = () => LIFT.state === 'hold';
+    GU.claim = e => LIFT.state === 'hold' || (!!e && feedClaim(e));                        // + FEED SCROLL: the column's finger
     GU.onBack = ({ instant }) => {
       LIFT.abort();
       filmGuard()?.stop();
@@ -6230,7 +6326,7 @@ addEventListener('keydown', e => { const f = filmGuard(); if (f && (e.key === 'E
 let resizeT = 0;
 let resizeW = innerWidth;
 addEventListener('resize', () => {
-  if (isFeed() && !activeStack && innerWidth === resizeW && innerHeight >= innerWidth) { RP.H = vH(); liveSync(); return; }   // FEED (spec 05 S21): Safari's toolbar at HOME — the column depends on W only: no re-layout, the live height only
+  if (isFeed() && !activeStack && innerWidth === resizeW && innerHeight >= innerWidth) { RP.H = vH(); FS.M = feedMax(); liveSync(); return; }   // FEED (spec 05 S21): Safari's toolbar at HOME — the column depends on W only: no re-layout, the live height only
   if (STG && viewer.clientWidth === RP.W && viewer.clientHeight === RP.H) return;   // the STAGE: Safari's bars only — the stage is the large viewport, nothing to re-lay
   if (STG && innerHeight > innerWidth) filmGuard()?.stop();                        // the STAGE, turned upright: the rotate prompt covers the page — the film stops as a tap would (its sound never plays behind a white screen)
   resizeW = innerWidth;
