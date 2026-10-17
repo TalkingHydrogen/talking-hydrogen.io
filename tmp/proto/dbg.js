@@ -55,18 +55,12 @@
       document.body.appendChild(box);
     }
     const M = window.__mobile || {}, S = M.stage, G = M.guard, vv = window.visualViewport, sc = document.querySelector('script[src^="mobile.js"]');
-    const fsLine = () => {                                                 // FEED SCROLL (2026-10-17): the column's engine, the bars, this finger's claim
-      const F = window.__row && window.__row.FS, g = window.__touch && window.__touch.gesture;
-      return F ? 'fs ' + F.drive + ' Y=' + F.Y.toFixed(1) + ' sy=' + Math.round(scrollY) + '/' + Math.round(F.M) + ' V=' + F.V.toFixed(2) + ' d=' + F.d.toFixed(1) +
-                 ' bars=' + (M.bars ? M.bars() : '-') + ' fingers=' + F.fingers + (g ? ' g own=' + g.own + ' nat=' + g.nat : '') : 'fs -';
-    };
     const head = [
       'build ' + (sc ? (sc.getAttribute('src').split('v=')[1] || 'nov') : 'none') + ' | ' + (navigator.userAgent.match(/OS [\d_]+/) || ['?'])[0] + ' ' + innerWidth + 'x' + innerHeight + ' vv' + (vv ? vv.scale.toFixed(3) : '-'),
       'mobile=' + !!M.on + ' feed=' + !!M.feed + ' stage=' + !!S + (S ? ' lock=' + S.locked + ' bars=' + S.bars + ' entry=' + (S.entry.done ? 'done' : 'wait') : '') + ' cls=' + document.documentElement.className,
       G ? 'guard zoomed=' + G.zoomed + ' hist=' + G.entry + '/' + history.length + ' ' + JSON.stringify(G.stats) : 'guard -',
       'open ' + on + ' lift=' + (window.__touch && window.__touch.lift ? window.__touch.lift.state : '-') + ' tm=' + tmN + '/' + tmP + 'p ' + gsnap(),
       lidLine(),
-      fsLine(),
       '—',
     ];
     box.textContent = head.concat(L).join('\n');

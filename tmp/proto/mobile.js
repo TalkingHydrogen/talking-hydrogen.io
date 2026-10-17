@@ -163,7 +163,7 @@
      centred column; the name's scroll-edge fade (iOS 26's soft edge: the passing work dissolves under the name instead of running into it) */
   const cssFeed = `
   html.phone.feed { overflow-x: hidden; overflow-y: auto; }
-  html.phone.feed, html.phone.feed body { overscroll-behavior: none; }   /* (SAFARI GUARDS W3, 2026-10-15: was overscroll-behavior-y auto — the column's bounce turned the pull-to-refresh back on; none on the root: no bounce, no refresh) */
+  html.phone.feed, html.phone.feed body { overscroll-behavior-x: none; overscroll-behavior-y: contain; }   /* iOS's own rubber band at both ends (owner 2026-10-17: "I just needed a natural rubberbanding of the page"); contain, not auto: no chaining (SAFARI GUARDS W3, 2026-10-15: auto turned the pull-to-refresh back on; none killed the bounce — the dead stop at the top) */
   html.phone.feed .viewer { height: auto; }
   html.phone.feed .backdrop, html.phone.feed .shield, html.phone.feed .zone, html.phone.feed .nzone, html.phone.feed .eff, html.phone.feed .ghost,
   html.phone.feed .keep, html.phone.feed .hdr-root { position: fixed; }
@@ -248,8 +248,7 @@
      2. WebKit's GestureEvents: prevented (non-passive).
      3. Two fingers: the second finger's touchstart and every touchmove with 2+ touches are prevented — the page never pinches, while the
         POINTER events keep flowing (the LIFT's two-finger pinch): WebKit cancels pointers only when its own zoom starts. Disjoint from
-        the STAGE's one-finger lock below. claim(e): the LIFT holding the picture with ONE finger left — its moves are the page's too;
-        the FEED's column at HOME (site.html FEED SCROLL: the page scrolls it, Safari never pans it — but a swipe up while the bars show).
+        the STAGE's one-finger lock below. claim(): the LIFT holding the picture with ONE finger left — its moves are the page's too.
      4. Double-tap: a second touchend within 350 ms / 40 pt is prevented and a dblclick listener exists — at the initial scale WebKit's
         double tap is a NON-BLOCKING recogniser that still zooms when the second tap hits no click target, and touch-action never sees
         it (bug 325368). The site's taps are pointer events: nothing of theirs is lost.
@@ -275,7 +274,7 @@
     document.addEventListener('touchstart', e => { if (!G.zoomed && e.touches.length > 1 && e.cancelable) { e.preventDefault(); note('touch2'); } }, NP);
     document.addEventListener('touchmove', e => {
       if (G.zoomed || !e.cancelable) return;
-      if (e.touches.length > 1 || G.claim?.(e)) e.preventDefault();
+      if (e.touches.length > 1 || G.claim?.()) e.preventDefault();
     }, NP);
     let lt = -1e9, lx = 0, ly = 0;
     document.addEventListener('touchend', e => {
@@ -807,7 +806,6 @@
 
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
                       vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
-                      get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's FEED SCROLL caps the lag by it)
-                      bars: () => bars(),                                                 // Safari's bars: 'showing' | 'hidden' | 'fixed' (nothing to hide) — FEED SCROLL's claim
+                      get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's feedLag() caps the lag by it)
                       onZoom: fn => zoomCbs.push(fn) };
 })();
