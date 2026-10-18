@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=443a1ac."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=944bd5b."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -688,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=443a1ac"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=944bd5b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -4756,15 +4756,23 @@ function rowWheel(dx, dy) {                 // one wheel event (px, both axes)
    2026-10-17 (owner: "I just needed a natural rubberbanding of the page, and on top of that adding some inertia of the images that would
    ride that along"): the scroll stays Safari's own, rubber band included (mobile.js: overscroll-behavior-y contain). The scroll event
    only wakes the loop; rowStep reads the scroll once per FRAME and feeds the springs its change — RAW scrollY, so the bounce past either
-   end (negative at the top, past the max at the bottom) carries the papers too. */
+   end (negative at the top, past the max at the bottom) carries the papers too.
+   2026-10-18 (owner: "its bouncing down two times. instead of one"): the stored lag is held at FEED_HOLD × the shown cap. rowWrite shows
+   it through tanh at the cap, so a fling stored far more than it showed (−94 px under a 29 px picture): at an end the page bounced, then
+   the papers' release came after it — a second push down. Clamped, the release starts as the page slows and rides its one bounce
+   (modelled on iOS's edge spring ω 7 … 20 /s, flings 2.5 … 7 px/ms: no second push; the most lag shown 29 → 26 px). */
+const FEED_HOLD = 1.5;
 let feedY = null, feedDirty = false;        // the scroll the lag last saw (null: none yet) · a scroll event since the last frame
 function feedLag() {                        // rowStep(), a frame after a scroll event
   feedDirty = false;
   const y = scrollY, dy = feedY === null ? 0 : y - feedY, L = ROWPHYS.lag, H = RP.H; feedY = y;
   if (!dy || !L.amount || activeStack) return;
   if (Math.abs(dy) > H / 2) { for (const e of RP.els) e.o = e.v = 0; return; }
-  const fy = RP.fy >= 0 ? RP.fy : H / 2, R = Math.max(1, L.reach * H);
-  for (const e of RP.els) e.o += dy * L.amount * Math.min(Math.abs(RP.rowTop + e.cy + e.o - y - fy) / R, 1);   // held back by its distance from the finger
+  const fy = RP.fy >= 0 ? RP.fy : H / 2, R = Math.max(1, L.reach * H), C = FEED_HOLD * L.cap * window.__mobile.feedGap;
+  for (const e of RP.els) {
+    e.o += dy * L.amount * Math.min(Math.abs(RP.rowTop + e.cy + e.o - y - fy) / R, 1);   // held back by its distance from the finger
+    if (C > 0 && Math.abs(e.o) > C) { e.o = Math.sign(e.o) * C; if (e.v * e.o > 0) e.v = 0; }   // never more stored than shown (FEED_HOLD)
+  }
 }
 function rowStep(dt) {                      // the frame loop: S (release / fling / edge spring), then every element's spring
   if (!rowActive()) return;
