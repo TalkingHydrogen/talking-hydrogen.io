@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=944bd5b."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=0f3dd66."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -688,7 +688,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=944bd5b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=0f3dd66"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5526,7 +5526,7 @@ if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(
    Its return spring is the row's edge spring (ROWPHYS.edge: 1.7 Hz, critically damped). ?press=0: no press pose. */
 if (window.__mobile?.on) TOUCH = (() => {
   const TC = { slop: 10, bias: 1.4, feedBias: 1.2, win: 100, rest: 60, flick: .3, back: .15, commit: .22, commitMax: 100, downD: .15, downV: .5, shrink: .55, sMin: .6, pressMs: 300, peekMs: 500,
-               press: pageQuery.get('press') !== '0', nzMin: 44, nzPad: 12, paperPad: 10, tailPx: 8, tailMs: 400 };   // paperPad: FEED, HOME — a tap's reach round a visible paper (V1-3) · tailPx / tailMs: FEED, a snap's TAIL (VR3-2)
+               press: pageQuery.get('press') !== '0', fendBand: pageQuery.get('fend') === 'band', nzMin: 44, nzPad: 12, paperPad: 10, tailPx: 8, tailMs: 400 };   // paperPad: FEED, HOME — a tap's reach round a visible paper (V1-3) · tailPx / tailMs: FEED, a snap's TAIL (VR3-2)
   const finger = e => e.pointerType === 'touch' || e.pointerType === 'pen';
   const DR = { on: false, mode: '', x: 0, y: 0, s: 1, px: 0, py: 0, vx: 0, vy: 0, vs: 0, x0: 0, y0: 0, s0: 1, st: null };   // mode: hold | spring | move | close
   let g = null, upT = -1e9, unlocked = false, feedScrollT = -1e9, fsT = -1e9, fsY = 0, fsV = 0, fsQ = 0, fsK = -1e9;   // FEED: the last scroll event's time / y, its speed (px/ms)
@@ -5929,7 +5929,7 @@ if (window.__mobile?.on) TOUCH = (() => {
   /* ---------- OPEN, horizontal ---------- */
   function kindOf(a, dir) {
     if (a.canWalk(dir) && (g.onPic || isFeed())) return a.flipBusy ? 'flick' : 'flip';    // 2026-10-15: a drag from the WHITE skips the pile (the row; the feed's pile walk is its only horizontal)
-    if (isFeed()) return 'end';                                                            // FEED: no side neighbours (they are above / below): the pile's end is the rubber band
+    if (isFeed()) return 'end';                                                            // FEED: no side neighbours (they are above / below): the pile's end holds still (hFollow())
     const b = nbOf(dir);
     return !b ? 'end' : b.state === 'home' && !b.blocked() ? 'move' : 'flick';
   }
@@ -5947,7 +5947,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     const W = RP.W;
     if (g.kind === 'flip') g.a.tfMove(d);
     else if (g.kind === 'move') { const o = Math.abs(d), h = .5 * W; drSet('hold', Math.sign(d) * (o <= h ? o : h + rubberBand(o - h, W)), 0, 1); DR.px = g.lx; DR.py = g.ly; }
-    else if (g.kind === 'end') { drSet('hold', Math.sign(d) * rubberBand(Math.abs(d), W), 0, 1); DR.px = g.lx; DR.py = g.ly; }
+    else if (g.kind === 'end' && (!isFeed() || TC.fendBand)) { drSet('hold', Math.sign(d) * rubberBand(Math.abs(d), W), 0, 1); DR.px = g.lx; DR.py = g.ly; }   // FEED 2026-10-18 (owner: "when I in a zoomed in viewing, i can … swipe the entire page left and right … why isnt it static like in a zoomed out view? that kinda gets in the way of swiping images"): the pile's end / a one-picture item no longer rubber-bands the whole open page sideways — the page is a column, its only sideways motion is the pile's own cards. ?fend=band = the old band
   }
   function hRelease(v, cancel) {
     const d = g.x - g.lx, fd = g.dir > 0 ? -1 : 1, along = v * fd;                          // fd: the finger's direction for this step

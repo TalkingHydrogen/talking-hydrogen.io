@@ -92,6 +92,8 @@
     gapF: num('fgap', 3),          // FEED: between two objects' visible papers, name lines (3 × 21.6 = 65 pt)
     peek: num('fpeek', 32),        // FEED, OPEN: the neighbours' paper peeking at the top / bottom edge, pt (a 44 pt band with NB.pad 12)
     pageMs: num('fpage', 420),     // FEED, OPEN: a page snap's duration, ms (iOS-7 bezier; UIPageViewController ≈ 350, TikTok ≈ 300)
+    nmHide: Q.get('nmhide') !== '0',   // FEED: the name retracts on a scroll down (the NAME below) · ?nmhide=0: pinned
+    nmNeg: Q.get('nmneg') !== '0',     // FEED: the name in NEGATIVE (difference over the work) · ?nmneg=0: plain ink
     home: Q.get('phome') || 'box', // HOME portrait — 'box': the desktop's content box (the name, the desktop's interval .69 × the row, the row), centred: the
                                    // approved page's proportions · 'top': the name at the top margin, the row's baseline at ?pbase (.66 H)
   };
@@ -160,7 +162,7 @@
   html.cap-below .cap-cols > .cap-c2 { flex: 0 0 auto; }
   `;
   /* FEED (portrait): the document is the scroller; every overlay that was 'the viewer' is the viewport (position: fixed); the row is a
-     centred column; the name's scroll-edge fade (iOS 26's soft edge: the passing work dissolves under the name instead of running into it) */
+     centred column; the name in negative over the work (the NAME) */
   const cssFeed = `
   html.phone.feed { overflow-x: hidden; overflow-y: auto; }
   html.phone.feed, html.phone.feed body { overscroll-behavior-x: none; overscroll-behavior-y: contain; }   /* iOS's own rubber band at both ends (owner 2026-10-17: "I just needed a natural rubberbanding of the page"); contain, not auto: no chaining (SAFARI GUARDS W3, 2026-10-15: auto turned the pull-to-refresh back on; none killed the bounce — the dead stop at the top) */
@@ -170,14 +172,13 @@
   html.phone.feed .row { flex-direction: column; align-items: center; }
   html.phone.feed .row > .wrap, html.phone.feed .row > .sign { align-self: center; }
   html.phone.feed .sign { text-align: center; }
-  /* the name's scroll edge: NOT a band — white on the white page (no edge, line or tint: owner 2026-10-14 "no extra ui - clean design");
-     the passing work only dissolves under the name. Its alpha eases out on smoothstep stops (a linear ramp's start would read as a faint
-     line, the Mach band); it fades with the name in OPEN (the .hdr's opacity) */
-  html.phone.feed .hdr::before { content: ''; position: absolute; left: calc(-1 * var(--fe-l)); top: calc(-1 * var(--fe-t)); width: 100vw; height: var(--fe-h);
-    background: linear-gradient(#fff 0, #fff var(--fe-s), rgba(255,255,255,.98) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .1),
-      rgba(255,255,255,.84) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .25), rgba(255,255,255,.5) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .5),
-      rgba(255,255,255,.16) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .75), rgba(255,255,255,.02) calc(var(--fe-s) + (var(--fe-h) - var(--fe-s)) * .9),
-      rgba(255,255,255,0) 100%); z-index: -1; pointer-events: none; }
+  /* the NAME (owner 2026-10-18: "no white panel under it. For the contrast see waht this dude is using for his name https://povilas.grigas.co
+     there is some negative stuff there"): no scroll-edge fade; the name is NEGATIVE — its layer composited by difference (that site's
+     fixed header: mix-blend-mode difference) in the ink's complement (#E2E2E0 = #FFF − #1D1D1F), so it is the same ink on the white page
+     and the work's negative where it passes over a paper or a picture. The retract's translate is on the same layer (the NAME, script) */
+  html.phone.feed .hdr-root { will-change: transform; }
+  html.phone.feed.nm-neg .hdr-root { mix-blend-mode: difference; }
+  html.phone.feed.nm-neg .hdr .name { color: #E2E2E0; }
   html.phone.feed .hdr .name { position: relative; text-align: center; margin-left: 0; }   /* owner 2026-10-16: "center viktor dune on the top of the page" — the feed's name line centred (the desktop's .2em = the laptop's left edge: not here) */
   `;
   /* STAGE (landscape-first; its block below): the document is a tall invisible page under a FIXED stage (the viewer), so the visitor's
@@ -458,11 +459,11 @@
     root.style.setProperty('--sign-ws', por ? 'normal' : 'nowrap');
     if (root.classList.contains('sign-wrap') !== por) root.classList.toggle('sign-wrap', por);
     c.hdrRoot.style.cssText = `left:${contentLeft}px;top:${contentTop}px;width:${contentW}px;height:${contentH}px`;
+    nmLaid(c.hdrRoot, 0);                                                 // (the cssText dropped the NAME's translate)
     if (FEED && por) {
       const nameH = 1.2 * 1.03 * em;
       c.hdrRoot.style.cssText = `left:${contentLeft}px;top:${top}px;width:${contentW}px;height:${nameH}px`;
-      root.style.setProperty('--fe-l', contentLeft + 'px'); root.style.setProperty('--fe-t', top + 'px');
-      root.style.setProperty('--fe-s', (top + nameH + 4) + 'px'); root.style.setProperty('--fe-h', (top + 2 * nameH + 4) + 'px');
+      nmLaid(c.hdrRoot, P.nmHide ? top + nameH + 1 : 0);                  // the NAME: its reach = off the top edge (the safe area, its margin, its line)
       c.row.style.top = (top + nameH + P.gapName * nameH) + 'px'; c.row.style.height = ''; c.row.style.width = W + 'px';
       c.row.style.paddingLeft = c.row.style.paddingRight = '0px'; c.row.style.columnGap = '0px';
     } else {
@@ -597,7 +598,42 @@
   function uncolumn({ row, viewer }) {
     viewer.style.height = ''; row.style.width = '';
     for (const el of row.children) if (el.style.marginTop || el.style.left) { el.style.marginTop = ''; el.style.left = ''; }
-    for (const k of ['--fe-l', '--fe-t', '--fe-s', '--fe-h']) root.style.removeProperty(k);
+  }
+  /* ---------- FEED: the NAME retracts (2026-10-18, owner: "the viktor dune must retract on scroll down") ----------
+     The name rides the page: a scroll down carries it up and off the top 1:1 (at most its reach: off the top edge), a scroll up brings it
+     back the same way, and it is never more hidden than the page has scrolled — at the top it is always whole, as part of the page. Only
+     the scroll inside [0, max] counts: Safari's rubber band at either end moves nothing. Left part-way when the scroll stops (120 ms), it
+     finishes the way the page last went (an exponential, τ 80 ms). The scroll is read once a frame (rAF, as the LAG's feedLag()); one
+     translate on the fixed .hdr-root, written only when it changes. Away from HOME the document is frozen, so OPEN leaves it as it is. */
+  const NM = { el: null, reach: 0, y: 0, sy: null, dir: 0, t: 0, f: 0, raf: 0, w: '' };
+  function nmWrite() {
+    const v = NM.y > .01 ? `translate3d(0, ${(-NM.y).toFixed(2)}px, 0)` : '';
+    if (v !== NM.w && NM.el) { NM.w = v; NM.el.style.transform = v; }
+  }
+  function nmLaid(el, reach) {               // page(): .hdr-root's cssText was written (its transform gone) — this layout's reach
+    NM.el = el; NM.reach = reach; NM.y = Math.min(NM.y, reach); NM.sy = null; NM.w = ''; nmWrite();
+  }
+  function nmStep(now) {
+    NM.raf = 0;
+    if (!NM.reach) return;
+    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight), y = Math.min(max, Math.max(0, scrollY));
+    const dy = NM.sy === null ? 0 : y - NM.sy, dt = NM.f ? Math.min(64, now - NM.f) : 16.7;
+    NM.sy = y; NM.f = now;
+    if (dy) { NM.dir = Math.sign(dy); NM.t = now; NM.y = Math.min(NM.reach, Math.max(0, NM.y + dy)); }
+    let to = NM.y;
+    if (now - NM.t > 120 && NM.y > 0 && NM.y < NM.reach) {              // stopped part-way: on the way the page went
+      to = NM.dir > 0 ? NM.reach : NM.dir < 0 ? 0 : NM.y > NM.reach / 2 ? NM.reach : 0;
+      NM.y += (to - NM.y) * (1 - Math.exp(-dt / 80));
+      if (Math.abs(to - NM.y) < .3) NM.y = to;
+    }
+    NM.y = Math.min(NM.y, y);                                           // near the top: never more hidden than scrolled
+    nmWrite();
+    if (now - NM.t < 160 || (NM.y > 0 && NM.y < NM.reach && Math.abs(Math.min(to, y) - NM.y) >= .3)) NM.raf = requestAnimationFrame(nmStep);
+    else NM.f = 0;
+  }
+  if (FEED_OK) {
+    if (P.nmNeg) root.classList.add('nm-neg');                          // at boot only (a class on <html>)
+    addEventListener('scroll', () => { if (!NM.raf) NM.raf = requestAnimationFrame(nmStep); }, { passive: true });
   }
   /* ---------- the STAGE (landscape-first, 2026-10-15): the rotate prompt, the ENTRY, Safari's bars ----------
      The mechanism is the one proven on the owner's iPhone (iOS 18.3.1; resp notes landscape-fullscreen.md, lab v4): a fixed stage over
