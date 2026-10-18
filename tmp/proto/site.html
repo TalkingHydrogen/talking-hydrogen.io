@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=9791f41."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=08d878b."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -700,7 +700,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=9791f41"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=08d878b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script src="combcard.js"></script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
@@ -1632,6 +1632,27 @@ const ZOOM_SPRING = pageQuery.get('zoomease') === 'spring';
 { const b = (pageQuery.get('zbez') || '').split(',').map(parseFloat); if (b.length === 4 && b.every(Number.isFinite)) ZOOM.ease.bez = b;
   for (const [q, k] of [['zin', 'inMs'], ['zout', 'outMs']]) { const v = parseFloat(pageQuery.get(q)); if (Number.isFinite(v) && v > 0) ZOOM.ease[k] = v; } }
 const ZOOM_EASE = bezierEase(...ZOOM.ease.bez);
+/* FEED 2026-10-18 — the PAGE SPRING (owner: "the zoom in animation form ios 7 is meant to be like that on zoom in only, otherwise a
+   buttersmooth scroll, bare, so i can then start adding clearly on top suff"). A PAGE in OPEN (a camera move up / down the column) is no
+   longer the iOS 7 tween: both piles' p ride one critically damped spring (response .4 s, ζ 1) seeded with the finger's own speed at the
+   release, so the page leaves at the finger's velocity and settles into the next item — no slow start, no fixed duration. Measured on the
+   tween (iPhone 15 Pro emulation, the page point under the finger): a flick at ~1.9 px/ms fell to ~.3–.6 px/ms for its first frames,
+   then surged back to ~1.2 px/ms 150 ms later; on the spring it leaves at ~1.4 px/ms (the finger's last 50 ms) and only slows. A slow
+   drag still speeds up after its release (a snap: the rest of the page to cover), now smoothly. The tap's zoom in / out keeps ZOOM.ease.
+   w: ω per ms (the no-overshoot cap: a critical spring seeded faster than ω·Δ passes its seat). ?fresp= (s; .5 – .6 = gentler)
+   ?fzeta= · ?fsnap=ease = the old tween (and no CATCH: the TOUCH block) */
+const FSNAP = (() => {
+  const q = k => { const v = parseFloat(pageQuery.get(k)); return Number.isFinite(v) && v > 0 ? v : null; };
+  const resp = q('fresp') ?? .4, zeta = q('fzeta') ?? 1, w = 2 * Math.PI / (resp * 1000);
+  return { on: pageQuery.get('fsnap') !== 'ease', w, spring: { tension: w * w * 1e6, friction: 2 * zeta * w * 1000, mass: 1, precision: 3e-4 } };   // the Spring's units: per ms (3e-4 of p ≈ .2 px of a page)
+})();
+/* PHONE 2026-10-18 — the TOUCH FLIP's GLIDE (same owner note; the sideways swipe keeps its card flip): a committed swipe's OUT went on
+   along the click's cubic-in, cut short to ≥ 90 ms — from the finger the card slowed (38 → 11 px/frame), then slammed into its apex at
+   ~60 px/frame and turned back in one frame. Now the OUT from the finger is a cubic Hermite that leaves at the finger's speed and arrives
+   at the apex AT REST (smoothstep + m0·s(1 − s)²; 3·|Δ| / v long = cubic-out, within 90 ms … outMs), every channel on the same
+   profile (the lean stays on x), and the BACK turns from rest. ?tfout=old = the cubic-in */
+const TF_GLIDE = pageQuery.get('tfout') !== 'old';
+const GLIDE = mkEase(s => s * s * (3 - 2 * s), s => 6 * s * (1 - s));
 /* site 2026-09-28, the NEIGHBOUR PEEK (owner: "make it reliably be a little bit more hidden, so it just peeks out of the screen. when
    hovering on it it will protrude … the same as on the fullscreen pages flipping … two top elements peeking each with slight
    delay, and on click it will move the camera there"). In OPEN the row elements left / right of the pile are shifted (per side,
@@ -2823,7 +2844,8 @@ function applyConfigs() {
 
 /* ---------- springs (the master / home / cursor ones; the viewer's are per card, above) ---------- */
 const p     = new Motion(ZOOM.spring);                      // master progress 0..1 — a tween along ZOOM.ease (site: iOS 7), or the spring with ?zoomease=spring
-const drive = (to, ms) => ZOOM_SPRING ? p.set(to) : p.tween(to, ms, ZOOM_EASE, null, 'zoom');   // from the current value + velocity (Motion)
+const drive = (to, ms) => ZOOM_SPRING ? Object.assign(p, ZOOM.spring).set(to) : p.tween(to, ms, ZOOM_EASE, null, 'zoom');   // from the current value + velocity (Motion)
+const drivePage = to => Object.assign(p, FSNAP.spring).set(to);   // FEED 2026-10-18: a PAGE — the PAGE SPRING from the current value + velocity (the finger's: pVel() / pSpring())
 const hover = new Spring(STACK.spring);                     // home hover progress h 0..1 (spec 02 §4)
 const springs = [p, hover];                                 // site: the cursor's and the row elements' springs are the page's (pageSprings)
 if (tapBack) springs.push(tapBack);                         // PHONE 2026-10-15: TAP BACK (its note at TAP_BACK)
@@ -3489,8 +3511,13 @@ function tfEnd(commit, v = 0, instant = false) {   // v: the finger's x velocity
   if (f.dir > 0 && commit) {
     c.ex.velocity = f.q < 1 ? Math.min(0, v) : 0;                                           // site 2026-10-15: at / past its apex the finger's push is not carried on (it would bow the way back to the apex further out first)
     flip(1);                                                                               // the order, CAP_WAIT, the song: the click's (it plans the OUT from here)
-    const Tr = Math.max(90, (1 - f.s) * outMs());                                          // the OUT's time left
-    for (const m of [...c.flight, c.ps]) if (m.tw && m.tw.kind === 'out') { const lim = 4 * Math.abs(m.tw.d); m.tw.T = Tr; m.tw.end = t + Tr; m.tw.m0 = clamp(m.velocity * Tr, -lim, lim); }
+    let Tr = Math.max(90, (1 - f.s) * outMs());                                            // the OUT's time left
+    const xw = c.ex.tw && c.ex.tw.kind === 'out' ? c.ex.tw : null, vx = c.ex.velocity;
+    if (TF_GLIDE && xw) {                                                                  // 2026-10-18, the GLIDE: from the finger's speed to the apex at rest, one profile for every channel
+      const d = xw.d; if (d && vx * d > 0) Tr = clamp(3 * Math.abs(d / vx), 90, Math.max(90, outMs()));
+      const r = d ? clamp(vx * Tr / d, 0, 3) : 0;                                           // m0 / Δ (3 = cubic-out)
+      for (const m of [...c.flight, c.ps]) if (m.tw && m.tw.kind === 'out') { m.tw.T = Tr; m.tw.end = t + Tr; m.tw.ease = GLIDE; m.tw.m0 = r * m.tw.d; }
+    } else for (const m of [...c.flight, c.ps]) if (m.tw && m.tw.kind === 'out') { const lim = 4 * Math.abs(m.tw.d); m.tw.T = Tr; m.tw.end = t + Tr; m.tw.m0 = clamp(m.velocity * Tr, -lim, lim); }
     swapDue = t + Tr * k.apexAt; backDue = swapDue + k.hold / k.speed;
     flight.swapAt = +(swapDue - t).toFixed(2); flight.backAt = +(backDue - t).toFixed(2);
   } else if (f.dir < 0 && commit) {
@@ -3787,11 +3814,12 @@ function lockPage() { if (!SINK && !isFeed() && !STG) scrollTo(0, 0); }    // to
 function unlockPage() {}
 function expand(move) {                     // HOME → ZOOM (stack.html's expand). site: move = the CAMERA moves here from the open stack (moveTo(): the row is frozen already, the page re-parts)
   perfMark('expand ' + cfg.name);
-  if (pinned !== null || frozen || state !== 'home' || (activeStack && !move)) return;
+  const back = move === 'back';                                                            // FEED 2026-10-18, the CATCH: a page turned back mid-flight — this pile re-opens from its close (moveBack())
+  if (pinned !== null || frozen || (state !== 'home' && !(back && state === 'close')) || (activeStack && !move)) return;
   window.__mobile?.guard?.viewOpened(cfg.name);                                            // site 2026-10-15: SAFARI GUARDS (phone) — this view's history entry, inside the tap (a back swipe closes it); a CAMERA move renames it
   state = 'zoom'; delta = 0; moved = !!move;
   capFirst = true;                                                                         // site 2026-10-10 (CAP_WAIT): the caption's next fade in is this landing's
-  run0 = order[move === -1 && D > 1 ? 1 : 0];                                              // site 2026-10-10: THE KEYS — this visit's run (walk()); arrived from the right (moveTo()'s side −1), the front card ends it
+  if (!back) run0 = order[move === -1 && D > 1 ? 1 : 0];                                   // site 2026-10-10: THE KEYS — this visit's run (walk()); arrived from the right (moveTo()'s side −1), the front card ends it
   lidSync();                                                                               // site: the lid opens with the zoom (LID)
   if (TURN) TURN.homing = false;                                                           // site 2026-09-30: TURN — re-opened mid-turn: it lands as it is
   loadTucked(); warmAudio();                                                               // PERF: SOURCES (a touch never hovers or primes)
@@ -3816,12 +3844,12 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   setLayout('viewer');                                                                     // the viewer clips before the first frame (sub-pixel at rest scale), never mid-zoom (PERF: usually already done by prime(), on the press)
   shadeLayers(true);
   primed = false; homeDue = false;
-  startGuard = 2; drive(1, move && isFeed() ? feedPageMs() : ZOOM.ease.inMs); kick();   // FEED: a page (a CAMERA move) snaps in pageMs
+  startGuard = 2; if (move && isFeed() && FSNAP.on) drivePage(1); else drive(1, move && isFeed() ? feedPageMs() : ZOOM.ease.inMs); kick();   // FEED: a page (a CAMERA move) rides the PAGE SPRING (?fsnap=ease: snaps in pageMs)
   if (audio) {                                                                            // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
     if (songRaf) { cancelAnimationFrame(songRaf); songRaf = 0; }
     songHeld = false; songG = songT = songUp() ? 1 : 0;                                    // only if its card is the front one (a pile: the sleeve behind the CD)
     if (tapBack) tapBack.jump(1);                                                          // PHONE: TAP BACK — every open starts forward
-    audio.volume = 0; if (audio.paused || audio.currentTime > .25) audio.currentTime = 0;
+    audio.volume = 0; if (!back && (audio.paused || audio.currentTime > .25)) audio.currentTime = 0;   // (back: the clip carries on from where its leave muted it)
     if (TOUCH && VID) { mutedOnly = false; audio.muted = false; }                          // touch: the last leave's mute lifted, inside this gesture (a refused start plays muted: audioStart())
     if (songG) { if (audio.paused) audioStart(); } else if (!audio.paused) audio.pause();
     syncPlay();
@@ -3954,7 +3982,7 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
     row.classList.add('parting');
   }
   if (aimed) render();                                                                     // (HOME AIM: the item on the new scroll in this same task, with the row)
-  startGuard = 2; drive(0, move ? (isFeed() ? feedPageMs() : ZOOM.ease.inMs) : ZOOM.ease.outMs); kick();   // velocity kept; a CAMERA move: the arriving pile's inMs, so the two p stay mirrored (FEED: the page's)
+  startGuard = 2; if (move && isFeed() && FSNAP.on) drivePage(0); else drive(0, move ? (isFeed() ? feedPageMs() : ZOOM.ease.inMs) : ZOOM.ease.outMs); kick();   // velocity kept; a CAMERA move: the arriving pile's inMs, so the two p stay mirrored (FEED: the page's)
 }
 function enterHome() {                      // CLOSE → HOME: unlock the page, hover back on (a flight still landing keeps flying, at home scale)
   perfMark('home ' + cfg.name);
@@ -4332,6 +4360,9 @@ const self = {                              // site: what the page sees of this 
   tfTake, liftInfo, liftPark, closeInstant,                                 // site 2026-10-15: the LIFT (the TOUCH block; phone only) · SAFARI GUARDS' back
   turnUndo: () => !!TURN && TURN.unstart(),                                 // site 2026-10-15: the ZOOM's double tap on the room print
   pVel(v) { p.velocity = v; },                                              // site 2026-10-13: TOUCH — a swipe's release seeds the master spring's velocity (the next drive() tween's Hermite term)
+  pFollow(fn, to) { p.follow(fn, to); },                                    // FEED 2026-10-18, the CATCH: p held by the finger (the TOUCH block's CT.U) until it lets go
+  pSpring(to, v) { p.velocity = v; drivePage(to); },                        // … and let go: the PAGE SPRING from there at the finger's speed
+  pJump(v) { p.jump(v); },                                                  // … or undone at its end (U = 0): exactly there, in the same task as moveBack() (no frame sees it done)
   unlockMedia,                                                              // FEED / touch: the visit's first tap (the TOUCH block)
   mediaFar(far) {                                                           // FEED (spec 05 §4.7): HOME, more than two screens away — its clip's and its hint's players drop their files
     if (!far || state !== 'home' || activeStack === self) return;
@@ -4972,14 +5003,15 @@ function frameOf(s, p) {                    // stack s's zoom at p as a map of t
   return { k: K, x: ax + p * g.ix - K * ax, y: ay + p * g.iy - K * ay };
 }
 function camera() { const C = camera0(); return TOUCH ? TOUCH.apply(C) : C; }   // site 2026-10-13: TOUCH (phone) — the finger's drag offset over the camera (the whole open page follows it: the row, the name, the captions)
+function moveCam(m, u) {                   // A → B at u (= B's p over a move): the scale log-lerped, the page point at the viewport centre lerped (a straight pan) — FEED: the CATCH solves it for the finger
+  const A = frameOf(m.from, 1), B = frameOf(m.to, 1), cx = RP.W / 2, cy = RP.H / 2;
+  const k = Math.exp(mix(Math.log(A.k), Math.log(B.k), u));
+  const fx = mix((cx - A.x) / A.k, (cx - B.x) / B.k, u), fy = mix((cy - A.y) / A.k, (cy - B.y) / B.k, u);
+  return { k, x: cx - k * fx, y: cy - k * fy };
+}
 function camera0() {
   const m = RP.move;
-  if (m) {                                  // A → B at u = B's p: the scale log-lerped, the page point at the viewport centre lerped (a straight pan)
-    const u = m.to.progress, A = frameOf(m.from, 1), B = frameOf(m.to, 1), cx = RP.W / 2, cy = RP.H / 2;
-    const k = Math.exp(mix(Math.log(A.k), Math.log(B.k), u));
-    const fx = mix((cx - A.x) / A.k, (cx - B.x) / B.k, u), fy = mix((cy - A.y) / A.k, (cy - B.y) / B.k, u);
-    return { k, x: cx - k * fx, y: cy - k * fy };
-  }
+  if (m) return moveCam(m, m.to.progress);
   return RP.part && RP.part.progress > 0 ? frameOf(RP.part, RP.part.progress) : { k: 1, x: 0, y: 0 };
 }
 /* a stack's CAPTION, printed on the table (the .caption CSS): its pile's row slot (as written) ∘ its zoom at p ∘ its zoom at 1⁻¹, as
@@ -5316,6 +5348,17 @@ function moveTo(b) {
   rowPart();
   if (isFeed()) keepWindow();                                                               // FEED: the decode window follows the page
 }
+function moveBack(a) {                      // FEED 2026-10-18, the CATCH: the move from a turned back mid-flight — the arriving pile leaves again, a re-opens from its close (expand('back')); the camera's u is a's p from here
+  const m = RP.move;
+  if (!m || m.from !== a || a.state !== 'close' || m.to.state === 'home') return false;
+  const b = m.to;
+  perfMark('move back ' + b.name + ' → ' + a.name);
+  setNHover(0); a.protrude(0, 0, 0);
+  RP.move = { from: b, to: a };
+  b.leave(); a.arrive('back');
+  rowPart(); keepWindow();
+  return true;
+}
 window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
 window.__cap = { groups: CAP_GROUPS, wait: CAP_WAIT, group: capGroup };   // site 2026-10-11: the CAPTION GROUP and CAP_WAIT (debug / tuning)
 
@@ -5633,6 +5676,9 @@ if (window.__mobile?.on) TOUCH = (() => {
     openTap(k.x, k.y);
   }
   const vel = (k, tUp) => { const q = g.q, a = q[0], b = q[q.length - 1], span = b[0] - a[0]; return span > 0 && tUp - b[0] < TC.rest ? (b[k] - a[k]) / span : 0; };
+  /* 2026-10-18: the finger's speed AT the release (its last 50 ms) — what a spring / a glide leaves with; vel()'s 100 ms mean, under a
+     flick that still accelerates, is ~⅔ of it (the page then visibly slowed at the release) */
+  const velR = (k, tUp) => { const q = g.q, b = q[q.length - 1]; if (!b || tUp - b[0] >= TC.rest) return 0; let a = b; for (const r of q) if (b[0] - r[0] <= 50) { a = r; break; } const span = b[0] - a[0]; return span > 0 ? (b[k] - a[k]) / span : vel(k, tUp); };
   /* ---------- the drag offset ---------- */
   function drSet(mode, x, y, s) { DR.on = true; DR.mode = mode; DR.x = x; DR.y = y; DR.s = s; kick(); }
   function reset() { if (!DR.on) return; Object.assign(DR, { on: false, mode: '', x: 0, y: 0, s: 1, vx: 0, vy: 0, vs: 0, st: null }); if (RP.els.length) rowWrite(); }
@@ -6016,7 +6062,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     }
     const commit = !cancel && along > -TC.back && (Math.abs(d) >= Math.min(TC.commit * RP.W, TC.commitMax) || along >= TC.flick);
     const a = g.a;
-    if (g.kind === 'flip') { a.tfEnd(commit, v); return; }
+    if (g.kind === 'flip') { a.tfEnd(commit, TF_GLIDE ? velR(1, g.tUp) : v); return; }   // (the GLIDE: the speed at the release)
     if (g.kind === 'flick') { if (commit && along >= TC.flick) { if (g.onPic || isFeed()) keyStep(g.dir); else camStep(g.dir); } return; }
     if (g.kind === 'move' && commit) {
       const b = nbOf(g.dir);
@@ -6053,14 +6099,92 @@ if (window.__mobile?.on) TOUCH = (() => {
       const commit = !cancel && along > -TC.back && ((Math.sign(dd) === Math.sign(dy) && Math.abs(dd) >= Math.min(TC.commit * RP.H, TC.commitMax)) || along >= TC.flick);
       if (commit && b && b.state === 'home' && !b.blocked() && a.state === 'open') {
         const ea = elOf(a), eb = elOf(b), T = Math.abs(eb.cy - ea.cy) * frameOf(a, 1).k;   // the camera's travel at the open framing (≈)
-        const du = Math.min(Math.abs(vy) / Math.max(1, T - Math.abs(DR.y)), .6 / feedPageMs());   // the finger's speed as the snap's start — ≤ .6 Δ of Hermite (fix VR3-4: on the iOS 7 curve, whose end flattens as .62·(1 − s)², 1 Δ overshot p to 1.0034, ~1.3 pt past the seat and back; ≤ .62 never does)
+        const du = FSNAP.on ? 0 : Math.min(Math.abs(vy) / Math.max(1, T - Math.abs(DR.y)), .6 / feedPageMs());   // the finger's speed as the snap's start — ≤ .6 Δ of Hermite (fix VR3-4: on the iOS 7 curve, whose end flattens as .62·(1 − s)², 1 Δ overshot p to 1.0034, ~1.3 pt past the seat and back; ≤ .62 never does)
         b.pVel(du); a.pVel(-du);
         moveTo(b);
-        if (RP.move && RP.move.to === b) { const [x, y] = cur(); DR.x0 = x; DR.y0 = y; DR.mode = 'move'; kick(); return; }
+        if (RP.move && RP.move.to === b) { const [x, y] = cur(); DR.x0 = x; DR.y0 = y; DR.mode = 'move'; if (FSNAP.on) seedPage(-side * velR(2, g.tUp)); kick(); return; }   // (the PAGE SPRING: seeded once the move's camera exists)
         a.pVel(0);
       }
     }
     springHome(0, g.vk === 'page' ? vy : 0);
+  }
+  /* FEED 2026-10-18 — the CATCH (owner: "a buttersmooth scroll, bare"): a finger that lands on a moving page (a camera move up / down the
+     column on the PAGE SPRING) holds it where it is, as iOS stops a scroll — it was 'busy': the snap ran on to its end under a still
+     finger. Caught, both piles' p follow CT.U (pFollow) and a vertical drag moves the page 1:1 — U solved per move so
+     the page point under the finger stays under it (moveCam(): the camera's own map, + the commit's drag offset decaying on the move's
+     clock). Past B's end the move lands and the finger goes on as an OPEN drag of B (adoptCatch()); back past the point the release left
+     it (U = 0: A's page + that offset) the move is undone and the finger holds A's page as before its release (unmoveCatch()). Let go:
+     the PAGE SPRING on to B or back to A (moveBack(), the offset re-expressed on the reversed clock), by a flick's direction, else the
+     nearer. A tap only stops it (it settles on the nearer; one in the snap's TAIL still acts at the landing: VR3-2). A sideways lock
+     lets the page go on to B and is the snap's flick, as before ('busy'). ?fsnap=ease: none. */
+  let CT = null;
+  const catchable = () => { const m = RP.move; return FSNAP.on && !!m && m.from.state === 'close' && m.to.state !== 'home' && m.to === activeStack && LIFT.state === 'idle' && !filmGuard() && DR.mode !== 'close' && DR.mode !== 'spring' && (!DR.on || DR.mode === 'move'); };
+  const catchY = (c, U) => { const C = moveCam(c.m, U); return C.k * c.py + C.y + c.d * (1 - U); };   // the screen y of the caught page point at U
+  const unband = (y, dim) => { const q = 1 - y / Math.max(1, dim); return q <= 1e-6 ? 1e6 : Math.max(1, dim) / ROWPHYS.edge.c * (1 / q - 1); };   // rubberBand()⁻¹
+  function catchPin(y) { const c = CT, C = moveCam(c.m, c.U); c.py = (y - C.y - c.d * (1 - c.U)) / C.k; }   // the page point under the finger now
+  function catchBegin() {
+    const m = RP.move, c = { m, U: clamp(m.to.progress, 0, 1), py: 0, d: DR.on && DR.mode === 'move' ? DR.y0 : 0 };
+    CT = c; catchPin(g.y);
+    m.to.pFollow(() => c.U, 1); m.from.pFollow(() => 1 - c.U, 0); kick();
+  }
+  function catchTrack() {
+    const c = CT, f = U => catchY(c, U) - g.y, f0 = f(0), f1 = f(1);
+    let U;
+    if (!f0 || !f1 || Math.sign(f0) === Math.sign(f1)) U = Math.abs(f0) < Math.abs(f1) ? 0 : 1;   // at / past an end of the move
+    else { let lo = 0, hi = 1; for (let i = 0; i < 28; i++) { const h = (lo + hi) / 2; if (Math.sign(f(h)) === Math.sign(f0)) lo = h; else hi = h; } U = (lo + hi) / 2; }
+    c.U = U; kick();
+    if (U === 0) unmoveCatch();
+  }
+  function openFrom(a, dy) {                 // the finger, from here an OPEN vertical drag of a's page by dy (vFollowFeed's map inverted: no jump)
+    const H = RP.H, o = Math.abs(dy), h = .5 * H, raw = o <= h ? o : h + unband(o - h, H);
+    Object.assign(g, { ctx: 'open', a, lock: 'v', dir: 0, kind: '', vk: '', lx: g.x, ly: g.y - Math.sign(dy) * raw, pc: g.y, x0: g.x });
+    g.y0 = g.ly;                             // (the commit counts the travel from here: the page's offset is all of it)
+    if (dy) vFollow(0, g.y - g.ly);
+  }
+  function adoptCatch() {                    // the move landed under the caught finger (U = 1): it holds B's page from here
+    const c = CT; CT = null;
+    if (ctxNow() !== 'open') { g.ctx = 'busy'; return; }
+    const C = camera0();
+    openFrom(activeStack, c ? g.y - (C.k * c.py + C.y) : 0);
+  }
+  function unmoveCatch() {                   // U = 0: A's page again, with the release's offset — the move undone, the finger holds A's page
+    const c = CT, a = c.m.from, b = c.m.to; CT = null;
+    if (a.state !== 'close') { a.pSpring(0, 0); b.pSpring(1, 0); g.ctx = 'busy'; return; }
+    a.pJump(1); b.pJump(0);                                                                // this move's U = 0 now (the follow would set it at the next tick: moveBack's springs start from there)
+    if (!moveBack(a)) { a.pSpring(0, 0); b.pSpring(1, 0); g.ctx = 'busy'; return; }
+    const A = frameOf(a, 1);
+    openFrom(a, g.y - (A.k * c.py + A.y));
+    if (!DR.mode || DR.mode === 'move') reset();
+  }
+  function catchRelease(vy, want) {          // let go of a caught page (vy: the finger's px/ms, 0 for a tap / a cancel) → 'B' | 'A'
+    const c = CT; CT = null;
+    const m = c.m, a = m.from, b = m.to, U = c.U, e = .01;
+    if (RP.move !== m) return '';
+    const u0 = Math.max(0, U - e), u1 = Math.min(1, U + e), dS = (catchY(c, u1) - catchY(c, u0)) / (u1 - u0);   // px per unit of U (signed: B's way)
+    const vB = dS ? vy * Math.sign(dS) : 0, w = .95 * FSNAP.w;                                                   // the finger's speed toward B
+    const toB = want === 'B' || a.state !== 'close' || (vB >= TC.flick ? true : vB <= -TC.flick ? false : U >= .5);
+    if (toB) {
+      const du = clamp(vB / Math.max(1, Math.abs(dS)), -w * U, w * (1 - U));                                    // never past B, never back past A
+      b.pSpring(1, du); a.pSpring(0, a.state === 'close' ? -du : 0); kick(); return 'B';
+    }
+    if (U < 2e-3) {                          // at A's end already: the move undone, A's page springs home from the release's offset
+      a.pJump(1); b.pJump(0);
+      if (!moveBack(a)) { b.pSpring(1, 0); a.pSpring(0, 0); return 'B'; }
+      if (DR.on && DR.mode === 'move') { DR.mode = 'hold'; DR.x = DR.x0; DR.y = DR.y0; DR.s = 1; }
+      springHome(0, vy); return 'A';
+    }
+    const off = c.d * (1 - U), c2 = { m: { from: b, to: a }, py: c.py, d: off / U }, uA = 1 - U;              // reversed: u' = 1 − U, the offset y0' · (1 − u') = the offset now
+    const w0 = Math.max(0, uA - e), w1 = Math.min(1, uA + e), dS2 = (catchY(c2, w1) - catchY(c2, w0)) / (w1 - w0);
+    const du = clamp(-vB / Math.max(1, Math.abs(dS2)), -w * uA, w * U);
+    a.pVel(du); b.pVel(-du);
+    if (!moveBack(a)) { b.pSpring(1, 0); a.pSpring(0, 0); return 'B'; }
+    if (DR.on && DR.mode === 'move') { DR.x0 = DR.x0 * (1 - U) / U; DR.y0 = c2.d; }
+    kick(); return 'A';
+  }
+  function seedPage(v) {                     // 2026-10-18, the PAGE SPRING leaves at the finger's speed: v (px/ms, toward the arriving pile) over the screen travel of the page point under the finger per unit of the move (moveCam() + the offset's decay: the item-centre distance overstated it ~30 %); ≤ .95 ω (never past the seat), 0 for a finger easing back
+    const m = RP.move, C = moveCam(m, 0), c = { m, py: (g.y - C.y - DR.y0) / C.k, d: DR.y0 }, dS = Math.abs(catchY(c, .01) - catchY(c, 0)) / .01;
+    const du = clamp(v / Math.max(1, dS), 0, .95 * FSNAP.w);
+    m.to.pVel(du); m.from.pVel(-du);
   }
   function vFollow(dx, dy) {
     if (isFeed()) return vFollowFeed(dx, dy);
@@ -6187,6 +6311,7 @@ if (window.__mobile?.on) TOUCH = (() => {
       if (dblOf(g.x0, g.y0) === 'turn') g.a.turnUndo();                                     // the room print's double tap: the turn its first tap began goes back (openTap())
     }                                                                                         // 2026-10-15: on the picture? (once, at the touch-down: the swipe model) · the ZOOM's sharp file, in case
     if (g.ctx === 'busy' && isFeed()) g.tail = tailPx() <= TC.tailPx;                                  // FEED (VR3-2): down in a snap's tail
+    if (g.ctx === 'busy' && isFeed() && catchable()) { g.ctx = 'catch'; catchBegin(); }                // FEED 2026-10-18: the CATCH — the moving page stops under the finger
     if (g.ctx === 'home' && isFeed()) { g.caught = performance.now() - feedScrollT < 120; if (TC.press && !g.caught) g.pt = setTimeout(press, TC.pressMs); }   // FEED
     else if (g.ctx === 'home') {
       g.caught = rowOver(RP.S) > 1 || (RP.drive === 'free' && Math.abs(RP.V) > .05);         // a moving / stretched row: this touch only catches it
@@ -6218,6 +6343,14 @@ if (window.__mobile?.on) TOUCH = (() => {
     if (g.nat || (STG && !g.lock && (g.nat = STG.native(g.x - g.x0, g.y - g.y0)))) return;   // the STAGE: this finger is the document's scroll (it hides Safari's bars) — nothing of the site's moves
     g.q.push([t, g.x, g.y]); while (g.q.length > 2 && t - g.q[0][0] > TC.win) g.q.shift();
     if (RP.touch && g.ctx === 'home') RP.touch.x = g.x;
+    if (g.ctx === 'catch') {                                                                // FEED 2026-10-18: the CATCH
+      if (!CT || RP.move !== CT.m) adoptCatch();                                            // the move landed (U = 1): an OPEN drag of B from here
+      else if (!g.lock) {
+        const dx = g.x - g.x0, dy = g.y - g.y0; if (Math.hypot(dx, dy) <= TC.slop) return;
+        if (Math.abs(dx) > TC.feedBias * Math.abs(dy)) { catchRelease(0, 'B'); g.ctx = 'busy'; g.lock = 'h'; g.lx = g.x; g.ly = g.y; return; }   // sideways: the page goes on, the flick is the snap's (as before)
+        g.lock = 'v'; g.lx = g.x; g.ly = g.y; catchPin(g.y); return;                         // locked: the point under the finger from here (the slop moved nothing)
+      } else { catchTrack(); return; }
+    }
     if (g.ctx === 'busy' && isFeed() && ctxNow() === 'open') adopt();                     // FEED (VR3-2): the snap landed under this finger — it holds the page from here
     if (!g.lock) { const dx = g.x - g.x0, dy = g.y - g.y0; if (Math.hypot(dx, dy) <= TC.slop) return; lockOn(dx, dy); }
     if (g.ctx === 'home' && isFeed()) return;                                               // FEED: the browser's pan (a pointercancel follows)
@@ -6227,12 +6360,28 @@ if (window.__mobile?.on) TOUCH = (() => {
   function end(e, cancel) {                   // e null: a second finger (cancel)
     if (g.nat) cancel = true;                 // the STAGE: the document's swipe (WebKit's pointercancel may never come)
     const t = e ? e.timeStamp : performance.now();
-    if (e && (e.clientX !== g.x || e.clientY !== g.y)) { g.x = e.clientX; g.y = e.clientY; g.q.push([t, g.x, g.y]); }
+    if (e && (e.clientX !== g.x || e.clientY !== g.y)) {
+      g.x = e.clientX; g.y = e.clientY; g.q.push([t, g.x, g.y]);
+      if (!cancel && g.lock && !g.nat) {                                                    // 2026-10-18: the release's own place is the drag's last (the spring / glide leave from where the finger is)
+        if (g.ctx === 'catch' && g.lock === 'v' && CT && RP.move === CT.m) catchTrack();
+        else if (g.ctx === 'open' && g.a === activeStack) { if (g.lock === 'h') hFollow(g.x - g.lx); else vFollow(g.x - g.lx, g.y - g.ly); }
+      }
+    }
     const G0 = g; clearTimeout(g.pt);
     const vx = cancel ? 0 : vel(1, t), vy = cancel ? 0 : vel(2, t);
+    g.tUp = t;                                                                              // (velR(): the speed at the release)
     if (!unlocked && !cancel && !g.lock && isFeed()) { unlocked = true; for (const s of stacks) s.unlockMedia(); }   // FEED (spec 05 §2.4.3): the visit's first tap, before it acts
     upT = performance.now();
     if (g.ctx === 'busy' && isFeed() && !g.lock && ctxNow() === 'open') adopt();          // FEED (VR3-2): a tap that began in the snap, lifted after its landing: it acts
+    if (g.ctx === 'catch') {                                                                // FEED 2026-10-18: the CATCH let go
+      if (CT && RP.move === CT.m) {
+        const tail = !g.lock && !cancel && tailPx() <= TC.tailPx;
+        if (catchRelease(g.lock === 'v' && !cancel ? velR(2, t) : 0) === 'B' && tail) tailTap = { x: g.x, y: g.y, t: performance.now() };   // a tap in the TAIL: at the landing (VR3-2)
+        if (g === G0) g = null; return;
+      }
+      if (CT) adoptCatch(); else g.ctx = ctxNow() === 'open' ? 'open' : 'busy';           // landed under it: an OPEN gesture's release (below)
+      if (g.ctx === 'open' && !g.lock && !cancel) { if (g === G0) g = null; return; }      // (a catch that landed is no tap)
+    }
     if (g.ctx === 'home' && isFeed()) { if (!g.lock && !cancel) homeTap(g.x, g.y, t - g.t0); else g.pressed?.letGo(); }   // FEED
     else if (g.ctx === 'home') {
       const v = !g.lock ? 0 : g.lock === 'h' ? -vx : -vy;                                   // the row's own release (rowRelease()): the fling, or the spring back from a stretch
@@ -6289,7 +6438,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     GU.onForward = id => { if (activeStack || LIFT.state !== 'idle') return; const s = stacks.find(k => k.name === id); if (s && s.state === 'home' && !s.blocked()) s.expand(); };
   }
   return { apply, key, busy, step, land, pinAt, get gesture() { return g; }, get drag() { return { ...DR }; }, TC, paperAt,   // paperAt: debug (the probes: V1-3)
-           reset: () => { LIFT.abort(true); reset(); },                                   // layoutAll()'s: the ZOOM too (a resize / a rotation: 1× at once)
+           reset: () => { LIFT.abort(true); if (CT) { if (RP.move === CT.m) catchRelease(0, 'B'); CT = null; } reset(); },   // layoutAll()'s: the ZOOM too (a resize / a rotation: 1× at once); a CATCH lets the page go on to B
            liftAbort: () => LIFT.abort(true), liftPrefetch: a => LIFT.prefetch(a), lift: LIFT };   // the ZOOM: closeNow()'s, enterOpen()'s; debug
 })();
 if (TOUCH) window.__touch = TOUCH;          // debug (the probes)
