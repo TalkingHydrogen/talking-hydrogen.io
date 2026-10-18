@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=0f3dd66."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=9791f41."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -227,6 +227,9 @@
   .card img { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; background: #fff; }   /* clip-path (+ print inset) set inline */
   /* site 2026-09-29: the MACBOOK's lid clips (makeLid(), the LID note): the card's box, over its poster (the closed pose); one shown at a time */
   .card video.lid { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+  /* site 2026-10-17: a SCENE (cfg.scene, the comb cards): a canvas the card's content draws itself on, over its blank poster */
+  .card canvas.scene { position: absolute; left: 0; top: 0; z-index: 3; display: block; width: 100%; height: 100%; pointer-events: none; }
+  .card.scenecard img { background: none; }   /* its card is an invisible frame (a transparent poster): the scene floats on the page */
   .card.lidcard img { background: none; }   /* its poster is RGBA (the lid's alpha): no paper under it */
   /* site 2026-10-08: the NEO CLIP (cfg.video, the CLIP note): the film over its card's photo window (--vl / --vt / --vw / --vh: its
      fractions of the card — all of it when plain), over the poster (its cover still: NEOFILM in BOOT); its opacity rides p (songWrite()) */
@@ -489,6 +492,21 @@
   <div class="wrap" id="macbook" data-size="1.15" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the lid's clips) is built by the script -->
   </div></div>
+  <!-- site 2026-10-17: the CURVATURE COMB pair right of the MacBook (owner: "lets get these two on the website right from the macbook" —
+       brew's squircle-fit/comb-shots: the Apple 1:1 squircle under the Alias curvature comb). #squircle = the still (01-squircle.png:
+       the 1:1 square, every corner's comb a smooth bell), #growcomb = the clip (grow-comb.mov: grow-on-lift's circle growing into the
+       pill and folding back, then the open again at 4× slow — the comb's envelope never tears). LIVE since the same day: both draw
+       themselves (combcard.js, cfg.scene) over one blank card — the BOOT note. Both the games' BARE card: no paper,
+       the print's cut edge, its table shadow; straight; data-size 1.2 (the clips'). The clip is the NEO dance clip's kind: the poster
+       (the pill at rest, frame 240), the LIVE hint (frames 36 … 240, the grow settling onto the poster), the whole video on the zoom
+       with the CLIP BLEND; silent. brew/neofilm/combfilm.py → assets/{squircle,growcomb}/. SQUIRCLE / GROWCOMB in BOOT; data-age 23
+       (brew's year, the MacBook's) -->
+  <div class="wrap" id="squircle" data-size="1.2" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card: SQUIRCLE in BOOT -->
+  </div></div>
+  <div class="wrap" id="growcomb" data-size="1.2" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): GROWCOMB in BOOT -->
+  </div></div>
   <!-- site: a PHOTO PRINT (owner 2026-09-28: "a photo, in addition to the polaroid feel … just protrude the white out of the
        image and apply the shadow the same as on the polaroid … for now lets keep it white"): the NEO film still (2025 Neo/Still
        2026-03-18 175629_1.68.1.JPG, 1920 × 985, its pixels 1:1) with white paper round it, 5 % of its height on every side
@@ -513,7 +531,8 @@
   <!-- site 2026-10-08: one more PHOTO PRINT, a pile of its own (owner: "Screenshot 2026-10-08 at 4.00.59 PM ts in the folder add it to the
        webstie as a standalone pic for me to see"): a NEO film frame — the technician checking the robot's head with a flashlight against the
        wood panels (2025 Neo/Screenshot 2026-10-08 at 4.00.59 PM.png, 2874 × 1616, "Color LCD" → sRGB first), printed as the room print
-       (photoprint.py --long 1920 --border-px 49 → assets/photo/inspect-print.webp 2018 × 1178 + its table shadow). INSPECT in BOOT;
+       (photoprint.py --border-px 73 --edge-px 4.49 → assets/photo/inspect-print.webp 3020 × 1762 + its table shadow: the screenshot's own
+       2874 px, the room print's border and cut edge × 2874 / 1920; was --long 1920 --border-px 49, 2018 × 1178, until 2026-10-17). INSPECT in BOOT;
        data-size 1; right after the sunroom print, so the NEO clip stays right of the last lonely photo -->
   <div class="wrap" id="inspect" data-size="1" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): INSPECT in BOOT -->
@@ -550,21 +569,14 @@
   <div class="wrap" id="polaroids" data-size=".9" data-age="22"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- the .card elements are built by the script -->
   </div></div>
-  <!-- site 2026-10-10: a PHOTO PRINT right of the polaroid stack (owner: "add this photo before the polaroid stack" — then "oh shoot right from polaroids"): the TREES — the
-       apple-tree logo exploration, a cluster of black tree marks with the Apple mark among them on white (the owner's screenshot of
-       All dump/tree ai logo.png's bottom cluster; cut from that 5241 px source at the screenshot's framing, 5 : 3, the cluster centred,
-       a stray sliver of the grey tree above it erased), printed as the room print (photoprint.py --long 1920 --border-px 49 →
-       assets/photo/trees-print.webp 2018 × 1250 + its table shadow; the card's white = the paper's, so the print is one sheet).
-       TREES in BOOT; data-size 1; data-age 22, the polaroids' (the age rolls to 20 at The Dot print, then 19) -->
-  <div class="wrap" id="trees" data-size="1" data-age="22"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): TREES in BOOT -->
-  </div></div>
   <!-- site 2026-10-16: EYE 1 (owner: "i have this prototype piece that i need to add to my website as a portfolio piece … the ar glasses
        for translation … put it … right next to on the right of the 1x work"): the owner's video of the glasses ("AR glasses I made for
        translation", youtu.be/KIe1BsMkAns, 68 s; filmed on a phone through the lens) as the NEO dance clip's kind — the poster, the LIVE hint,
        the whole video with its sound on the zoom (the CLIP BLEND) — but TALL: the phone's 9 : 16 frame (608 × 1080, cropped out of YouTube's
-       pillarbox; the real picture, not upscaled). Poster = frame 800: the face box on a pinned photo, the Ukrainian line under it; the LIVE
-       hint = 744 … 800, "pick Українські" rewriting itself into the sentence. brew/neofilm/eye1film.py → assets/eye1/. EYE1 in BOOT;
+       pillarbox; the real picture, not upscaled). Poster = frame 360: the HUD seen through the lens (FPS / zoom / the face box over the
+       laptop); the LIVE hint = 280 … 360, THE LOWERING (owner 2026-10-16: "the preview to be the glasses lowering and revealing the
+       screen that beginning section"): held up a beat, down over the phone's lens, the screen revealed (was poster 800 + 744 … 800,
+       "pick Українські" rewriting itself). brew/neofilm/eye1film.py → assets/eye1/. EYE1 in BOOT;
        data-size .9 (the polaroids' height); data-age 21 (owner 2026-10-16: "age is 21": the roll 22 → 21 → 20 at The Dot) -->
   <div class="wrap" id="eye1" data-size=".9" data-age="21"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the clip): EYE1 in BOOT -->
@@ -688,7 +700,8 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=0f3dd66"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=9791f41"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="combcard.js"></script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -896,14 +909,14 @@ const SHOW_CURSOR = false;                                  // custom 34 px curs
    ============================================================ */
 const ASSETS = '../assets/drawings/';
 const IMAGES = [
-  { id: 'painting-17', w: 2000, h: 1432 },
-  { id: 'drawing-04',  w: 1346, h: 2000 },
-  { id: 'painting-16', w: 2000, h: 1430 },
-  { id: 'drawing-05',  w: 1336, h: 2000 },
-  { id: 'drawing-01',  w: 2000, h: 1335 },
-  { id: 'drawing-06',  w: 1339, h: 2000 },
-  { id: 'drawing-09',  w: 2000, h: 1332 },
-  { id: 'painting-18', w: 2000, h: 1411 },
+  { id: 'painting-17', w: 3000, h: 2149 },
+  { id: 'drawing-04',  w: 2019, h: 3000 },
+  { id: 'painting-16', w: 3000, h: 2145 },
+  { id: 'drawing-05',  w: 2005, h: 3000 },
+  { id: 'drawing-01',  w: 3000, h: 2003 },
+  { id: 'drawing-06',  w: 2009, h: 3000 },
+  { id: 'drawing-09',  w: 3000, h: 1999 },
+  { id: 'painting-18', w: 3000, h: 2116 },
 ];
 const D = IMAGES.length;                                    // cards built (one per image) = the viewer's page count
 const DEFAULT_DECK = [0, 2, 6];                             // IMAGES indices, front first: painting-17, painting-16, drawing-09 — owner 2026-10-13, from the PILE lab (pilelab.js, ?pile; "I want ts to be in front"). Was [5, 7, 0] (2026-09-25), then [0, 1, 2] the same day
@@ -1503,6 +1516,14 @@ function keepWindow() {
 }
 
 const pageQuery = new URLSearchParams(location.search);    // site: the URL knobs / debug hooks — the primary stack's (the drawings) only
+/* site 2026-10-17, FULL (owner: "same with others, can we render the full image on zoom, why its not working now"). What looked
+   low-res was not the pixel count: the srcset's file (1400 px at 1440 × 820 @2x, ≥ 1:1 in OPEN) was a q85 re-encode of a master already
+   cut down (1920 / 2000 px) — blotched skin, smeared wood and paper grain. Now every master is the full image capped at 3000 px
+   (brew/website-perf/fullres.py, card.py --full; 1:1 in OPEN on a 6K XDR) and its -1000/-1400/-1800 are q95 (4:4:4 JPEG) straight off
+   it (mkvariants.py): on screen within 44–48 dB of the master itself. Loading the MASTERS instead (tried, wkperf 1440 × 820, the
+   drive pass): 400 MB decoded at boot, and the zoom into the drawings froze 550–630 ms (each card re-rasters by drawing a 3000 px image
+   into its layer on the main thread) — 1.8–2 s lost a pass vs ~0.1 s. So the srcset stays; ?full=1 = the masters, to compare. */
+const FULL_RES = pageQuery.get('full') === '1';
 /* site 2026-10-08: the WHEEL SINK (the html.sink CSS): the root a never-pinned native scroller under the fixed viewer, parked mid-range
    after the boot layout (and at load, in case the browser restored a scroll). It takes every horizontal wheel natively, so it drifts by
    the deltas: parked again once a stream has been quiet for SINK_PARK.quiet ms and has drifted more than SINK_PARK.far px. Kept small:
@@ -2047,6 +2068,14 @@ const SH = cfg.shadow || STACK.shadow;                        // site: this stac
 const query = cfg.primary ? pageQuery : new URLSearchParams('');
 const REST = cfg.rest || null;                              // site: the HOME-only pose (the sleeve: the tile's old tilt / raise), × (1 − p) in render()
 const VID = cfg.video || null;                               // site 2026-10-08: the CLIP (its note, above makeStack())
+/* site 2026-10-17: a SCENE (owner: "why not just render it there right away, with click to play and go to the next state"): cfg.scene(canvas)
+   → a controller that draws the card's content live on a canvas over its (blank) poster — combcard.js's CombCard.grow / .still. One with
+   next() gets the clips' button: a press (or SPACE) plays to its next state, the glyph ⏸ while it moves (onchange → syncPlay). One with
+   hint() plays it on the first scroll-in, the LIVE hint's trigger (LIVE.at of its width for LIVE.dwell ms, HOME, nothing open). */
+const SCENE_CV = cfg.scene ? Object.assign(document.createElement('canvas'), { className: 'scene' }) : null;
+if (SCENE_CV) SCENE_CV.setAttribute('aria-hidden', 'true');
+const SCENE = SCENE_CV ? cfg.scene(SCENE_CV) : null;
+const CLIPCARD = !!cfg.clipCard;                            // site 2026-10-17: the squircle on every media layer of the card, not its img alone (the EYE 1 note); a card with no shade and no paper, its clip and hint windows the whole card
 const audio = cfg.audio ? new Audio() : VID ? clipEl(VID) : null;   // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it — or the CLIP's <video> (the same media API)
 if (cfg.audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
 function warmAudio() { if (audio && audio.paused && audio.preload !== 'auto') { if (VID) { audio.src = clipSrc(); blendArm(); } audio.preload = 'auto'; audio.load(); } }
@@ -2060,9 +2089,9 @@ function clipSrc() {                                         // site: CLIP — i
 /* site: its play / pause button (the .play CSS): built with the audio, in the .item; the glyph follows the audio's own state
    (syncPlay on its play / pause / ended events — a refused autoplay shows play). A click toggles it (OPEN only) and never
    reaches the viewer's close routing. */
-const playBtn = audio || cfg.play ? document.createElement('button') : null;
+const playBtn = audio || cfg.play || SCENE?.next ? document.createElement('button') : null;
 let filmOn = false;                                         // site 2026-09-30: a cfg.play stack's (the MACBOOK's) own state — its button toggles it (cfg.play(on) is the hook; the screen's film is not wired yet)
-const mediaOn = () => audio ? !audio.paused : filmOn;
+const mediaOn = () => audio ? !audio.paused : SCENE ? SCENE.playing : filmOn;
 /* PHONE 2026-10-15 — TAP BACK (owner: "no buttons on the videos, no play pause. Just tap on the video itself once, and it will retract
    aka scale down a bit, press again and it will come back forward"): a phone's CLIP has no disc (the html.phone .play.vid CSS); a tap
    on the picture still plays ↔ pauses it (the TOUCH block's openTap(): the item → playKey()), and a pause the tap made RETRACTS the
@@ -2077,6 +2106,7 @@ function tapBackSync() {                    // playPress(): retracted while a ta
   if (tapBack.target !== to) { tapBack.set(to); kick(); }
 }
 function syncPlay() { if (!playBtn) return; const on = mediaOn(); playBtn.classList.toggle('playing', on); playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play'); }
+if (SCENE) SCENE.onchange = syncPlay;
 /* site: its caption (the .caption CSS): page space, in the viewer; the lines, then the credits */
 const CAPG = Object.keys(CAP_GROUPS).find(g => CAP_GROUPS[g].members.includes(cfg.name)) || null;   // site 2026-10-09: its CAPTION GROUP (the note at CAP_GROUP)
 const CAPM = !!CAPG && CAP_GROUPS[CAPG].owner !== cfg.name;                              // … a member, not its owner: it shows the owner's caption
@@ -2122,7 +2152,7 @@ function placeCaption(eff, H) {
   capEl.style.setProperty('--cap-pb', Math.max(0, H - (eff.top + eff.height) - (lh - base)) + 'px');
 }
 if (playBtn) {
-  playBtn.className = VID ? 'play vid' : 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();   // .vid: a CLIP's (no disc on a phone: TAP BACK)
+  playBtn.className = VID ? 'play vid' : SCENE ? 'play scn' : 'play'; playBtn.type = 'button'; playBtn.innerHTML = PLAY_SVG; syncPlay();   // .vid: a CLIP's (no disc on a phone: TAP BACK) · .scn: a SCENE's (none either: a tap on the shape plays its next state)
   item.appendChild(playBtn);
   if (audio) for (const ev of ['play', 'pause', 'ended']) audio.addEventListener(ev, syncPlay);
   playBtn.addEventListener('click', e => {
@@ -2133,6 +2163,7 @@ if (playBtn) {
 }
 function playPress() {                      // its button's press: the click — or SPACE (the stack's playKey(), the page's KEYS)
   if (film) { film.play(); return; }                                                     // site 2026-09-30: the MACBOOK — the FILM (the button fades; a click anywhere stops it)
+  if (SCENE) { SCENE.next(); syncPlay(); return; }                                       // site 2026-10-17: a SCENE — to its next state
   if (!audio) { filmOn = !filmOn; if (typeof cfg.play === 'function') cfg.play(filmOn); }   // site: the MACBOOK — the glyph toggles; the hook gets the state
   else if (mutedOnly && audio.muted && !audio.paused) { mutedOnly = false; audio.muted = false; }   // FEED / touch (spec 05 §2.4.3): a start the browser refused with sound plays muted — this tap unmutes it
   else if (audio.paused) { songHeld = false; audio.play().catch(syncPlay); } else { songHeld = true; audio.pause(); }
@@ -2310,7 +2341,8 @@ function makeShade(id, cls) {
    Safari had dropped); a card's white paper (the img's background) paints first if a decode is not through — at BOOT only, the KEEPALIVE
    keeps them decoded after. LAZY: a card beyond the home deck is under the pile at HOME, never seen, so it gets NO source at BOOT (the
    drawings: 5 of 8); loadTucked() sets them on the first hover / press / expand of this stack, in flip order (the prev card, the
-   next-next, the rest) — the zoom (540 ms) and the untuck (one a frame from OPEN) come after; a card still without its image is its paper. */
+   next-next, the rest) — the zoom (540 ms) and the untuck (one a frame from OPEN) come after; a card still without its image is its paper.
+   2026-10-17: the masters are the full images (≤ 3000 px) and the variants q95 off them — FULL (pageQuery's note); ?full=1 skips the srcset. */
 const VARIANTS = [1000, 1400, 1800];
 const fileDims = pic => pic.file || [pic.w, pic.h];                       // the FILE's px (a bleed image is larger than its print: pic.file)
 function srcsetOf(pic) {
@@ -2328,7 +2360,7 @@ function sizesOf(c) {                        // the img's CSS width at B: the ca
 function loadCard(c, priority) {             // its source, once: srcset + sizes + src, decoded ahead, kept alive
   if (c.src) return; c.src = true;
   if (!c.pic.file) c.pic.file = [c.pic.w, c.pic.h];                       // the FILE's px, pinned (useNatural() may refine pic.w / h for layout)
-  const im = c.img, { src, srcset } = srcsetOf(c.pic);
+  const im = c.img, { src, srcset } = FULL_RES ? { src: srcsetOf(c.pic).src, srcset: '' } : srcsetOf(c.pic);   // ?full=1: the master file only (FULL)
   if (priority) im.fetchPriority = priority;
   im.sizes = sizesOf(c); if (srcset) im.srcset = srcset; im.src = src;
   im.addEventListener('load', () => useNatural(c), { once: true });      // refine its ratio from the file (a lazily loaded card too)
@@ -2390,11 +2422,30 @@ for (let j = 0; j < D; j++) {
 const PLAY_CARD = SONG >= 0 ? SONG : D === 1 ? 0 : -1;
 const playSlot = playBtn && PLAY_CARD >= 0 ? item.appendChild(Object.assign(document.createElement('div'), { className: 'play-slot' })) : null;
 if (playSlot) cards[PLAY_CARD].el.appendChild(playBtn);
+if (SCENE_CV) { cards[0].el.appendChild(SCENE_CV); cards[0].el.classList.add('scenecard'); }   // site 2026-10-17: a SCENE — over its card (the .scene CSS; its size and overscan the scene's own)
 if (VID) {                                                   // site: CLIP — over the print's photo window (the .clip CSS); seen from its first frame on
   cards[0].el.appendChild(audio);
   audio.addEventListener('loadeddata', () => { if (audio.getAttribute('src')) { clipFrame = true; songWrite(); } });   // (FEED: again after a decode-window drop, mediaFar())
 }
 let liveSeen = null, liveStop = () => {}, liveHover = () => {}, liveDrop = () => {};   // liveDrop: FEED — its player unloaded (mediaFar())   // site 2026-10-09: the LIVE hint (its note, above makeStack()) — liveSync()'s hook; expand()'s; hoverTo()'s
+if (SCENE?.hint && LIVE.on && !LIVE.rm.matches) {             // site 2026-10-17: a SCENE's scroll-in — the LIVE hint's trigger, the scene's own motion
+  let seen = 'idle', f = 0, t = 0, tW = 0;
+  const go = () => {
+    if (seen !== 'wait') return;
+    if (f < LIVE.at) { seen = 'idle'; return; }
+    if (document.hidden || state !== 'home' || activeStack || blocked()) {
+      if (performance.now() - tW < LIVE.within) t = setTimeout(go, 200); else seen = 'idle';
+      return;
+    }
+    seen = 'done'; SCENE.hint();
+  };
+  liveSeen = frac => {
+    f = frac;
+    if (seen === 'done' && LIVE.again && frac <= 0) seen = 'idle';
+    if (seen === 'idle' && frac >= LIVE.at) { seen = 'wait'; tW = performance.now(); clearTimeout(t); t = setTimeout(go, LIVE.dwell); }
+    else if (seen === 'wait' && frac < LIVE.at) { clearTimeout(t); seen = 'idle'; }
+  };
+}
 if (cfg.live && LIVE.on) {
   const L = cfg.live, win = VID ? VID.window : [0, 0, 1, 1], host = cards[0].el, im = cards[0].img;
   const box = host.insertBefore(Object.assign(document.createElement('div'), { className: 'live' }), VID ? audio : null);
@@ -3046,7 +3097,8 @@ function arrange() { arrangeHome(); syncHomeSlots(); arrangeCards(); reseat(); p
    in front — SONG), else the front card. After arrangeCards(). */
 function placePlay() {
   if (!playBtn || !G.B) return;
-  const B = G.B, KV = cfg.openB ? PG.KV * G.stageK : G.KV, d = PLAY.d * KV, pc = IMAGES[SONG >= 0 ? SONG : knobs.deck[0]], r = pc.w / pc.h;   // site: an own open box keeps the page's button
+  const B = G.B, KV = cfg.openB ? PG.KV * G.stageK : G.KV, pc = IMAGES[SONG >= 0 ? SONG : knobs.deck[0]], r = pc.w / pc.h;   // site: an own open box keeps the page's button
+  const d = cfg.playRad ? Math.max(24, 2 * knobs.vradius * (G.S || 1)) : PLAY.d * KV;   // site 2026-10-17: cfg.playRad (EYE 1) — the disc's radius = the card's squircle corner radius in OPEN (vradius × S, clipOf()), so it follows ?rad; floored at a 24 px tap target
   const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B, ph = PG.playAt ? PG.playAt(B, cw, ch, d, PLAY.gap * KV) : null, sz = { width: (ph ? ph.d : d) + 'px', height: (ph ? ph.d : d) + 'px' };   // MOBILE: ph = the phone's place / 44 pt target (mobile.js)
   Object.assign((playSlot || playBtn).style, sz, { left: (ph ? ph.l : (B + cw) / 2 + PLAY.gap * KV) + 'px', top: (ph ? ph.t : (B + ch) / 2 - d) + 'px' });   // the resting rect, item px
   if (playSlot) Object.assign(playBtn.style, sz, { left: (ph ? ph.l - (B - cw) / 2 : cw + PLAY.gap * KV) + 'px', top: (ph ? ph.t - (B - ch) / 2 : ch - d) + 'px' });            // anchored: the card's own px (MOBILE: ph in card px)
@@ -3193,9 +3245,15 @@ function applyCard(c) {
     c.pathD = squircle(w, h, rad);
     const iw = w - 2 * b, ih = h - 2 * b, irad = Math.max(0, rad - b);
     const imgD = b > 0 ? (irad >= .5 ? squircle(iw, ih, irad) : '') : (rad >= .5 ? c.pathD : '');
+    if (CLIPCARD) {   // site 2026-10-17: CLIPCARD — the one outline on EVERY media layer of the card: the img, the LIVE hint's box and the blend copy (their children are cut by the box), the film (its 1 px overscan off: the same box as the img, the same path). NOT on the card itself: the play button is the card's child, parked outside its box — a card clip swallowed it (owner: "where is the pause and play button"). No paper inset, no shade
+      const cp = rad >= .5 ? `path("${c.pathD}")` : '';
+      c.img.style.cssText = cp ? `clip-path:${cp}` : '';
+      for (const L of c.el.querySelectorAll('.live, video.clip')) { L.style.clipPath = cp; if (L.tagName === 'VIDEO') L.style.setProperty('--vo', '0px'); }
+    } else {
     c.img.style.cssText = (b > 0 ? `margin:${b}px;width:${iw}px;height:${ih}px;` : '') + (imgD ? `clip-path:path("${imgD}")` : '');
     c.el.classList.toggle('print', b > 0);
     if (b > 0) c.el.style.setProperty('--paper', rad >= .5 ? `path("${c.pathD}")` : 'none'); else c.el.style.removeProperty('--paper');
+    }
   }
   // shadows: the rest one (home: stack.html's geometry in rest px → ÷ size; viewer: flip.html's) and flip.html's lifted one
   const sh = SH, sx = sh.x || 0, KB = G.K, on = !CAST && !SKIP.has('shade') && (kc(c, 'shadow') > 0 || kc(c, 'vshadow') > 0);   // site: CAST draws no shade; ?skip=shade: none (debug)
@@ -6309,7 +6367,9 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
                                       openB: filmOpenB, film: { base: MB },   // site 2026-09-30: the FILM (its note): its frame decides the open box
                                       play: true, caption: MB_CAPTION }));   // site 2026-09-30 (owner: "put the play button on the macbook … the same as the album position"): the sleeve's button, placed by the same rule (placePlay(): right of the card, PLAY.gap, bottoms aligned); the screen's film = the cfg.play hook, not wired yet
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
-   brew/polaroid scan renders, 2400 × 2918 → 1645 × 2000 webp). POL_KNOBS: no radius / border at home or in the viewer (square
+   brew/polaroid scan renders, 2400 × 2918 webp, not downsized since 2026-10-17: brew/polaroid card.py --full). FULL (owner 2026-10-17:
+   "render the images of 1x all in highest resolution on zoom in"): the masters are the 2400 × 2918 renders and the srcset's
+   files q95 off them (FULL, pageQuery's note; served alone for a few hours that day, then dropped for the zoom's raster cost). POL_KNOBS: no radius / border at home or in the viewer (square
    corners, the prints carry their own edge); the measured shadows at home and in the viewer (POL_FLOOR / POL_CONTACT, below); pivot .5: with a pile of two the
    back card takes the hover ramp (at the default 1.5, clamped to N − 1 = 1, neither card would fan). */
 /* 2026-10-01 (owner: 'copy ts' — the Designed by Apple book's page white; 'remove those dirt spots from the top right angle';
@@ -6319,10 +6379,10 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
    smudge / rust dots (wear_smudge / wear_rust 0) — brew/polaroid out/polaroid-*-sq.png — and the figure's inscription a felt-tip
    marker (ballpen.py --variant marker, measured off the Jobs SX-70 signature: ref-jobs/marker-steve-jobs.png) */
 const POLAROIDS = [
-  { id: 'neo',   src: '../assets/neo/neo-card.webp',   w: 1645, h: 2000 },    // the FRONT print since 2026-10-09, inked "Love, 1X" (owner: "remove the first pic of the polaroid stack, and swap it to the head laying pic and put the love, 1x there") — the figure's line: same hand / pen / size / placement, ink layer bit-identical (brew/polaroid ink/neo-love). 2026-09-28 … 10-09 un-inked ("rm love from text from the pic with a head"); the old "with love from 1x" = neo-card-inked-old.webp
-  { id: 'trees', src: '../assets/neo/trees-card.webp', w: 1645, h: 2000 },
-  { id: 'hand',  src: '../assets/neo/hand-card.webp',  w: 1645, h: 2000 },    // 2026-10-09 (owner: "try to put an unedited polaroid there of … IMG_2136.HEIC"): NEO's head held in a hand, the photo AS SHOT (P3 → sRGB, look_mix 0, no pre-grade; the site gain on the PAPER only, like the trees) and zoomed out to the photo's full width (owner, same day: "zoomed out till the border limit on the new polaroid" — the widest square, 3024 px, centred where the 10-07 crop was), brew/polaroid out/polaroid-hand-wide.png. It takes the slot of the FIGURE (figure-card.webp, 2025 Neo/L1001549.jpeg inked "Love, 1X" — the front print until the owner's "remove the first pic of the polaroid stack"; the file stays, unreferenced)
-  { id: 'dancers', src: '../assets/neo/dancers-card.webp', w: 1645, h: 2000 },  // 2025 Neo/Screenshot 2025-11-04 (the red/blue figure drawing) widened to 1:1, --look polaroid (owner: 'apply some polaroid type filter'; sx70 went mint on the white paper), no inscription
+  { id: 'neo',   src: '../assets/neo/neo-card.webp',   w: 2400, h: 2918 },    // the FRONT print since 2026-10-09, inked "Love, 1X" (owner: "remove the first pic of the polaroid stack, and swap it to the head laying pic and put the love, 1x there") — the figure's line: same hand / pen / size / placement, ink layer bit-identical (brew/polaroid ink/neo-love). 2026-09-28 … 10-09 un-inked ("rm love from text from the pic with a head"); the old "with love from 1x" = neo-card-inked-old.webp
+  { id: 'trees', src: '../assets/neo/trees-card.webp', w: 2400, h: 2918 },
+  { id: 'hand',  src: '../assets/neo/hand-card.webp',  w: 2400, h: 2918 },    // 2026-10-09 (owner: "try to put an unedited polaroid there of … IMG_2136.HEIC"): NEO's head held in a hand, the photo AS SHOT (P3 → sRGB, look_mix 0, no pre-grade; the site gain on the PAPER only, like the trees) and zoomed out to the photo's full width (owner, same day: "zoomed out till the border limit on the new polaroid" — the widest square, 3024 px, centred where the 10-07 crop was), brew/polaroid out/polaroid-hand-wide.png. It takes the slot of the FIGURE (figure-card.webp, 2025 Neo/L1001549.jpeg inked "Love, 1X" — the front print until the owner's "remove the first pic of the polaroid stack"; the file stays, unreferenced)
+  { id: 'dancers', src: '../assets/neo/dancers-card.webp', w: 2400, h: 2918 },  // 2025 Neo/Screenshot 2025-11-04 (the red/blue figure drawing) widened to 1:1, --look polaroid (owner: 'apply some polaroid type filter'; sx70 went mint on the white paper), no inscription
 ];
 const POL_KNOBS = { radius: 0, border: 0, vradius: 0, vborder: 0, shadow: 1, vshadow: 1 };   // square corners; the shadows carry their own alpha (1 = as measured), at home AND in the viewer (owner 2026-09-26: "add a shadow on the fullscreen version of the polaroid too")
 /* the polaroids' shadows, MEASURED (brew/polaroid/shadowmeasure.py on the owner's photo of three SX-70s on a white table,
@@ -6358,12 +6418,6 @@ const POL_CAPTION = { text: POL_V1.text, lock: POL_V1.text,   // site 2026-10-07
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
 stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [0, 2, 1], fan: POL_FAN, openDx: POL_VAR ? POL_VAR.openDx : POL_V1.openDx, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT,
                                        caption: POL_VAR ? { ...POL_CAPTION, text: POL_VAR.text, split: POL_VAR.split } : POL_CAPTION }));
-/* site 2026-10-10: the TREES print (the markup's comment): a pile of one, the photo prints' treatment (POL_KNOBS, castOnly, its own
-   measured table shadow from photoprint.py: fx .03331 fy .05376), rest −1° (the polaroids' front card is straight, the Triangle Bob print right of it leans +1.2°: the prints alternate),
-   the hover turn counter-clockwise as every print's, lowered onto the row's baseline by (w/h − 1)/2 */
-const TREES = [{ id: 'trees', src: '../assets/photo/trees-print.webp', w: 2018, h: 1250 }];
-stacks.push(makeStack($('trees'), { name: 'trees', idp: 'tr-', images: TREES, deck: [0], knobs: POL_KNOBS, castOnly: true,
-                                    floor: { src: '../assets/photo/trees-floor.webp', fx: .03331, fy: .05376 }, rest: { rot: -1, up: -(2018 / 1250 - 1) / 2, hover: -1 } }));
 /* site: the PHOTO PRINT (the markup's comment): a pile of one, the polaroids' treatment — square corners, no SVG shade (castOnly),
    the TABLE shadow texture baked for its aspect by brew/polaroid/photoprint.py (floorshadow.py's model with every σ × .7403 = the
    polaroid card's on-screen width / this card's, so the page shows the same σ px; card 1351 × 725 + 45 px). rest: a slight
@@ -6401,9 +6455,9 @@ stacks.push(makeStack($('room'), { name: 'room', idp: 'room-', images: ROOM, dec
 /* site 2026-10-07: two more PHOTO PRINTS (the markup's comment), each a pile of one with the room print's treatment and no TURN (no
    back printed for them). The same aspect, so the same table-shadow texture (one file each). rest: tilts of their own beside the
    room's +1.5° (−1.2°, +.8°: hand-laid, not a pattern), on the row's baseline; the hover turns them left, as the room's. */
-const SHELVES = [{ id: 'shelves', src: '../assets/photo/shelves-print.webp', w: 2018, h: 1174 }];
-const SUNROOM = [{ id: 'sunroom', src: '../assets/photo/sunroom-print.webp', w: 2018, h: 1174 }];
-const PRINT_UP = -(2018 / 1174 - 1) / 2;
+const SHELVES = [{ id: 'shelves', src: '../assets/photo/shelves-print.webp', w: 3028, h: 1762 }];   // 2026-10-17 FULL: the screenshots' own 2880 px (fullres.py), were 2018 × 1174
+const SUNROOM = [{ id: 'sunroom', src: '../assets/photo/sunroom-print.webp', w: 3028, h: 1762 }];
+const PRINT_UP = -(3028 / 1762 - 1) / 2;
 stacks.push(makeStack($('shelves'), { name: 'shelves', idp: 'shelves-', images: SHELVES, deck: [0], knobs: POL_KNOBS, castOnly: true,
                                       floor: { src: '../assets/photo/shelves-floor.webp', fx: .03331, fy: .05725 }, rest: { rot: -1.2, up: PRINT_UP, hover: -1 } }));
 stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: SUNROOM, deck: [0], knobs: POL_KNOBS, castOnly: true,
@@ -6411,10 +6465,13 @@ stacks.push(makeStack($('sunroom'), { name: 'sunroom', idp: 'sunroom-', images: 
 /* site 2026-10-08: one more PHOTO PRINT (the markup's comment): the room print's treatment, a tilt of its own (−1°) beside the sunroom's
    +.8°, on the row's baseline, the hover turning it left as the prints. Its caption = the polaroids' (owner, the same day: "can you put the
    same description as on polaroids for this screen"): the same text, lock and variant (?var=N), so it follows theirs; centred as the CD
-   (no openDx), the band left of it split as every caption's */
-const INSPECT = [{ id: 'inspect', src: '../assets/photo/inspect-print.webp', w: 2018, h: 1178 }];
+   (no openDx), the band left of it split as every caption's. FULL (owner 2026-10-17: "I feel like this one is really low rez idk why in
+   the folder it looks beter"): the print was the screenshot at 1920 px and, at 1440 × 820 @2x, served as its 1400 px variant (q85 over q92:
+   WebP blotching on the skin and the wood) — now the screenshot's own 2874 px (3020 × 1762), its srcset q95 off it
+   (FULL). The 4K NEO film doesn't hold this shot (no frame correlates above .55): the screenshot is the best source. */
+const INSPECT = [{ id: 'inspect', src: '../assets/photo/inspect-print.webp', w: 3020, h: 1762 }];
 stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: INSPECT, deck: [0], knobs: POL_KNOBS, castOnly: true,
-                                      floor: { src: '../assets/photo/inspect-floor.webp', fx: .03331, fy: .05703 }, rest: { rot: -1, up: -(2018 / 1178 - 1) / 2, hover: -1 },
+                                      floor: { src: '../assets/photo/inspect-floor.webp', fx: .03331, fy: .05711 }, rest: { rot: -1, up: -(3020 / 1762 - 1) / 2, hover: -1 },
                                       caption: POL_VAR ? { ...POL_CAPTION, text: POL_VAR.text, split: POL_VAR.split } : POL_CAPTION }));
 /* site 2026-10-08: the NEO CLIP (the markup's comment, the CLIP note). PLAIN (owner, the same day: "make the vid without the photo borders
    though, im still figuring out design on ts, lets try just plain vid. 20%+ scale"): the card is the poster alone (1920 × 1080, assets/neofilm/neofilm-poster.webp), the clip
@@ -6521,23 +6578,47 @@ stacks.push(makeStack($('trianglebob'), TB_STILL
       rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: TB_CLIP,
       openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: TB_CAPTION }));
 /* site 2026-10-16: EYE 1 (the markup's comment): the NEO dance clip's engine and look as they are — PLAIN knobs, straight (rot 0: no
-   hover turn), cfg.video (the whole video, its sound raised to the site's level by eye1film.py) with blend: true, cfg.live (744 … 800,
-   muted, its last frame the poster) — on a 9 : 16 card: on the row's baseline as it is (rest.up 0: a portrait card fills its box's
+   hover turn), cfg.video (the whole video, its sound raised to the site's level by eye1film.py) with blend: true, cfg.live (280 … 360,
+   the glasses lowering over the lens to the HUD, muted, its last frame the poster) — on a 9 : 16 card: on the row's baseline as it is (rest.up 0: a portrait card fills its box's
    height), the page's open box (no openB: the card's height = B, the polaroids' open height). One size, the picture's own (608).
-   Caption: placeholder text (owner to confirm the name / role / year), on the NEO caption's place (its lock), mid-centred; its owner is the image (EYE1IMG) */
-const EYE1_CAPTION = { text: 'Eye 1\n\nAR Translation Glasses\nPrototype\n\n\n\n\n\n\nViktor Dune', lock: POL_V1.text, mid: true };   // owner 2026-10-16: "this one text to be mid centered" (MID)
+   Caption: the owner's text (2026-10-16), on the NEO caption's place (its lock), mid-centred; its owner is the image (EYE1IMG) */
+const EYE1_CAPTION = { text: 'AI Translation Glasses\n\nStartup\n\n\n\n\n\n\nViktor Dune', lock: POL_V1.text, mid: true };   // owner 2026-10-16: "this one text to be mid centered" (MID); later: "change of the text: AI translaiton glasses/ Prototype / viktor dune" (was Eye 1 / ½ / AR Translation Glasses · Prototype / 3 lines / Viktor Dune); 2026-10-17: "rename, ai translation glasses to a startup not prototype" → Startup
 const EYE1_CLIP = { base: '../assets/eye1/', sizes: [608], window: [0, 0, 1, 1], src: { hevc: 'eye1-{w}-wk.mp4', h264: 'eye1-{w}.mp4' }, type: NEOFILM_CLIP.type,
                     blend: pageQuery.get('blend') !== '0' };
 const EYE1_LIVE = { base: '../assets/eye1/', sizes: [608], src: { hevc: 'eye1-live-{w}-wk.mp4', h264: 'eye1-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
+/* site 2026-10-17: APPLE 1:1 SQUIRCLE CORNERS on the Eye 1 card (owner: "for this image i want to add apple 1:1 squircles, and adjust the
+   radius with arrows"): the site's own squircle (Squircle.path — the eye-matched 1:1 presets, the drawings' corners) as the card's
+   clip, on EVERY media layer of the card (cfg.clipCard → CLIPCARD in applyCard(): the poster, the LIVE hint's box, the blend copy and
+   the film, one path each — on the img alone the hint's and the film's corners stayed square; not on the card element: its play
+   button is a child parked outside the box, a card clip swallowed it). radius = vradius = EYE1_RAD, REST px (× S: the corner scales with the card, HOME to OPEN; see
+   clipOf()). ?rad=N sets it AND turns the ARROW TUNER on: ↑ / ↓ ± 1 rest px (⇧ ± .25), each step written into the URL (?rad=N —
+   read the pick off the address bar) and the console; ← / → stay the row's walk. Without ?rad the site shows EYE1_RAD_DEF, no keys.
+   The PLAY / PAUSE button (owner, same day: "make it the same roughly radius as the corners there"): cfg.playRad → placePlay() sizes the
+   disc so its radius = the corner's radius in OPEN (2 · vradius · S; was PLAY.d 46 px for every pile), its place as before — right of the
+   card's bottom-right corner, its bottom on the card's bottom edge (PLAY.gap); the glyph is 56 % of the disc, it scales with it. */
+const EYE1_RAD_DEF = 12;
+const EYE1_RAD = pageQuery.has('rad') && Number.isFinite(parseFloat(pageQuery.get('rad'))) ? clamp(parseFloat(pageQuery.get('rad')), 0, 60) : EYE1_RAD_DEF;
 stacks.push(makeStack($('eye1'), { name: 'eye1', idp: 'e1-', images: [{ id: 'eye1', src: '../assets/eye1/eye1-poster.webp', w: 608, h: 1080 }], deck: [0],
-                                   knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 }, video: EYE1_CLIP, live: EYE1_LIVE }));
+                                   knobs: { radius: EYE1_RAD, border: 0, shadow: 0, vradius: EYE1_RAD, vborder: 0, vshadow: 0 }, clipCard: true, playRad: true,
+                                   rest: { rot: 0, up: 0 }, video: EYE1_CLIP, live: EYE1_LIVE }));
+if (KEYS && pageQuery.has('rad')) addEventListener('keydown', e => {   // the ARROW TUNER (above): ↑ / ↓ on the Eye 1 radius, at HOME and in OPEN
+  if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (e.defaultPrevented || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  e.preventDefault();
+  const st = stacks.find(s => s.name === 'eye1'), step = e.shiftKey ? .25 : 1;
+  const r = clamp(Math.round(((st.knobs.radius || 0) + (e.key === 'ArrowUp' ? step : -step)) * 100) / 100, 0, 60);
+  st.setKnob('vradius', r); st.setKnob('radius', r);                    // vradius first: radius's arrange() re-places the play button from it (placePlay(), cfg.playRad)
+  const u = new URL(location.href); u.searchParams.set('rad', String(r)); history.replaceState(null, '', u);
+  console.log('eye1 squircle radius', r, 'rest px');
+});
 /* site 2026-10-16: the EYE 1 IMAGE (the markup's comment): a pile of one, the photo prints' treatment — POL_KNOBS + castOnly, its table
    shadow baked by photoprint.py per version (fx / fy), straight (rot 0: no hover turn), a landscape lowered onto the row's baseline by
    (w/h − 1)/2; the caption's OWNER (CAP_GROUPS.eye1: the clip shares its text). ?eyeimg=1 | 2 | 3 = the versions (1 by default) */
 const EYE1IMG_VARS = {
-  1: { v: 'v1', w: 1634, h: 2018, size: .9,  fx: .04573, fy: .03704 },    // 4 : 5 portrait, head + shoulders
-  2: { v: 'v2', w: 2018, h: 2018, size: .9,  fx: .03701, fy: .03701 },    // square close-up, cut at the neck
-  3: { v: 'v3', w: 2018, h: 1634, size: 1.1, fx: .03028, fy: .03741 },    // 5 : 4 landscape, head + shoulders
+  1: { v: 'v1', w: 2554, h: 3154, size: .9,  fx: .04569, fy: .03701 },   // 2026-10-17 FULL: --long 3000 (fullres.py), were --long 1920    // 4 : 5 portrait, head + shoulders
+  2: { v: 'v2', w: 3154, h: 3154, size: .9,  fx: .03701, fy: .03701 },    // square close-up, cut at the neck
+  3: { v: 'v3', w: 3154, h: 2554, size: 1.1, fx: .03028, fy: .03741 },    // 5 : 4 landscape, head + shoulders
 };
 const EYE1IMG = EYE1IMG_VARS[pageQuery.get('eyeimg')] || EYE1IMG_VARS[1];
 $('eye1img').dataset.size = String(EYE1IMG.size);
@@ -6564,6 +6645,24 @@ stacks.push(makeStack($('thedot'), GAME_PRINT
   : { name: 'thedot', idp: 'td-', images: THEDOT, deck: [0], knobs: POL_KNOBS, castOnly: true, floor: GAME_FLOOR('thedot'),
       rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: TD_CLIP,
       openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: TD_CAPTION }));
+/* site 2026-10-17: the CURVATURE COMB pair (the markup's comment), right of the MacBook — LIVE (owner, the same day: "can we better bake
+   it into the html? … why not just render it there right away, with click to play and go to the next state"): each card is a SCENE
+   (cfg.scene, makeStack's note) — combcard.js draws it on a canvas over a BLANK card (assets/combcard/: the games' bare card of the comb
+   renders' own #f6f6f6 ground, its cut edge and table shadow; combfilm.py --only card), crisp at every zoom, no video. Both the games'
+   look — POL_KNOBS + castOnly, straight, the open box CLIP_ZOOM's. SQUIRCLE: CombCard.still, the Apple 1:1 square under the comb (no
+   button). GROWCOMB: CombCard.grow, grow-on-lift's engine 1 : 1 (verified to 1e-13 px over open / retext / close) — parked as the
+   circle, its scroll-in plays the OPEN to the pill (the old LIVE hint's motion, now the real thing); in OPEN the button (or SPACE) plays
+   to the next state: pill → two-row panel → circle → pill. Reduced motion or ?live=0: parked as the pill. */
+/* … FLOATING (owner, the same day: "i mean not even a card itself, make it as just a ui piece floating in that white space"): the card is
+   an invisible frame — its poster fully transparent (assets/combcard/combcard-poster.webp, combfilm.py --only card), no paper (the
+   .scenecard CSS), no radius / border / shadow, no table shadow — so only the shape, its comb and its float shadow are on the page;
+   the canvas overscans the frame right and below (combcard.js: the shadow's tail). Hover / zoom / button as any pile of one. */
+const COMB_CARD = [{ src: '../assets/combcard/combcard-poster.webp', w: 1920, h: 1080 }];
+const COMB_STACK = (name, idp, scene) => ({ name, idp, images: [{ id: name, ...COMB_CARD[0] }], deck: [0],
+                                       knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, scene,
+                                       openB: (W, H) => pageB(W, H, CLIP_ZOOM) });
+stacks.push(makeStack($('squircle'), COMB_STACK('squircle', 'sq-', cv => window.CombCard.still(cv))));
+stacks.push(makeStack($('growcomb'), COMB_STACK('growcomb', 'gc-', cv => window.CombCard.grow(cv, { start: LIVE.on && !LIVE.rm.matches ? 0 : 1 }))));
 /* site 2026-10-01: the DIGITAL PAINTINGS (the markup's comment), a pile of their own left of the drawings. 66 is its full canvas
    (1156 px, not upscaled); 136 cropped to the painting (its canvas's bottom 373 rows were a flat gray, a hard edge at row 1127).
    eff: 0 — 136 is the pile's only landscape (2.2 : 1): counted, it alone would set the effective rect (zones, peek) to a strip;
@@ -6575,15 +6674,15 @@ stacks.push(makeStack($('thedot'), GAME_PRINT
    1.22). pic.scale multiplies the contain fit (arrangeCards()), at HOME and in OPEN. ?digwide=K tunes it. */
 const DIG_WIDE = +(pageQuery.get('digwide') || 1.25);
 const DIGITAL = [
-  { id: 'untitled-108', src: '../assets/digital/untitled-108.png', w: 2000, h: 2000, floor: { src: '../assets/digital/untitled-108-floor.webp', fx: .03331, fy: .03331 } },
-  { id: 'untitled-84',  src: '../assets/digital/untitled-84.png',  w: 1490, h: 2000, floor: { src: '../assets/digital/untitled-84-floor.webp', fx: .04473, fy: .03333 } },
-  { id: 'untitled-69',  src: '../assets/digital/untitled-69.png',  w: 1906, h: 2000, floor: { src: '../assets/digital/untitled-69-floor.webp', fx: .03497, fy: .03333 } },
+  { id: 'untitled-108', src: '../assets/digital/untitled-108.png', w: 3000, h: 3000, floor: { src: '../assets/digital/untitled-108-floor.webp', fx: .03331, fy: .03331 } },
+  { id: 'untitled-84',  src: '../assets/digital/untitled-84.png',  w: 2075, h: 2785, floor: { src: '../assets/digital/untitled-84-floor.webp', fx: .04473, fy: .03333 } },
+  { id: 'untitled-69',  src: '../assets/digital/untitled-69.png',  w: 2859, h: 3000, floor: { src: '../assets/digital/untitled-69-floor.webp', fx: .03497, fy: .03333 } },
   { id: 'untitled-66',  src: '../assets/digital/untitled-66.png',  w: 1156, h: 1156, floor: { src: '../assets/digital/untitled-66-floor.webp', fx: .03331, fy: .03331 } },
-  { id: 'untitled-136', src: '../assets/digital/untitled-136.png', w: 2000, h: 902, file: [2500, 1127], variants: [1000, 1400, 1800, 2000], eff: 0, scale: DIG_WIDE, floor: { src: '../assets/digital/untitled-136-floor.webp', fx: .03331, fy: .07389 } },
+  { id: 'untitled-136', src: '../assets/digital/untitled-136.png', w: 2500, h: 1127, eff: 0, scale: DIG_WIDE, floor: { src: '../assets/digital/untitled-136-floor.webp', fx: .03331, fy: .07389 } },
   /* owner 2026-10-01: "add 115 copy too as the front image" — the Animayo 2021 poster (Untitled 115 copy, 1701 × 2551, the pile's
      one colour piece): lossless RGB PNG (1.0 MB at 2000 px, the 1400 candidate 588 KB; JPEG q95 4:4:4 would be 424 KB / 47 dB).
      Its flatten has a Color Dodge and an Overlay layer (artstudio.py BLEND, fitted: max 4 levels vs the layers) */
-  { id: 'untitled-115-copy', src: '../assets/digital/untitled-115-copy.png', w: 1334, h: 2000, floor: { src: '../assets/digital/untitled-115-copy-floor.webp', fx: .04994, fy: .03331 } },
+  { id: 'untitled-115-copy', src: '../assets/digital/untitled-115-copy.png', w: 1701, h: 2551, floor: { src: '../assets/digital/untitled-115-copy-floor.webp', fx: .04994, fy: .03331 } },
 ];
 /* site 2026-10-01 (owner: "try applying the same shadow as on the single pic there to the new image stack"): the ROOM print's
    treatment — POL_KNOBS (square corners, the measured shadows at alpha 1, home and viewer), castOnly, and a TABLE shadow per card:

@@ -136,7 +136,7 @@
   html.phone .play { background: transparent; }
   html.phone .play::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--play-gray); }
   html.phone .play svg { width: 43.3%; height: 43.3%; }
-  html.phone .play.vid { display: none; }   /* 2026-10-15 (owner: "no buttons on the videos"): a clip has no disc — a tap on its picture plays ↔ pauses it (site.html's TAP BACK) */
+  html.phone .play.vid, html.phone .play.scn { display: none; }   /* 2026-10-15 (owner: "no buttons on the videos"): a clip has no disc — a tap on its picture plays ↔ pauses it (site.html's TAP BACK); 2026-10-18: nor a SCENE (the comb cards) — a tap on the shape plays its next state (openTap(): the item → playKey()) */
   /* captions: the phone's type size; landscape (side mode) keeps the band, off the notch */
   html.phone .caption { font-size: var(--cap-fs, 15px); }
   html.phone .caption::before { flex-basis: var(--cap-safe, 0px); }
@@ -611,7 +611,7 @@
     if (v !== NM.w && NM.el) { NM.w = v; NM.el.style.transform = v; }
   }
   function nmLaid(el, reach) {               // page(): .hdr-root's cssText was written (its transform gone) — this layout's reach
-    NM.el = el; NM.reach = reach; NM.y = Math.min(NM.y, reach); NM.sy = null; NM.w = ''; nmWrite();
+    NM.el = el; NM.reach = reach; NM.y = Math.min(NM.y, reach); NM.sy = Math.max(0, scrollY); NM.w = ''; nmWrite();   // (the scroll baseline NOW: a null one lost the next scroll — after an open / close's re-layout one scroll down left the name on the MacBook)
   }
   function nmStep(now) {
     NM.raf = 0;
@@ -842,6 +842,7 @@
 
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
                       vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
+                      get nm() { return { ...NM, el: undefined }; },   // FEED: the NAME's retract (debug)
                       get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's feedLag() caps the lag by it)
                       onZoom: fn => zoomCbs.push(fn) };
 })();
