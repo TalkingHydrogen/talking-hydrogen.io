@@ -136,6 +136,7 @@
   html.phone .play { background: transparent; }
   html.phone .play::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--play-gray); }
   html.phone .play svg { width: 43.3%; height: 43.3%; }
+  html.phone .keep > img { will-change: transform; }   /* 2026-10-18 KEEP PACE (site.html): each keepalive copy a layer of its own — in one shared layer, attaching or dropping any copy re-drew every kept picture (a page's first frames: 62–98 ms) */
   html.phone .play.vid, html.phone .play.scn { display: none; }   /* 2026-10-15 (owner: "no buttons on the videos"): a clip has no disc — a tap on its picture plays ↔ pauses it (site.html's TAP BACK); 2026-10-18: nor a SCENE (the comb cards) — a tap on the shape plays its next state (openTap(): the item → playKey()) */
   /* captions: the phone's type size; landscape (side mode) keeps the band, off the notch */
   html.phone .caption { font-size: var(--cap-fs, 15px); }
