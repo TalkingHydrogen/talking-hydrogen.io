@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=snap-08d878b+comb-5e22987."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=f498370."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -700,7 +700,7 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=snap-08d878b+comb-5e22987"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=f498370"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script src="combcard.js"></script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
@@ -1652,6 +1652,19 @@ const FSNAP = (() => {
    at the apex AT REST (smoothstep + m0·s(1 − s)²; 3·|Δ| / v long = cubic-out, within 90 ms … outMs), every channel on the same
    profile (the lean stays on x), and the BACK turns from rest. ?tfout=old = the cubic-in */
 const TF_GLIDE = pageQuery.get('tfout') !== 'old';
+/* FEED 2026-10-18 — the DECK (owner: "look at the implementation of the image scroll here https://povilas.grigas.co/projects/amulets. Its
+   way smoother and nicer than mine. the only different thing I dont want is the perspective added" → "yes port it, no perspective …
+   But with my idea of the current one"). That page's card stack is ONE number: a float place in the deck, every card's pose a pure
+   function of its distance from it — the finger drives the number 1:1, the release springs it (stiffness 400, damping 40: critically
+   damped, ω 20 /s) at the finger's speed; nothing is timed, so it can be caught, reversed or retargeted at any instant. Ported onto
+   the pile's own look (no translateZ / rotateY / perspective): the place P runs over this visit's run (run0 … the D cards), a waiting
+   card sits at seat j − P, a passed one at seat D + j − P (the slot poses interpolated), and the card between P's integers flies the
+   flip's own path — out to its apex (plan()'s clearance, its tilt, lift, spin, arc) and back under the pile, on top until the apex,
+   under it after (a pure path: a swipe back runs it backwards). One card per 2 × the apex's travel of finger (the card under the
+   finger, ~1:1, out to its apex). The feed's touch flip only (portrait phone); taps, keys and the landscape row keep the flight.
+   ?deck=0 = the TOUCH FLIP (+ GLIDE) · ?dkk= ?dkc= the spring · ?dkl= the finger's length × */
+const DECK = (() => { const q = (k, d) => { const v = parseFloat(pageQuery.get(k)); return Number.isFinite(v) && v > 0 ? v : d; };
+  return { on: pageQuery.get('deck') !== '0', k: q('dkk', 400), c: q('dkc', 40), lk: q('dkl', 1) }; })();
 const GLIDE = mkEase(s => s * s * (3 - 2 * s), s => 6 * s * (1 - s));
 /* site 2026-09-28, the NEIGHBOUR PEEK (owner: "make it reliably be a little bit more hidden, so it just peeks out of the screen. when
    hovering on it it will protrude … the same as on the fullscreen pages flipping … two top elements peeking each with slight
@@ -2856,6 +2869,7 @@ let state = 'home';                 // 'home' | 'zoom' | 'open' | 'close' — se
 const slots = [];                   // THE SLOT POSES, per SLOT 0 … D−1 (arrangeHome): size, dx, dy, rot, tuck, dir, ramp, sx, sy, srot (item px at B / degrees)
 let order = [];                     // the viewer's page sequence (all D images, current first) — see the header
 let zOrder = [];                    // the order whose z-order is applied (lags `order` until the apex of the current flight)
+let deck = null;                    // FEED 2026-10-18: the DECK (deckBegin() … deckDone()), null at rest
 let vhover = 0;                     // OPEN zone hover: −1 pointer in the left zone, +1 right, 0 neither
 let phase = 'rest';                 // flip: 'rest' | 'out' (from a click to its z swap) | 'hold' (swapped, BACK not started: hold > 0) | 'back' (from the BACK start until settled)
 let swapDue = null;                 // absolute ms (tnow()) of the pending apex z swap (outMs · apexAt after the last click); null = none
@@ -3401,7 +3415,7 @@ function jumpAll() {                                                      // res
 }
 /* after the slot poses change (layout / a knob): at rest the cards simply are at their new seats (a knob is instant, as in
    stack.html); mid-flip they re-target */
-function reseat() { if (flipActive()) { setTargets(); kick(); } else jumpAll(); }
+function reseat() { deckFinish(); if (flipActive()) { setTargets(); kick(); } else jumpAll(); }
 /* site: the page sequence from the home deck: the deck (front first), then the remaining images in canonical order */
 function resetOrder() { order = knobs.deck.concat(IMAGES.map((_, j) => j).filter(j => !knobs.deck.includes(j))); jumpAll(); }
 
@@ -3412,6 +3426,8 @@ function resetOrder() { order = knobs.deck.concat(IMAGES.map((_, j) => j).filter
    seat events still pending from the last one are dropped (those cards stay on the seats they have — nothing moves before
    the new flight's BACK start, which re-seats every card). */
 function flip(dir) {                        // +1 = next (front → back), −1 = prev (back → front); always immediate
+  if (deck && deckTo(dir)) return;                                                         // FEED 2026-10-18: the DECK settling — one more card on its spring
+  deckFinish();
   perfMark(dir > 0 ? 'flip next' : 'flip prev');
   if (CAPG) capOwner(CAPG)?.capRewait(); else capRewait();                                 // site 2026-10-10 (CAP_WAIT): a flip while the caption still waits — its wait starts over
   if (tuckQ) untuck(true);                                // PERF: a flip before the untuck is through (< 200 ms after OPEN): the rest at once
@@ -3541,6 +3557,93 @@ function tfTake() {                         // site 2026-10-15: the LIFT took th
   if (f.dir > 0) { tfEnd(false, 0, true); return; }                                       // next: the front card back on its seat
   tf = null; flip(-1); jumpAll(); kick();                                                  // prev: the incoming card taken — the click's order, CAP_WAIT, the song; every card at rest
 }
+/* FEED 2026-10-18 — the DECK (its note: DECK). deck = { R: the run's cards (run index → IMAGES index), P: the place, sp: its spring,
+   A: each card's apex, L: finger px per card, hold: the finger has it } — null at rest (the pile is then exactly its order / seats; `deck`: with the stack's state, above) */
+const deckable = () => DECK.on && state === 'open' && !frozen && D > 1 && phase === 'rest' && !tf && !tfc;
+const deckBump = f => { const t = f < .5 ? 2 * f : 2 - 2 * f; return t * (1 + t - t * t); };   // 0 → 1 at the apex (f ½, flat) → 0: slope 1 at the ends in finger units (the card ~ under the finger)
+function deckSeat(sx) {                     // the slot pose at a fractional seat (interpolated), clamped to the pile
+  sx = clamp(sx, 0, D - 1); const a = Math.floor(sx), b = Math.min(D - 1, a + 1), w = sx - a, A = slots[a], B = slots[b];
+  return { x: mix(A.dx, B.dx, w), y: mix(A.dy, B.dy, w), r: mix(A.rot, B.rot, w), s: mix(A.size, B.size, w) };
+}
+function deckApex(r) {                      // the apex of the run's card r leaving the front seat (plan()'s clearance, from the seat poses: the others at theirs, before and after their step up)
+  const k = knobs, j = deck.R[r], c = cards[j], gap = k.gap * G.KV, side = k.dir === 'same' ? 1 : -1, tilt = side * k.tilt, spin = k.spin;
+  const s0 = slots[0].size, s1 = slots[D - 1].size, sA = k.sizeInOut === 'out' ? s1 : k.sizeInOut === 'split' ? s0 + (s1 - s0) / 2 : s0;
+  const xo = slots[0].dx, ho = bboxW(c, slots[0].rot + tilt + spin, sA * k.lift) / 2;
+  let e = side < 0 ? Infinity : -Infinity;
+  for (let q = 0; q < D; q++) {
+    if (q === r) continue;
+    const m = q > r ? q - r : D + q - r, cc = cards[deck.R[q]];
+    for (const sl of [slots[m], slots[m - 1]]) if (sl) { const ed = sl.dx + side * bboxW(cc, sl.rot, sl.size) / 2; e = side < 0 ? Math.min(e, ed) : Math.max(e, ed); }
+  }
+  const S = Number.isFinite(e) ? Math.max(0, side < 0 ? xo + ho + gap - e : e + gap - (xo - ho)) : 0;
+  return { ex: side * S * k.reach, tl: tilt, sp: spin, ey: k.arcY * G.KV, sc: k.lift, s: sA };
+}
+function deckPose() {                       // every card from P (no motion of its own: the pile is drawn from the one number)
+  const P = deck.P, R = deck.R, depth = [];
+  for (let r = 0; r < D; r++) {
+    const c = cards[R[r]], u = r - P;
+    let x, y, rot, sz, ex = 0, ey = 0, tl = 0, sp = 0, sc = 1, z;
+    if (u > -1 && u < 0) {                  // the flying card: the flip's path, out and under
+      const f = -u, w = f * f * (3 - 2 * f), h = deckBump(f), a = deckSeat(0), b = deckSeat(D - 1), A = deck.A[r] || (deck.A[r] = deckApex(r));
+      x = mix(a.x, b.x, w); y = mix(a.y, b.y, w); rot = mix(a.r, b.r, w); sz = mix(mix(a.s, b.s, w), A.s, h);
+      ex = A.ex * h; ey = A.ey * h; tl = A.tl * h; sp = A.sp * h; sc = 1 + (A.sc - 1) * h; z = f < .5 ? -1 : D;
+    } else { const q = u >= 0 ? u : D + u, t = deckSeat(q); x = t.x; y = t.y; rot = t.r; sz = t.s; z = q; }
+    c.px.jump(x); c.py.jump(y); c.pr.jump(rot); c.ps.jump(sz); c.pk.jump(0);
+    c.ex.jump(ex); c.ey.jump(ey); c.tl.jump(tl); c.sp.jump(sp); c.sc.jump(sc); c.hand = false;
+    depth.push([z, R[r]]);
+  }
+  zOrder = depth.sort((a, b) => a[0] - b[0]).map(d => d[1]);
+  const k = clamp(Math.round(P), 0, D - 1), front = R[k];
+  if (order[0] !== front) {                 // the front card changed (the flying one passed its apex): the order, CAP_WAIT, the song — as a flip's
+    order = R.slice(k).concat(R.slice(0, k));
+    if (CAPG) capOwner(CAPG)?.capRewait(); else capRewait();
+    songFollow();
+  }
+}
+function deckBegin() {                      // the finger takes the pile: from where it is (a settling deck is caught)
+  if (!deck) {
+    if (!deckable()) return false;
+    if (tuckQ) untuck(true);
+    const k0 = (D - order.indexOf(run0)) % D, R = [];
+    for (let r = 0; r < D; r++) R.push(order[(r - k0 + D) % D]);
+    deck = { R, P: k0, A: [], sp: new Spring({ tension: DECK.k, friction: DECK.c, mass: 1, precision: 1e-4, value: k0 }), L: 0, hold: false, t: k0 };
+  }
+  deck.sp.jump(deck.P); deck.hold = true; deck.P0 = deck.P;
+  const r = clamp(Math.round(deck.P), 0, D - 1), A = deck.A[r] || (deck.A[r] = deckApex(r));
+  deck.L = Math.max(150, 2 * Math.abs(A.ex)) * DECK.lk;
+  return true;
+}
+function deckMove(d) {                      // d: the finger's x from its lock point (− = left = on through the pile); past the run's ends the 0.3 band
+  if (!deck || !deck.hold) return;
+  let P = deck.P0 - d / deck.L; const M = D - 1;
+  if (P < 0) P *= .3; else if (P > M) P = M + (P - M) * .3;
+  deck.P = P; deckPose(); kick();
+}
+function deckEnd(v, dir) {                  // let go: v the finger's px/ms (− = left), dir +1 / −1 / 0 the TOUCH block's commit (a flick / a far enough drag) — the spring to that next card, else to the nearer
+  if (!deck) return;
+  const P = deck.P, e = 1e-6, w = Math.sqrt(DECK.k * 1e-6);
+  let t = dir > 0 ? Math.floor(P + e) + 1 : dir < 0 ? Math.ceil(P - e) - 1 : Math.round(P);
+  t = clamp(t, 0, D - 1);
+  const dP = t - P, vP = -v / deck.L;
+  deck.hold = false; deck.t = t;
+  deck.sp.jump(P); deck.sp.velocity = dP ? clamp(vP * Math.sign(dP), -.5 * w, .95 * w * Math.abs(dP)) * Math.sign(dP) : 0;   // its speed (≤ .95 ω·Δ: never past the card; away from it at most ~half a card's worth)
+  deck.sp.set(t); kick();
+}
+function deckTo(dir) {                      // a tap's / a key's flip while the deck settles: one more card on the same spring
+  if (!deck || deck.hold) return false;
+  deck.t = clamp(deck.t + dir, 0, D - 1); deck.sp.set(deck.t); kick(); return true;
+}
+function deckStep(dt) {
+  if (!deck || deck.hold) return;
+  deck.sp.tick(dt); deck.P = deck.sp.value; deckPose();
+  if (deck.sp.isDone) deckDone();
+}
+function deckDone() {                       // at rest on a card: the pile IS its order again (the seats exactly as the deck drew them)
+  const k = clamp(Math.round(deck.P), 0, D - 1), R = deck.R;
+  deck.P = k; deckPose(); deck = null;
+  jumpAll(); kick();
+}
+function deckFinish() { if (deck) { deck.hold = false; deckDone(); } }   // a close / a re-layout / the LIFT: at the nearer card at once
 /* site 2026-10-15 — the LIFT, the stack's side (phone; the TOUCH block's LIFT: notes/pinch-zoom.md §3.7 / §4). Two fingers on the open
    picture lift a COPY of its front card above the page (the TOUCH block builds it from this card's own nodes); the card itself is PARKED
    in its own pile: a page-coloured patch at translateZ(.5) — over the pile's floor (z 0), under every card (z ≥ 1) — the card at
@@ -3950,6 +4053,7 @@ function homeAimV() {
   return true;
 }
 function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
+  deckFinish();                                                                            // FEED 2026-10-18: a DECK at its nearer card first (the close reads the order)
   perfMark('close ' + cfg.name);
   if (TOUCH) TOUCH.liftAbort();                                                            // site 2026-10-15: the LIFT never outlives its view (a back swipe mid-lift)
   const aimed = !move && (moved || isFeed()) && state === 'open' && homeAim();             // site 2026-10-09: HOME AIM — a pile the camera moved to lands on screen (its note); FEED: any close whose slot is not wholly on screen
@@ -4075,13 +4179,14 @@ function advance(dt) {                      // one step of dt ms: the master / h
   stepFlip(dt); settleFlip();
   checkState();
 }
-const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy || !!tfc;   // site 2026-10-13: tfc — a cancelled TOUCH FLIP (phone only) slides back out   // site: FILM   // PERF: the untuck runs the loop to its end
+const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy || !!tfc || (!!deck && !deck.hold);   // FEED 2026-10-18: a settling DECK   // site 2026-10-13: tfc — a cancelled TOUCH FLIP (phone only) slides back out   // site: FILM   // PERF: the untuck runs the loop to its end
 /* site: ONE frame loop for the page (frame() / kick(), after makeStack): each frame it steps every stack — advance + render,
    and the ?auto / ?autohover measurements */
 function step(dt, now) {
   film?.step();                                                            // site: FILM (the landing's p follows the video)
   advance(dt);
   if (tfc) tfcStep();                                                      // site 2026-10-13: the TOUCH FLIP's cancelled prev (phone only)
+  if (deck) deckStep(dt);                                                  // FEED 2026-10-18: the DECK (its place springing)
   untuckStep();
   if (TURN) TURN.step(dt);                                                 // site: TURN
   render();
@@ -4356,7 +4461,8 @@ const self = {                              // site: what the page sees of this 
   get peekPx() { return G.peekPx; },                                        // site: its flip peek (item px at B = viewport px when it is open)
   homeBox, homeCorners, protrude, leave: () => closeNow(true), arrive: side => expand(side || true),   // site: the CAMERA's neighbour peek and move (side: ±1, the way the camera goes)
   walk, get flying() { return preBack(); },                                 // site 2026-10-10: THE KEYS — a step in OPEN; a flip in the air (a held key's repeats wait)
-  canWalk, tfBegin, tfMove, tfEnd, get flipBusy() { return flipActive() || !!tf || !!tfc; },   // site 2026-10-13: the TOUCH FLIP (the page's TOUCH block; phone only)
+  canWalk, tfBegin, tfMove, tfEnd, get flipBusy() { return flipActive() || !!tf || !!tfc; },
+  deckable, deckBegin, deckMove, deckEnd, deckFinish, get deck() { return deck ? { P: deck.P, t: deck.t, hold: deck.hold, L: deck.L } : null; },   // FEED 2026-10-18: the DECK (the TOUCH block)   // site 2026-10-13: the TOUCH FLIP (the page's TOUCH block; phone only)
   tfTake, liftInfo, liftPark, closeInstant,                                 // site 2026-10-15: the LIFT (the TOUCH block; phone only) · SAFARI GUARDS' back
   turnUndo: () => !!TURN && TURN.unstart(),                                 // site 2026-10-15: the ZOOM's double tap on the room print
   pVel(v) { p.velocity = v; },                                              // site 2026-10-13: TOUCH — a swipe's release seeds the master spring's velocity (the next drive() tween's Hermite term)
@@ -5911,6 +6017,7 @@ if (window.__mobile?.on) TOUCH = (() => {
     function letGo(g0) {                     // the finger's one-finger gesture, let go under the copy (unseen: its picture is parked)
       clearTimeout(g0.pt);
       if (g0.kind === 'flip') g0.a.tfTake();
+      else if (g0.kind === 'deck') g0.a.deckFinish();                                       // (the DECK: at the nearer card, unseen — parked)
       else if (DR.on && DR.mode === 'hold') springHome();
     }
     function begin(g0, e) {                  // a second finger: the pinch from 1×
@@ -6032,21 +6139,25 @@ if (window.__mobile?.on) TOUCH = (() => {
   })();
   /* ---------- OPEN, horizontal ---------- */
   function kindOf(a, dir) {
+    if (isFeed() && a.deckable()) return 'deck';                                            // FEED 2026-10-18: the DECK — the pile's one number (its run's ends: the 0.3 band)
     if (a.canWalk(dir) && (g.onPic || isFeed())) return a.flipBusy ? 'flick' : 'flip';    // 2026-10-15: a drag from the WHITE skips the pile (the row; the feed's pile walk is its only horizontal)
     if (isFeed()) return 'end';                                                            // FEED: no side neighbours (they are above / below): the pile's end holds still (hFollow())
     const b = nbOf(dir);
     return !b ? 'end' : b.state === 'home' && !b.blocked() ? 'move' : 'flick';
   }
   function hLet(instant) {                   // the current direction's visual let go (instant: at the lock point, where it is at rest)
+    if (g.kind === 'deck') return;                                                          // (the DECK: one number both ways)
     if (g.kind === 'flip') g.a.tfEnd(false, 0, instant);
     else if ((g.kind === 'move' || g.kind === 'end') && instant) reset();
   }
   function hFollow(d) {
     const dir = d < 0 ? 1 : d > 0 ? -1 : g.dir;                                            // swipe left = next (+1), as Photos: the content follows the finger
+    if (g.kind === 'deck') { g.dir = dir; g.a.deckMove(d); return; }                        // FEED 2026-10-18: the DECK follows the finger both ways (no lock point)
     if (dir !== g.dir) {                                                                    // the first move past the slop — or back over the lock point: the other way's step
       if (g.dir) hLet(true);
       g.dir = dir; g.kind = dir ? kindOf(g.a, dir) : '';
       if (g.kind === 'flip' && !g.a.tfBegin(dir)) g.kind = 'flick';
+      if (g.kind === 'deck') { if (g.a.deckBegin()) { g.a.deckMove(d); return; } g.kind = 'flick'; }
     }
     const W = RP.W;
     if (g.kind === 'flip') g.a.tfMove(d);
@@ -6055,6 +6166,11 @@ if (window.__mobile?.on) TOUCH = (() => {
   }
   function hRelease(v, cancel) {
     const d = g.x - g.lx, fd = g.dir > 0 ? -1 : 1, along = v * fd;                          // fd: the finger's direction for this step
+    if (g.kind === 'deck' || (!g.kind && !cancel && kindOf(g.a, d < 0 || (!d && v < 0) ? 1 : -1) === 'deck' && g.a.deckBegin())) {   // FEED 2026-10-18: the DECK let go (a quick flick locked on its last move too)
+      const vr = cancel ? 0 : velR(1, g.tUp);
+      const dir = cancel ? 0 : Math.abs(vr) >= TC.flick ? (vr < 0 ? 1 : -1) : Math.abs(d) >= Math.min(TC.commit * RP.W, TC.commitMax) ? (d < 0 ? 1 : -1) : 0;
+      g.a.deckEnd(vr, dir); return;
+    }
     if (!g.kind) {                           // site 2026-10-15: locked on its LAST move (a quick flick over a busy frame: down, one move, up) — nothing was held, so it was dropped; a flick still steps, as a 'flick' does
       const m = d || v, dir = m < 0 ? 1 : -1;
       if (!cancel && m && Math.sign(v) === Math.sign(m) && Math.abs(v) >= TC.flick && kindOf(g.a, dir) !== 'end') { if (g.onPic || isFeed()) keyStep(dir); else camStep(dir); }   // ('end': the row's / the feed's pile end — nothing, as its rubber band would; from the white: the camera, past the pile)
@@ -6389,7 +6505,7 @@ if (window.__mobile?.on) TOUCH = (() => {
       if (!g.lock && !cancel) homeTap(g.x, g.y, t - g.t0);
       else g.pressed?.letGo();
     } else if (g.ctx === 'open') {
-      if (g.a !== activeStack || g.a.state !== 'open') { if (g.kind === 'flip') g.a.tfEnd(false); springHome(); }
+      if (g.a !== activeStack || g.a.state !== 'open') { if (g.kind === 'flip') g.a.tfEnd(false); if (g.kind === 'deck') g.a.deckFinish(); springHome(); }
       else if (!g.lock) { if (!cancel) openTap(g.x, g.y); }
       else if (g.lock === 'h') hRelease(vx, cancel);
       else vRelease(vx, vy, cancel);
