@@ -295,9 +295,20 @@
       cur = MODE === 'both' ? 'home' : null;
       try { history.replaceState(cur ? { sg: 'home' } : null, ''); } catch (er) {}
     }
+    /* 2026-10-18 (owner: "when i zoom in, scroll further and then zoom out, it doesnt zoom out on the one it was zoomed in … teleports me
+       … likely to the beginning"): the way back to HOME is a history traversal (viewClosed's back(), or a back swipe), and WebKit restores
+       the scroll it saved on the entry the view was pushed from — the tap's — right after the popstate, undoing HOME AIM's re-scroll to
+       the item paged to (the TOUCH block's scroll listener then re-based the close onto it). So that entry is 'manual' while a view is
+       up (the mode is per entry: set on the current one before the push), and gets its own mode back a task after the traversal back
+       (WebKit reads it after the popstate's dispatch, in the same task): a reload at HOME restores as before. */
+    let sr0 = null, srBack = null;                                       // the HOME entry's own scroll restoration mode while a view is up · … due back on it
     G.viewOpened = id => {                                               // in the tap that opens a view (a camera move: the same entry, re-named)
       if (!MODE) return;
-      try { if (cur === 'view') history.replaceState({ sg: 'view', id }, ''); else history.pushState({ sg: 'view', id }, ''); cur = 'view'; note('push view'); } catch (er) {}
+      try {
+        if (cur === 'view') history.replaceState({ sg: 'view', id }, '');
+        else { if (sr0 === null) sr0 = srBack ?? history.scrollRestoration; srBack = null; history.scrollRestoration = 'manual'; history.pushState({ sg: 'view', id }, ''); }
+        cur = 'view'; note('push view');
+      } catch (er) {}
     };
     G.viewClosed = () => { if (!MODE || cur !== 'view') return; expect++; history.back(); };   // the page closed it itself (a tap, a pull): its entry goes
     if (MODE === 'both') addEventListener('pointerup', e => {           // capture: before the page's own tap pushes a view
@@ -307,6 +318,7 @@
     if (MODE) addEventListener('popstate', e => {
       const prev = cur, next = e.state && e.state.sg || null, instant = !!e.hasUAVisualTransition;
       cur = next;
+      if (next !== 'view' && sr0 !== null) { srBack = sr0; sr0 = null; setTimeout(() => { try { if (srBack !== null) history.scrollRestoration = srBack; } catch (er) {} srBack = null; }); }   // back at HOME: its mode, once this traversal's restore is skipped (a view re-opened first takes it over)
       if (expect) { expect--; return; }                                  // our own history.back() after a tap-close
       if (next === 'view') { note('forward'); G.onForward?.(e.state.id); return; }
       if (prev === 'view') { note('back'); G.onBack?.({ instant }); return; }
