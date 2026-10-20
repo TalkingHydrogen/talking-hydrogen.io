@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=f682fa5."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=ec2b37b."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -500,7 +500,7 @@
        the print's cut edge, its table shadow; straight; data-size 1.2 (the clips'). The clip is the NEO dance clip's kind: the poster
        (the pill at rest, frame 240), the LIVE hint (frames 36 … 240, the grow settling onto the poster), the whole video on the zoom
        with the CLIP BLEND; silent. brew/neofilm/combfilm.py → assets/{squircle,growcomb}/. SQUIRCLE / GROWCOMB in BOOT; data-age 23
-       (brew's year, the MacBook's) -->
+       (brew's year, the MacBook's). OFF the row since 2026-10-20 (COMB_ON: the phone's since 10-18, the desktop's too) — ?comb=1 -->
   <div class="wrap" id="squircle" data-size="1.2" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card: SQUIRCLE in BOOT -->
   </div></div>
@@ -700,8 +700,8 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=f682fa5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
-<script src="combcard.js"></script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) -->
+<script src="mobile.js?v=ec2b37b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -7044,7 +7044,7 @@ const COMB_CARD = [{ src: '../assets/combcard/combcard-poster.webp', w: 1920, h:
 const COMB_STACK = (name, idp, scene) => ({ name, idp, images: [{ id: name, ...COMB_CARD[0] }], deck: [0],
                                        knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, scene,
                                        openB: (W, H) => pageB(W, H, CLIP_ZOOM) });
-const COMB_ON = !window.__mobile?.on || pageQuery.get('comb') === '1';   // PHONE 2026-10-18 (owner: "rm the squircle showcase for now form the phone"): the pair is the desktop's only · ?comb=1 brings it back on a phone
+const COMB_ON = pageQuery.get('comb') === '1';   // 2026-10-20 (owner: "rm the comb stuff from the tmp website"): the pair is off the desktop too (off the phone since 2026-10-18: "rm the squircle showcase for now form the phone"); its .wraps leave the DOM before the first layout, as the vinyl's · ?comb=1 brings it back on either
 if (COMB_ON) {
   stacks.push(makeStack($('squircle'), COMB_STACK('squircle', 'sq-', cv => window.CombCard.still(cv))));
   stacks.push(makeStack($('growcomb'), COMB_STACK('growcomb', 'gc-', cv => window.CombCard.grow(cv, { start: LIVE.on && !LIVE.rm.matches ? 0 : 1 }))));
