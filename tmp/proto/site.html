@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=c8f01d5."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=a91dd9c."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -496,10 +496,12 @@
        shadow and everything … rendered natively in HTML in the highest resolution possible to show off that curve"): brew's black
        pill (the DI's 256 × 80) with the 07-26 float shadow, drawn live by proto/pillshow.js on a canvas at the screen's own pixels.
        A stack of one whose card is the pill's own box (an invisible 3.2 : 1 frame); a click zooms it to the photos' open size, then
-       every click on the open page plays the next step: the pill grows into the owner's reference panel → the camera zooms into its
+       every click on the open page plays the next step: the pill grows into grow-on-lift's two-row panel (the comb-shots stills' and
+       footage's 266 × 102; the owner's reference panel behind ?pillpanel=ref) → the camera zooms into its
        corner → back out and grow-on-lift's close into the bubble → grow-on-lift's open into the pill → the page zooms out on its own.
-       PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23 (brew's, the MacBook's). Desktop only
-       (?pill=1 on a phone) -->
+       The curvature comb (blue hairs, red envelope) on every step for now (owner: "turn on the curvature for now for every single one of
+       these"; ?pillcomb=0 the bare shapes). PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23
+       (brew's, the MacBook's). Desktop only (?pill=1 on a phone) -->
   <div class="wrap" id="pillshow" data-size=".7" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the invisible frame + the scene): PILLSHOW in BOOT -->
   </div></div>
@@ -711,9 +713,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=c8f01d5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=a91dd9c"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=c8f01d5"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=a91dd9c"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -6783,14 +6785,15 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
 /* site 2026-10-21 — THE PILL SHOWCASE (the markup's #pillshow note; proto/pillshow.js): a SCENE on an invisible card the pill's own
    3.2 : 1 box (a 32 × 10 transparent PNG, inline: nothing to fetch, no srcset), no paper / radius / shadow knobs, straight, floating
    in the middle of its row box (rest.up 0). Its open box is the photos' (pageB: the pill B wide), seated PillShow.dy × B above the
-   centre so the panel it grows into is centred. The scene's camera moves run SLOW × the page's iOS 7 timing (?pillslow=). Desktop
-   only (a phone: ?pill=1). */
+   centre so the panel it grows into is centred. The scene's camera moves run SLOW × the page's iOS 7 timing (?pillslow=). The
+   curvature comb on (?pillcomb=0: off); ?pillpanel=ref: the owner's reference panel instead of the two-row one. Desktop only (a
+   phone: ?pill=1). */
 const PILL_ON = !!window.PillShow && (!window.__mobile?.on || pageQuery.get('pill') === '1');
 if (PILL_ON) {
   const slow = parseFloat(pageQuery.get('pillslow'));
   stacks.push(makeStack($('pillshow'), { name: 'pillshow', idp: 'ps-', images: [{ id: 'pillshow', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAKCAYAAADVTVykAAAAEklEQVR42mNgGAWjYBSMgpEOAAUKAAEVKR6qAAAAAElFTkSuQmCC', w: 2560, h: 800 }], deck: [0],
                                          knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 },
-                                         scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez })),   // __pillScene: debug (its debug())
+                                         scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez, comb: pageQuery.get('pillcomb') !== '0' })),   // __pillScene: debug (its debug())
                                          openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B }));
 } else $('pillshow').remove();
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
