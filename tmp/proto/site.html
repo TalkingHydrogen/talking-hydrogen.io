@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=ec2b37b."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=c8f01d5."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -492,6 +492,17 @@
   <div class="wrap" id="macbook" data-size="1.15" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the lid's clips) is built by the script -->
   </div></div>
+  <!-- site 2026-10-21: THE PILL SHOWCASE right of the MacBook (owner: "right next to a MacBook, there'll be a pill floating with a
+       shadow and everything … rendered natively in HTML in the highest resolution possible to show off that curve"): brew's black
+       pill (the DI's 256 × 80) with the 07-26 float shadow, drawn live by proto/pillshow.js on a canvas at the screen's own pixels.
+       A stack of one whose card is the pill's own box (an invisible 3.2 : 1 frame); a click zooms it to the photos' open size, then
+       every click on the open page plays the next step: the pill grows into the owner's reference panel → the camera zooms into its
+       corner → back out and grow-on-lift's close into the bubble → grow-on-lift's open into the pill → the page zooms out on its own.
+       PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23 (brew's, the MacBook's). Desktop only
+       (?pill=1 on a phone) -->
+  <div class="wrap" id="pillshow" data-size=".7" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the invisible frame + the scene): PILLSHOW in BOOT -->
+  </div></div>
   <!-- site 2026-10-17: the CURVATURE COMB pair right of the MacBook (owner: "lets get these two on the website right from the macbook" —
        brew's squircle-fit/comb-shots: the Apple 1:1 squircle under the Alias curvature comb). #squircle = the still (01-squircle.png:
        the 1:1 square, every corner's comb a smooth bell), #growcomb = the clip (grow-comb.mov: grow-on-lift's circle growing into the
@@ -700,8 +711,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=ec2b37b"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=c8f01d5"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
+<script src="pillshow.js?v=c8f01d5"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -2125,6 +2137,7 @@ const VID = cfg.video || null;                               // site 2026-10-08:
 const SCENE_CV = cfg.scene ? Object.assign(document.createElement('canvas'), { className: 'scene' }) : null;
 if (SCENE_CV) SCENE_CV.setAttribute('aria-hidden', 'true');
 const SCENE = SCENE_CV ? cfg.scene(SCENE_CV) : null;
+if (SCENE) SCENE.onend = () => sceneEnd();                  // site 2026-10-21: the PILL SHOWCASE's last step (sceneEnd(), below closeNow())
 const CLIPCARD = !!cfg.clipCard;                            // site 2026-10-17: the squircle on every media layer of the card, not its img alone (the EYE 1 note); a card with no shade and no paper, its clip and hint windows the whole card
 const audio = cfg.audio ? new Audio() : VID ? clipEl(VID) : null;   // site: the stack's song (the sleeve's): expand() plays it, render() sets its volume = p, enterHome() pauses it — or the CLIP's <video> (the same media API)
 if (cfg.audio) { audio.preload = 'none'; audio.src = cfg.audio; }   // PERF 2026-09-28: not fetched at BOOT (3 MB against the images); warmAudio() on the first hover / press
@@ -3074,7 +3087,7 @@ function layoutSize() {
   // primary at rest)
   const ea = effAspect(effRatios(cards.map(c => c.pic))), ew = ea >= 1 ? B : B * ea, eh = ea >= 1 ? B / ea : B;
   const eff = G.eff = { left: (W - ew) / 2 + OPEN_DX * G.Ws, top: (H - eh) / 2, width: ew, height: eh, aspect: ea };   // site: OPEN_DX
-  G.dy = PG.seat ? PG.seat(G, eff, cfg, capEl, CAPG ? capOwner(CAPG)?.capEl : null) : 0; eff.top += G.dy;   // MOBILE (mobile.js): the phone seats the open item off the centre (portrait: item + caption as one block); 0 on a desktop
+  G.dy = PG.seat ? PG.seat(G, eff, cfg, capEl, CAPG ? capOwner(CAPG)?.capEl : null) : cfg.openDy ? cfg.openDy(G.W, G.H, G.B) : 0; eff.top += G.dy;   // site 2026-10-21: cfg.openDy — the PILL SHOWCASE's card sits above the centre (the panel it grows into is centred)   // MOBILE (mobile.js): the phone seats the open item off the centre (portrait: item + caption as one block); 0 on a desktop
   const px = ew * FLIP.zonePad, py = eh * (PG.zonePadY ?? FLIP.zonePad);                     // the hitbox padding (FLIP.zonePad each way; MOBILE: none above / below on a phone — a tap there closes, spec 04 §6)
   const wL = ew * FLIP.zoneL + 2 * px, wR = ew * (1 - FLIP.zoneR) + 2 * px, zt = eff.top - py, zh = eh + 2 * py;
   G.zoneCss = { l: `left:${eff.left - px}px;top:${zt}px;width:${wL}px;height:${zh}px`,
@@ -3116,6 +3129,7 @@ function layoutMeasure() {
   G.openBot = gr.bottom - vr.top + G.dy;                   // FEED: the open box's bottom (viewport px)   // MOBILE: + the phone's seat (G.dy, layoutSize(); 0 on a desktop) — > 0 here: the viewer box ends below the content bottom (no y ≤ 0 clamp)
   targets();
   arrange();                                               // the slot poses, the card sizes, clips and shadows depend on B, K and S
+  if (SCENE?.layout) SCENE.layout({ W: G.W, H: G.H, B: G.B, S: G.S, dpr: devicePixelRatio || 1 });   // site 2026-10-21: the PILL SHOWCASE's canvases and cameras (its open framing is the page's)
   if (CAPG && capEl) capMeasure();                         // site 2026-10-09: the CAPTION GROUP's band (capDx())
   render();
 }
@@ -3976,6 +3990,7 @@ function expand(move) {                     // HOME → ZOOM (stack.html's expan
   }   // site: the song, from the top — inside the click (autoplay needs the gesture); the button shows pause. PERF: usually already started silent by prime()
   else if (playBtn) { filmOn = false; syncPlay(); }                                        // site: the MACBOOK's button opens showing play (nothing runs until it is pressed)
   if (film) { film.kill(); film.arm(); }                                                   // site: FILM — its file for this window, its first frame ready (a B still up fades)
+  SCENE?.mode?.('open');                                                                   // site 2026-10-21: the PILL SHOWCASE — its OPEN-px canvas (drawn ahead at HOME) swapped in: 1 : 1 at p = 1
   if (move) nbNudgeMove(); else nbNudgeIn();                                               // site 2026-10-08: the NEIGHBOUR NUDGE — a zoom from HOME rides the neighbours in protruding; a CAMERA move does not
 }
 /* PERF 2026-09-27: the click's costly work, moved to the PRESS (pointerdown on this stack at HOME; the click is its pointerup):
@@ -4016,6 +4031,7 @@ function enterOpen() {                      // ZOOM → OPEN: the zones go live;
   if (TURN) TURN.autoHint();                                                               // site 2026-10-09: the TURN's ZOOM-IN HINT (TURN_HINT); 2026-10-10: at every landing — a camera move's arrival too (owner: "even when I'm scrolling on it from the zoomed in view from other ones")
   if (TOUCH) TOUCH.liftPrefetch(self);                                                     // site 2026-10-15: the LIFT — the front card's largest file, fetched (not decoded) while nothing pinches yet
   keyLand();                                                                               // site 2026-10-10: THE KEYS — a press kept from the flight in
+  SCENE?.landed?.();                                                                       // site 2026-10-21: the PILL SHOWCASE — its canvas grown for the next step while nothing moves
 }
 function collapse() {                       // OPEN → CLOSE (the `viewer:close` event)
   if (pinned !== null || frozen || state !== 'open') return;
@@ -4068,12 +4084,13 @@ function homeAimV() {
   RP.sy = S1; RP.rowTop = row.offsetTop - S1; scrollTo(0, S1); AGE.i = -1;
   return true;
 }
-function closeNow(move) {                   // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME)
+function closeNow(move, ms) {               // site: move = the CAMERA moves on to another stack (moveTo(): the page re-parts; the page stays away from HOME) · 2026-10-21: ms = an own zoom-out time (the PILL SHOWCASE's end: sceneEnd())
   deckFinish();                                                                            // FEED 2026-10-18: a DECK at its nearer card first (the close reads the order)
   perfMark('close ' + cfg.name);
   if (TOUCH) TOUCH.liftAbort();                                                            // site 2026-10-15: the LIFT never outlives its view (a back swipe mid-lift)
   const aimed = !move && (moved || isFeed()) && state === 'open' && homeAim();             // site 2026-10-09: HOME AIM — a pile the camera moved to lands on screen (its note); FEED: any close whose slot is not wholly on screen
   state = 'close';
+  SCENE?.leave?.(!!ms);                                                                    // site 2026-10-21: the PILL SHOWCASE — a close mid-way takes the shape home to the pill (its own end: nothing)
   blendOut();                                                                              // site 2026-10-11: the CLIP BLEND's OUT, under the zoom out (its note)
   if (audio && TOUCH && VID) audio.muted = true;                                           // FEED / touch (spec 05 §2.4): a leave mutes its clip at its start (iOS can't fade: volume is read-only)
   if (CAPG) capOwner(CAPG)?.capOut();                                                      // site 2026-10-09: a CAPTION GROUP's caption — out from the click as well (a move inside the group too: CAP_WAIT)
@@ -4102,11 +4119,20 @@ function closeNow(move) {                   // site: move = the CAMERA moves on 
     row.classList.add('parting');
   }
   if (aimed) render();                                                                     // (HOME AIM: the item on the new scroll in this same task, with the row)
-  startGuard = 2; if (move && isFeed() && FSNAP.on) drivePage(0); else drive(0, move ? (isFeed() ? feedPageMs() : ZOOM.ease.inMs) : ZOOM.ease.outMs); kick();   // velocity kept; a CAMERA move: the arriving pile's inMs, so the two p stay mirrored (FEED: the page's)
+  startGuard = 2; if (move && isFeed() && FSNAP.on) drivePage(0); else drive(0, move ? (isFeed() ? feedPageMs() : ZOOM.ease.inMs) : ms || ZOOM.ease.outMs); kick();   // velocity kept; a CAMERA move: the arriving pile's inMs, so the two p stay mirrored (FEED: the page's)
+}
+/* site 2026-10-21 — the PILL SHOWCASE's END (owner: "then zoom … out … the same way the MacBook does when it ends. It just like zooms out
+   on its own and then other things come in"): its last step (grow-on-lift's open into the pill) closes the page itself, on the iOS 7
+   curve at the scene's own slow time (SCENE.endMs: outMs × its SLOW) — no click; the other row elements come back in with it */
+function sceneEnd() {
+  if (state !== 'open' || activeStack !== self) return;
+  window.__mobile?.guard?.viewClosed();
+  closeNow(false, SCENE.endMs);
 }
 function enterHome() {                      // CLOSE → HOME: unlock the page, hover back on (a flight still landing keeps flying, at home scale)
   perfMark('home ' + cfg.name);
   state = 'home';
+  SCENE?.home?.();                                                                         // site 2026-10-21: the PILL SHOWCASE — the pill, re-drawn at HOME's device px
   lidSync();
   if (activeStack === self) activeStack = null;                                            // site: every stack at HOME again (unless the CAMERA moved on to another)
   wrap.classList.remove('active');
@@ -4195,7 +4221,7 @@ function advance(dt) {                      // one step of dt ms: the master / h
   stepFlip(dt); settleFlip();
   checkState();
 }
-const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy || !!tfc || (!!deck && !deck.hold);   // FEED 2026-10-18: a settling DECK   // site 2026-10-13: tfc — a cancelled TOUCH FLIP (phone only) slides back out   // site: FILM   // PERF: the untuck runs the loop to its end
+const active = () => springs.some(s => !s.isDone) || flipActive() || protDue.length > 0 || !!tuckQ || turnActive() || !!film?.busy || !!SCENE?.busy || !!tfc || (!!deck && !deck.hold);   // FEED 2026-10-18: a settling DECK   // site 2026-10-13: tfc — a cancelled TOUCH FLIP (phone only) slides back out   // site: FILM   // PERF: the untuck runs the loop to its end
 /* site: ONE frame loop for the page (frame() / kick(), after makeStack): each frame it steps every stack — advance + render,
    and the ?auto / ?autohover measurements */
 function step(dt, now) {
@@ -4205,6 +4231,7 @@ function step(dt, now) {
   if (deck) deckStep(dt);                                                  // FEED 2026-10-18: the DECK (its place springing)
   untuckStep();
   if (TURN) TURN.step(dt);                                                 // site: TURN
+  if (SCENE?.step) SCENE.step(dt);                                         // site 2026-10-21: the PILL SHOWCASE — its springs and camera in the page's frame (the neighbours' slide out with it)
   render();
   if (measure) {
     if (measure.settle == null && (1 - p.value) * measure.px < 1) measure.settle = now - measure.t0;
@@ -4495,6 +4522,7 @@ const self = {                              // site: what the page sees of this 
   },
   reScroll() { scroll0 = scroller.scrollLeft; },                           // FEED: a rotation in OPEN moved the frozen row (layoutAll())
   playKey(go) {                                                             // site 2026-10-11: SPACE — true: it has a button there to press (OPEN, shown); go: press it (playPress())
+    if (SCENE?.tap && !playBtn) { if (state !== 'open') return false; if (go) { SCENE.tap(); kick(); } return true; }   // site 2026-10-21: the PILL SHOWCASE — SPACE is its next step, as a click
     if (!playBtn || state !== 'open' || !songUp() || playBtn.style.display === 'none') return false;
     if (go) playPress();
     return true;
@@ -4504,7 +4532,9 @@ const self = {                              // site: what the page sees of this 
   get lid() { return lid; },                                                // site: the MACBOOK's lid (null elsewhere)
   liveSeen(frac, near) { if (liveSeen) liveSeen(frac, near); }, get live() { return !!liveSeen; },   // site: the LIVE hint (liveSync())
   scrubAt(x, w, W) { if (scrubAt) scrubAt(x, w, W); }, get scrub() { return !!scrubAt; }, get scrubInfo() { return scrubInfo(); },   // site: SCROLL IS TIME (rowWrite())
-  film, get filmOut() { return film ? film.hideV * p.value : 0; },          // site: FILM — the controller; the neighbours' slide out (rowWrite())
+  film, get filmOut() { return film ? film.hideV * p.value : SCENE?.out ? SCENE.out * p.value : 0; },   // site: FILM — the controller; the neighbours' slide out (rowWrite()) · 2026-10-21: the PILL SHOWCASE's corner zoom too
+  sceneTap() { if (!SCENE?.tap || state !== 'open') return false; SCENE.tap(); kick(); return true; },   // site 2026-10-21: the PILL SHOWCASE — a click anywhere on the open page is its next step
+  get sceneOut() { return SCENE?.out || 0; },                                // … the neighbours slid out of its corner zoom: no peek, no move
   get eff() { return G.eff ? { ...G.eff } : null; },                        // site: its effective rect (viewer px) — the caption type lab (typelab.js)
   get openDx() { return OPEN_DX; }, set openDx(v) { OPEN_DX = Number.isFinite(+v) ? +v : 0; },   // site 2026-10-06: OPEN_DX for the position lab (poslab.js, ?pos) — a layoutAll() applies it
   letGo() { hPinned = null; if (hover.target !== 0) { hover.set(0); kick(); } lidSync(); liveHover(false); },
@@ -5446,7 +5476,7 @@ function placeNZones() {                    // over each neighbour's sliver × N
   }
 }
 function setNHover(side) {
-  if (side && stacks.some(s => s.film?.guards)) return;                   // site: FILM — the neighbours are out of its way                  // its top two cards slide out (protrude(): its flip peek × NB.hover, in its item px at the camera's scale), or back
+  if (side && stacks.some(s => s.film?.guards || s.sceneOut > 0)) return;                   // site: FILM — the neighbours are out of its way                  // its top two cards slide out (protrude(): its flip peek × NB.hover, in its item px at the camera's scale), or back
   side = CAMERA && activeStack?.state === 'open' ? side : 0;
   if (side === nHov) return;
   perfMark('nhover ' + side);
@@ -5463,7 +5493,7 @@ function setNHover(side) {
    camera. The scroll stays frozen; the page never passes HOME. */
 function moveTo(b) {
   const a = activeStack;
-  if (!CAMERA || !a || a.state !== 'open' || !b || b === a || b.state !== 'home' || b.blocked()) return;
+  if (!CAMERA || !a || a.state !== 'open' || !b || b === a || b.state !== 'home' || b.blocked() || a.sceneOut > 0) return;   // 2026-10-21: not while the PILL SHOWCASE's neighbours are slid out
   perfMark('move ' + a.name + ' → ' + b.name);
   setNHover(0); b.protrude(0, 0, 0);                                                        // its cards back into its pile (on the PEEK spring, under the move)
   RP.move = { from: a, to: b };
@@ -5557,6 +5587,7 @@ for (const t of tiles) {
 viewer.addEventListener('click', e => {
   const a = activeStack;
   if (!a || a.frozen || a.state !== 'open') return;
+  if (a.sceneTap()) return;                                                                // site 2026-10-21: the PILL SHOWCASE — every click is its next step (no zones, no close)
   const z = a.zoneAt(e.clientX, e.clientY);
   if (z === null) document.dispatchEvent(new CustomEvent('viewer:close'));
   else if (z) a.flip(z);
@@ -6749,6 +6780,19 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
                                       rest: { rot: 0, up: -(1920 / 1110 - 1) / 2 },
                                       openB: filmOpenB, film: { base: MB },   // site 2026-09-30: the FILM (its note): its frame decides the open box
                                       play: true, caption: MB_CAPTION }));   // site 2026-09-30 (owner: "put the play button on the macbook … the same as the album position"): the sleeve's button, placed by the same rule (placePlay(): right of the card, PLAY.gap, bottoms aligned); the screen's film = the cfg.play hook, not wired yet
+/* site 2026-10-21 — THE PILL SHOWCASE (the markup's #pillshow note; proto/pillshow.js): a SCENE on an invisible card the pill's own
+   3.2 : 1 box (a 32 × 10 transparent PNG, inline: nothing to fetch, no srcset), no paper / radius / shadow knobs, straight, floating
+   in the middle of its row box (rest.up 0). Its open box is the photos' (pageB: the pill B wide), seated PillShow.dy × B above the
+   centre so the panel it grows into is centred. The scene's camera moves run SLOW × the page's iOS 7 timing (?pillslow=). Desktop
+   only (a phone: ?pill=1). */
+const PILL_ON = !!window.PillShow && (!window.__mobile?.on || pageQuery.get('pill') === '1');
+if (PILL_ON) {
+  const slow = parseFloat(pageQuery.get('pillslow'));
+  stacks.push(makeStack($('pillshow'), { name: 'pillshow', idp: 'ps-', images: [{ id: 'pillshow', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAKCAYAAADVTVykAAAAEklEQVR42mNgGAWjYBSMgpEOAAUKAAEVKR6qAAAAAElFTkSuQmCC', w: 2560, h: 800 }], deck: [0],
+                                         knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 },
+                                         scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez })),   // __pillScene: debug (its debug())
+                                         openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B }));
+} else $('pillshow').remove();
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
    brew/polaroid scan renders, 2400 × 2918 webp, not downsized since 2026-10-17: brew/polaroid card.py --full). FULL (owner 2026-10-17:
    "render the images of 1x all in highest resolution on zoom in"): the masters are the 2400 × 2918 renders and the srcset's
