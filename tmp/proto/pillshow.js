@@ -14,8 +14,9 @@
      corner → circle  the camera zooms back out, and THE GENIE plays at once (owner 2026-10-22: "retract from the panel to circle must
                       be genie animation"): the panel is pulled up into the bubble on its top line — brew's genie minimize, as the app
                       runs it (below)
-     circle → pill    grow-on-lift's OPEN (anticipation, body springs, the lift, the balloon) — then the page zooms out on its own,
-                      as the MacBook's film ends (onend → site.html: the close at endMs)
+     circle → pill    grow-on-lift's OPEN (anticipation, body springs, the lift, the balloon), under the comb — then it rests there
+     pill   → out     and a click zooms the page out (owner 2026-10-22: "dont zoom out automatically click will zoom it out on the pill
+                      with combs"), the comb fading as it goes (onend → site.html: the close at endMs)
    The camera's moves: the site's iOS 7 zoom curve, cubic-bezier(.37, .14, .32, 1), SLOW × slower (owner: "3 times slower, or even 4":
    3.5 — in 540 → 1890 ms, out 450 → 1575 ms), linear in scale about the move's fixed point (Core Animation lerps a scale). While it
    is in the corner the page's neighbours slide out of the frame (out → site.html's filmOut), and back with it.
@@ -372,7 +373,7 @@
     const IN_MS = (opt.inMs || 540) * SLOW, OUT_MS = (opt.outMs || 450) * SLOW;
     const ease = bezier.apply(null, opt.bez || [.37, .14, .32, 1]);
     const EXPAND_S = opt.expand > 0 ? opt.expand : .9;                 // the pure morph's spring (critically damped), s
-    const END_MS = opt.endAt > 0 ? opt.endAt : 1100;                    // the OPEN's age at which the page starts its own zoom out
+    const END_MS = opt.endAt > 0 ? opt.endAt : 1100;                    // the OPEN's age from which a click zooms the page out (one before waits for it)
     /* THE SEQUENCE'S CLOCK (owner 2026-10-22: "slow all animations down like 30%"): every step plays TIME × slower — its springs, the
        camera's moves, the genie, grow-on-lift's open, and the page's own zoom out at the end (endMs) — one dilation, so nothing changes
        but the pace. ?pilltime= (1.43 = 70% speed). A leave stays on real time: its morph keeps step with the page's standard close */
@@ -625,7 +626,7 @@
       return lastPts;
     }
     function combFor(pts){ if(!lastComb || pts !== lastPts) lastComb = combOf(pts); return lastComb; }
-    function liveComb(){ return FADE_COMB && !SHOW_COMB && CF.a > 1e-3 && (phase === 'closing' || phase === 'circle' || phase === 'opening' || phase === 'ending'); }   // the circle's: on the live outline
+    function liveComb(){ return FADE_COMB && !SHOW_COMB && CF.a > 1e-3 && (phase === 'closing' || phase === 'circle' || phase === 'opening' || phase === 'rest' || phase === 'ending'); }   // the circle's: on the live outline
 
     /* ---- drawing ---- */
     /* the SHAPE canvases, two: OPEN's at the OPEN page's device px and HOME's at HOME's (OPEN ÷ S) — each 1 : 1 where it shows, so the
@@ -765,11 +766,13 @@
       else if(phase === 'panel'){ phase = 'zoomin'; camTo(1, IN_MS); }
       else if(phase === 'corner'){ phase = 'zoomout'; camTo(0, OUT_MS); combFade(0, COMB_OUT); }
       else if(phase === 'circle'){ phase = 'opening'; tOpen = 0; armGrow(STATES[1]); cur = 1; }
-      else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing') queued = true;
+      else if(phase === 'rest' || (phase === 'opening' && tOpen >= END_MS)) finish();   // the pill under its comb: out
+      else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing' || phase === 'opening') queued = true;
       regrow();
       dirty = true;
     }
     let acc = 0;
+    function finish(){ phase = 'ending'; queued = false; combFade(0, COMB_OUT); if(api.onend) api.onend(); }   // the page's zoom out: the comb leaves with it
     function step(ms){                                                   // the page's frame (site.html's stack step): ms
       ms = Math.max(0, Math.min(64, ms || 0));
       const sms = phase === 'reset' ? ms : ms / TIME;                    // the sequence's clock (a leave: the page's)
@@ -791,7 +794,8 @@
       else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
       else if(phase === 'opening'){
         tOpen += sms;
-        if(!GROW.active || tOpen >= END_MS){ phase = 'ending'; queued = false; combFade(0, COMB_OUT); if(api.onend) api.onend(); }   // the zoom out: the comb leaves
+        if(queued && tOpen >= END_MS) finish();                          // a click during the open: out once its cue has passed
+        else if(!GROW.active){ phase = 'rest'; if(queued) finish(); }   // the pill under its comb, waiting for the click
       } else if(phase === 'reset' && !MORPH.active && !CAM.active) phase = 'held';
       regrow();
       if(dirty) draw();
