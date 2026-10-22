@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=fb08029."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=a91dd9c."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -153,7 +153,6 @@
   .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; width: max-content; column-gap: 10.4em;
          transform-style: preserve-3d; }   /* PERF 2026-09-27: a 3D context — the OPEN cover and the parked elements are ordered by DEPTH (translate z), never by z-index (the .cover note) */   /* site: 13em × .8 (owner 2026-09-26: "reduce the space between the things a bit", with the row at uiScale .8) */
   .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }
-  .wrap.under { position: absolute; }   /* site 2026-10-22: a COLUMN member (the #macbook note): under its head, out of the flex line — colLayout() places it */
   /* site 2026-09-30: the SIGN-OFF at the row's end (owner: "add this text in the same style and scale to the end of the row … a love
      letter to the people I worked with and things we made along"): the room print's back line, continued — the same setting
      (brew/flipcap/printback.py: SF Width 85 / Medium / .18 em tracking, caps, the print's ink = its paper × .83 → #D4D4D4 on the
@@ -361,8 +360,7 @@
      (display none when there is no neighbour on that side); hit-testable in OPEN only. */
   .nzone { position: absolute; z-index: 100; pointer-events: none; cursor: pointer; left: 0; top: 0; width: 0; height: 0; will-change: transform; }   /* PERF 2026-09-28: ALWAYS in layout, its own (empty) layer, only ever resized — it used to be display: none until OPEN, and showing two positioned z-index 100 nodes over the composited row at the open frame cost Safari 100–125 ms (frame recorder, ?xp=nozones isolated it); the WKWebView never showed it */
   .viewer.open .nzone { pointer-events: auto; }
-  .nzone[data-side="-1"] { cursor: w-resize; } .nzone[data-side="1"] { cursor: e-resize; }
-  .nzone[data-side="-2"] { cursor: n-resize; } .nzone[data-side="2"] { cursor: s-resize; }   /* site 2026-10-22: the COLUMN's peeks above / below (the #macbook note) */   /* 2026-10-09: arrows as the flip zones' (no custom cursor; under html.custom-cursor's none) */
+  .nzone[data-side="-1"] { cursor: w-resize; } .nzone[data-side="1"] { cursor: e-resize; }   /* 2026-10-09: arrows as the flip zones' (no custom cursor; under html.custom-cursor's none) */
   html.custom-cursor .nzone { cursor: none; }
   html.zones .viewer.open .nzone { outline: 1px solid rgba(52, 199, 89, .85); outline-offset: -1px; }
   /* ?zones=1 (debug): thin outlines of the effective rect (blue) and the two zones (red), in OPEN; the neighbour zones (green) */
@@ -494,48 +492,18 @@
   <div class="wrap" id="macbook" data-size="1.15" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the poster + the lid's clips) is built by the script -->
   </div></div>
-  <!-- site 2026-10-22: THE COLUMN under the MacBook (owner: "lets try alternate path, scroll vertically to reveal details about the
-       project. Aka there is a pill put next to the macbook to show details of the comb shots. Can we just put it lower vertically and
-       have the affordance be the same as the right left stuff, it can be clicked or scrolled. Put there stuff from the folder as
-       photos" + "under the macbook"): the pill and the six comb-shot prints are `.wrap.under` members of the MacBook's column
-       (data-under="macbook"), laid out under it, centred, COL.gap apart (colLayout(); ?colgap= × the row's gap) — below the fold at
-       HOME. In OPEN they are the MacBook's neighbours BELOW, as the row's are beside: the next one's top edge peeks NB.rest inside the
-       bottom edge (the previous one's bottom inside the top), a hover lifts it NB.hover × its peek, a click on it / ↓ ↑ moves the
-       camera there (a wheel in OPEN was tried the same day and reverted: owner, "it just gets stuck"). A member has no left / right
-       neighbours: the row line is above it.
-       THE PILL SHOWCASE (2026-10-21: "right next to a MacBook, there'll be a pill floating with a shadow and everything … rendered
-       natively in HTML in the highest resolution possible to show off that curve"): brew's black pill (the DI's 256 × 80) with the
-       07-26 float shadow, drawn live by proto/pillshow.js on a canvas at the screen's own pixels, a stack of one whose card is the
-       pill's own box (an invisible 3.2 : 1 frame), its open box the photos'. The curvature comb on (?pillcomb=0 the bare shape). Its
-       click sequence (the pill grows into grow-on-lift's two-row panel → the camera zooms into its corner → back out and the close into
-       the bubble → the open into the pill → the page zooms out) is OFF since 2026-10-22 — ?pillseq=1 brings it back (then every click on
-       the open page is its next step). PILLSHOW in BOOT; data-size .7; data-age 23 (brew's, the MacBook's). Desktop only (?pill=1 on
-       a phone): the column with it -->
-  <div class="wrap under" id="pillshow" data-size=".7" data-age="23" data-under="macbook"><div class="box">
+  <!-- site 2026-10-21: THE PILL SHOWCASE right of the MacBook (owner: "right next to a MacBook, there'll be a pill floating with a
+       shadow and everything … rendered natively in HTML in the highest resolution possible to show off that curve"): brew's black
+       pill (the DI's 256 × 80) with the 07-26 float shadow, drawn live by proto/pillshow.js on a canvas at the screen's own pixels.
+       A stack of one whose card is the pill's own box (an invisible 3.2 : 1 frame); a click zooms it to the photos' open size, then
+       every click on the open page plays the next step: the pill grows into grow-on-lift's two-row panel (the comb-shots stills' and
+       footage's 266 × 102; the owner's reference panel behind ?pillpanel=ref) → the camera zooms into its
+       corner → back out and grow-on-lift's close into the bubble → grow-on-lift's open into the pill → the page zooms out on its own.
+       The curvature comb (blue hairs, red envelope) on every step for now (owner: "turn on the curvature for now for every single one of
+       these"; ?pillcomb=0 the bare shapes). PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23
+       (brew's, the MacBook's). Desktop only (?pill=1 on a phone) -->
+  <div class="wrap" id="pillshow" data-size=".7" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the invisible frame + the scene): PILLSHOW in BOOT -->
-  </div></div>
-  <!-- site 2026-10-22: THE COMB SHOTS as PHOTO PRINTS, the column's members after the pill (the COLUMN note above; "Put there stuff
-       from the folder as photos"): six of brew's squircle-fit/comb-shots renders (3840 × 2160, their #f6f6f6 page and float shadow as
-       rendered) — the 1:1 squircle under the comb, its corner, the circle vs the Apple corner, the pill, the pill on the warm card, the
-       pill's side (no comb) — each a pile of one printed as the room print (photoprint.py --long 3000 --border-px 77 --edge-px 4.69 →
-       assets/photo/comb-*-print.webp 3154 × 1842 + their table shadows). COMB_PHOTOS in BOOT; data-size 1 (the prints'); data-age 23 -->
-  <div class="wrap under" id="comb-squircle" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
-  </div></div>
-  <div class="wrap under" id="comb-corner" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
-  </div></div>
-  <div class="wrap under" id="comb-compare" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
-  </div></div>
-  <div class="wrap under" id="comb-pill-black" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
-  </div></div>
-  <div class="wrap under" id="comb-pill" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
-  </div></div>
-  <div class="wrap under" id="comb-pillside" data-size="1" data-age="23" data-under="macbook"><div class="box">
-    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
   </div></div>
   <!-- site 2026-10-17: the CURVATURE COMB pair right of the MacBook (owner: "lets get these two on the website right from the macbook" —
        brew's squircle-fit/comb-shots: the Apple 1:1 squircle under the Alias curvature comb). #squircle = the still (01-squircle.png:
@@ -740,16 +708,14 @@
 <div class="eff" id="eff" aria-hidden="true"></div>                <!-- ?zones=1: the effective rect's outline (debug) -->
 <div class="nzone" id="nzoneL" data-side="-1" aria-hidden="true"></div>   <!-- OPEN (CAMERA): the peeking neighbours' hover / click areas (placeNZones()) -->
 <div class="nzone" id="nzoneR" data-side="1" aria-hidden="true"></div>
-<div class="nzone" id="nzoneT" data-side="-2" aria-hidden="true"></div>   <!-- site 2026-10-22: the COLUMN's peeks above / below (the #macbook note) -->
-<div class="nzone" id="nzoneB" data-side="2" aria-hidden="true"></div>
 
 <div class="cursor" id="cursor" aria-hidden="true"><div class="cursor-down" id="cursorDown"><div class="cursor-disc" id="cursorDisc"></div><div class="cursor-arrow" id="cursorArrow"></div></div></div>
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=fb08029"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=a91dd9c"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=fb08029"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=a91dd9c"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -4738,7 +4704,6 @@ function layoutAll(why = '') {              // the page, then every stack's box 
   pageLayout();
   for (const s of stacks) s.size();
   for (const s of stacks) s.measure();
-  colLayout();                              // site 2026-10-22: the COLUMNS' members under their heads (their drawn extents need the measure above), then measured where they are
   if (isFeed()) {                           // FEED: the column (its margins need the arranged poses), then a rotated OPEN's slot centred, then measured again
     M.column({ stacks, row, viewer });
     if (anc?.open && anc.moved) openSeatV(anc.open);
@@ -4833,7 +4798,7 @@ function renderPage() {
   }
   if (RP.part && RP.part !== activeStack && RP.part.progress === 0) RP.part = null;        // site: PARTING, until the close's p is exactly home
   if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) { RP.move = null; RP.nvFrom = 0; if (TOUCH) requestAnimationFrame(TOUCH.land); }   // site: a CAMERA move is over when both piles are exactly at their ends (the NUDGE it carried is gone) — FEED (VR3-2): a tap kept from its tail acts now
-  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV()) + (TOUCH ? TOUCH.key() : '') + (RP.hvS?.value ? '|' + RP.hvS.value.toFixed(3) : '');   // 2026-10-22: + the COLUMN peek's hover lift   // RP.nv: the NUDGE, once a frame; TOUCH (phone): its drag offset
+  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV()) + (TOUCH ? TOUCH.key() : '');   // RP.nv: the NUDGE, once a frame; TOUCH (phone): its drag offset
   if (ck !== RP.pv) rowWrite();                                                            // … the other row elements ride the zoom (the CAMERA / PARTING)
   for (const t of tiles) { const th = t.h.value.toFixed(4); if (t._h !== th) { t._h = th; t.style.setProperty('--h', th); } }   // site: the row elements' hover
   pput(backdrop, 'bd', 'opacity', String(v));
@@ -4977,7 +4942,6 @@ function rowMeasure(anc = null) {           // layoutAll(): the range, the gap, 
   const had = new Map(RP.els.map(e => [e.el, e]));
   RP.els = [...row.children].filter(el => el !== cover && !el.classList.contains('caption') && !el.classList.contains('film') && !el.classList.contains('proxy')).map(el => Object.assign(had.get(el) || { el, o: 0, v: 0, t: '' }, { cx: el.offsetLeft + el.offsetWidth / 2, w: el.offsetWidth,
                                                                                                                                                                    cy: el.offsetTop + el.offsetHeight / 2, yb: el.offsetTop + el.offsetHeight, st: stacks.find(s => s.wrap === el) || null }));   // yb: its bottom, row px; st: its stack
-  colMeasure();                             // site 2026-10-22: the COLUMNS (under / col / ci / li)
   rowSync();
   if (!activeStack && RP.drive === 'rest') RP.S = RP.sPrev = Math.round(clamp(RP.S, 0, RP.M));
   if (anc) placeRestore(anc);               // FEED: a rotation's place, before the first write (the AGE never rolls through passing places)
@@ -5135,7 +5099,7 @@ function ageMeasure() {                     // rowMeasure(): each aged element's
     for (let k = AGE.th.length - 1, cap = M - AGE.hyst - 1; k > 0; k--) { AGE.th[k] = Math.min(AGE.th[k], cap); cap = AGE.th[k] - 1; }
     return;
   }
-  const els = RP.els.filter(e => !e.under), A = els.length ? els[0].cx - els[0].w / 2 : 0;   // site 2026-10-22: the row LINE (a column's members share their head's place and age)
+  const els = RP.els, A = els.length ? els[0].cx - els[0].w / 2 : 0;
   AGE.th = []; AGE.ages = [];
   for (let j = 0; j < els.length; j++) {
     const v = els[j].el.dataset.age; if (!v) continue;
@@ -5233,59 +5197,11 @@ function capWrite(e, park, own = e.st, dx = 0, dy = 0) {   // MOBILE: dy = a gro
 }
 /* the NEIGHBOUR PEEK's side shifts of stack s's open framing: the x added to every row element left (L) / right (R) of it, so the
    nearest one's card edge (homeBox(): its cards only, no shadow) stands NB.rest × KV inside the viewport edge */
-/* site 2026-10-22 — COLUMNS (the markup's #macbook note; owner: "scroll vertically to reveal details about the project … put it lower
-   vertically and have the affordance be the same as the right left stuff, it can be clicked or scrolled" + "under the macbook"): a row
-   element (a HEAD) may carry a column of `.wrap.under` members (data-under = its id, in DOM order right after it), laid out under it,
-   centred, COL.gap × the row's gap apart (colLayout(); their .wrap is absolute, so the flex line never sees them) — below the fold at
-   HOME. The CAMERA's neighbour model becomes a graph: an element's RELATION to the open one is L / R (the row line, by the heads' order:
-   the x shifts, the tilts, as before), or U / D (the same column, by the place in it: the y shifts); with a member open, the whole row
-   line is above (U). nbOf(±1) = the row line's neighbours (a head's; a member has none), nbOf(±2) = the column's. The peeks above /
-   below: the nearest's paper edge NB.rest inside the top / bottom edge (nbEdgeY()), the hover lifting the whole side NB.hover × its peek
-   on the page's hvS spring (the row's cards slide on their own peek springs: x only), the NUDGE inward on y, the FILM's push down.
-   The zones #nzoneT / #nzoneB (n- / s-resize). ↓ ↑ move the camera (keyStep(±2)); the wheel does nothing in OPEN, as before (a
-   one-step wheel, then a two-finger drag, were tried 2026-10-22 and reverted the same day — owner: "it just gets stuck"). A phone has no columns (the
-   pill and its prints leave the DOM there), so the FEED's own vertical model is untouched. */
-const COL = { gap: pageQuery.has('colgap') ? parseFloat(pageQuery.get('colgap')) : 1 };   // × the row's column gap (?colgap=)
-function colMeasure() {                     // rowMeasure(): e.under = its head's record · e.col = a head's members (DOM order) · e.ci = its place in the column (the head 0) · e.li = the row LINE index (heads)
-  const byEl = new Map(RP.els.map(e => [e.el, e])); let li = 0;
-  for (const e of RP.els) { e.under = null; e.col = null; e.ci = 0; e.li = -1; }
-  for (const e of RP.els) {
-    const h = e.el.dataset.under, u = h ? byEl.get($(h)) : null;
-    if (u) { e.under = u; (u.col ||= []).push(e); e.ci = u.col.length; } else e.li = li++;
-  }
-}
-function colLayout() {                      // layoutAll(): each member's wrap centred under its head, its PAPER (homeBox: the cards' visible part) COL.gap under the one above
-  if (isFeed()) return;
-  const gap = COL.gap * (parseFloat(getComputedStyle(row).columnGap) || 0), stOf = w => stacks.find(s => s.wrap === w), last = new Map();
-  for (const w of row.children) {
-    if (!w.classList.contains('under')) continue;
-    const h = $(w.dataset.under), s = stOf(w), sh = h && stOf(h); if (!h || !s) continue;
-    const mb = s.homeBox(false, false, true), hb = sh ? sh.homeBox(false, false, true) : { t: -h.offsetHeight, b: 0 };   // px from each wrap's bottom
-    const y0 = last.get(h) ?? h.offsetTop + h.offsetHeight + hb.b;                           // the column's drawn bottom so far
-    const top = y0 + gap - (w.offsetHeight + mb.t);                                          // its drawn top at y0 + gap
-    w.style.left = h.offsetLeft + (h.offsetWidth - w.offsetWidth) / 2 + 'px'; w.style.top = top + 'px';
-    last.set(h, top + w.offsetHeight + mb.b);
-    s.measure();                                                                             // its zoom from where it is now
-  }
-}
-const relOf = (d, e) => {                   // e's RELATION to the open framing d (sideShift()): 'L' / 'R' · 'U' / 'D' · '' (itself, or none)
-  if (!d || !e || e === d.e) return '';
-  const o = d.e, ho = o.under || o, he = e.under || e;
-  if (he === ho) return (e.under ? e.ci : 0) < (o.under ? o.ci : 0) ? 'U' : 'D';
-  if (o.under) return 'U';                                                                   // a member open: the row line (every other column with it) is above it
-  return he.li < ho.li ? 'L' : 'R';
-};
-function nbEdgeY(F, n, side) {              // neighbour n above (−1) / below (+1) framing F: `ext`, the screen y of its paper nearest the open one (its cards' real corners); l / r, its cards' x extent
-  const Q = n.st.homeCorners(false, true), dy = n.yb - n.cy, cx = F.k * (n.cx - RP.sl) + F.x, cy = F.k * (RP.rowTop + n.cy) + F.y;
-  let ext = null, l = Infinity, r = -Infinity;
-  for (const q of Q) for (const [x, y] of q) { const X = cx + F.k * x, Y = cy + F.k * (y + dy); ext = ext === null ? Y : side < 0 ? Math.max(ext, Y) : Math.min(ext, Y); l = Math.min(l, X); r = Math.max(r, X); }
-  return { ext: ext ?? cy, l: Number.isFinite(l) ? l : cx, r: Number.isFinite(r) ? r : cx };
-}
 function sideShiftV(s) {                    // FEED: above (−1 → L) / below (+1 → R): its paper's nearest edge `peek` inside the top / bottom band
   const F = frameOf(s, 1), i = RP.els.indexOf(elOf(s)), M = window.__mobile, pk = M.peek(), up = RP.els[i - 1], dn = RP.els[i + 1];
   const gu = up?.st && nbEdgeV(F, up, -1), gd = dn?.st && nbEdgeV(F, dn, 1);
   const L = gu ? pk.top - gu.ext : up ? -RP.H : 0, R = gd ? pk.bot - gd.ext : dn ? RP.H : 0;
-  return { s, e: RP.els[i], i, L, R, U: 0, D: 0, tL: 0, tR: 0, ln: up || null, rn: dn || null, un: null, dn: null };   // 2026-10-22: the relations' fields (relOf / nbOf), as the row's
+  return { s, i, L, R, tL: 0, tR: 0 };
 }
 function nbEdgeV(F, n, side) {
   const Q = n.st.homeCorners(false, true), dy = n.yb - n.cy, cx = F.k * n.cx + F.x, cy = F.k * (RP.rowTop + n.cy) + F.y;
@@ -5294,16 +5210,11 @@ function nbEdgeV(F, n, side) {
   return { ext: ext ?? cy, l, r, top, bot };
 }
 function sideShift(s) { if (isFeed()) return sideShiftV(s);                     // + the tilts of its two neighbours' row slots (tL / tR: NB.tilt clockwise, their REST rot cancelled)
-  const F = frameOf(s, 1), e = elOf(s), i = RP.els.indexOf(e), rest = NB.rest * PG.KV, head = e.under || e;
-  const line = RP.els.filter(x => !x.under), li = line.indexOf(head);                         // 2026-10-22 COLUMNS: the row line's neighbours are a head's (a member's are its column's, above / below)
-  const ln = e.under ? null : line[li - 1] || null, rn = e.under ? null : line[li + 1] || null;
-  const col = head.col || [], ci = e.under ? e.ci : 0, un = ci > 0 ? (ci > 1 ? col[ci - 2] : head) : null, dn = col[ci] || null;
+  const F = frameOf(s, 1), i = RP.els.indexOf(elOf(s)), rest = NB.rest * PG.KV, ln = RP.els[i - 1], rn = RP.els[i + 1];
   const gl = ln?.st && nbEdge(F, ln, -1), gr = rn?.st && nbEdge(F, rn, 1);                // `rest` = its most protruding corner (owner: "dont make them bigger than they are")
   const L = gl ? rest - gl.ext : ln ? -PG.sL : 0;          // GROW: a non-stack neighbour (the sign-off) keeps its STAGE place: out by the stage's inset
   const R = gr ? RP.W - rest - gr.ext : rn ? PG.sL : 0;
-  const gu = un?.st && nbEdgeY(F, un, -1), gd = dn?.st && nbEdgeY(F, dn, 1);
-  const U = gu ? rest - gu.ext : 0, D = gd ? RP.H - rest - gd.ext : 0;                         // the column: the one above's bottom edge `rest` inside the top, the one below's top edge inside the bottom
-  return { s, e, i, L, R, U, D, tL: ln?.st ? NB.tilt - ln.st.restRot : 0, tR: rn?.st ? NB.tilt - rn.st.restRot : 0, ln, rn, un, dn };
+  return { s, i, L, R, tL: ln?.st ? NB.tilt - ln.st.restRot : 0, tR: rn?.st ? NB.tilt - rn.st.restRot : 0 };
 }
 /* neighbour n on `side` (−1 left, +1 right) of framing F, tilted NB.tilt clockwise (its cards' net tilt), not yet shifted: `ext`,
    the screen x of its paper nearest the open pile (its cards' real corners, homeCorners() — 2026-09-29, was homeBox()'s bbox
@@ -5327,9 +5238,8 @@ function nbEdge(F, n, side) {
   }
   return { ext: ext ?? any ?? cx, top: Number.isFinite(top) ? top : cy, bot: Number.isFinite(bot) ? bot : cy };
 }
-const shiftOf = (d, e) => { const r = relOf(d, e); return r === 'L' ? d.L : r === 'R' ? d.R : 0; };     // 2026-10-22: by RELATION (COLUMNS); x
-const shiftOfY = (d, e) => { const r = relOf(d, e); return r === 'U' ? d.U : r === 'D' ? d.D : 0; };    // … y (a column's)
-const tiltOf = (d, e) => !d ? 0 : e === d.ln ? d.tL : e === d.rn ? d.tR : 0;
+const shiftOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i ? 0 : j < d.i ? d.L : d.R; };
+const tiltOf = (d, e) => { if (!d) return 0; const j = RP.els.indexOf(e); return j === d.i - 1 ? d.tL : j === d.i + 1 ? d.tR : 0; };
 /* site 2026-10-08 — the NEIGHBOUR NUDGE (owner: "one affordance trick to try. Let them protrude additional 15% on zoom, and then retract,
    aka saying im here"; "make it protrude wayy more, and let it retract not so fast hold it like 2s"; then "so, it zooms to the already
    protruding amount, then retracts"): the zoom IN carries both sides' neighbours to their rest peek + NB.nudge × it (1: the sliver
@@ -5357,16 +5267,13 @@ function nudgeV() {
   if (b < 1) return Math.round((1 - (b < .5 ? 4 * b ** 3 : 1 - (2 - 2 * b) ** 3 / 2)) * 1e4) / 1e4;
   RP.nPh = null; placeNZones(); return 0;                                  // over: the zones back to the rest sliver
 }
-const nudgeDir = (d, e) => { const r = relOf(d, e); return r !== 'L' && r !== 'R' ? 0 : (r === 'L' ? 1 : -1) * (isFeed() ? .5 * window.__mobile.P.peek : NB.nudge * NB.rest * PG.KV); };   // the whole side, inward (FEED: + ½ peek, 16 pt, on y)   // 2026-10-22: by RELATION
+const nudgeDir = (d, e) => { const j = RP.els.indexOf(e); return !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * (isFeed() ? .5 * window.__mobile.P.peek : NB.nudge * NB.rest * PG.KV); };   // the whole side, inward (FEED: + ½ peek, 16 pt, on y)
 const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
-const nudgeDirY = (d, e) => { const r = relOf(d, e); return r === 'U' ? NB.nudge * NB.rest * PG.KV : r === 'D' ? -NB.nudge * NB.rest * PG.KV : 0; };   // 2026-10-22 COLUMNS: the side above / below, inward (y)
-const nudgeOfY = (d, e) => RP.nv ? RP.nv * nudgeDirY(d, e) : 0;
-const hoverY = e => RP.hvS.value && RP.hvRel && relOf(RP.dPart, e) === RP.hvRel ? (RP.hvRel === 'U' ? 1 : -1) * RP.hvS.value * RP.hvPx : 0;   // 2026-10-22: the hovered column side's lift (setNHover(±2))
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
   const m = RP.move, pa = RP.part ? RP.part.progress : 0, fo = RP.part ? RP.part.filmOut || 0 : 0;   // fo: site FILM — the neighbours' slide out
-  RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0) + (TOUCH ? TOUCH.key() : '') + (RP.hvS?.value ? '|' + RP.hvS.value.toFixed(3) : '');
+  RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0) + (TOUCH ? TOUCH.key() : '');
   const fvL = isFeed(), cap = ROWPHYS.lag.cap * (fvL ? window.__mobile.feedGap : RP.gap), pv = pageP();   // FEED: the lag's cap from the column's gap (feedLag())
   const up = !!RP.part && pv > 0, W = RP.W, H = RP.H;                                      // PARKING (above): the cover is up
   const cv = up ? String(Math.round((255 - 3 * pv) * 100) / 100) : '';
@@ -5386,14 +5293,9 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
       // the camera ∘ its own zoom⁻¹ (scale kk), + its side's shift; its tilt turns it about its DRAWN centre (where its own zoom put it)
       const d = (m ? mix(shiftOf(RP.dFrom, e), shiftOf(RP.dPart, e), u) : pa * shiftOf(RP.dPart, e))
               + (m ? (1 - u) * (RP.nvFrom || 0) * nudgeDir(RP.dFrom, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward (a move: only the leaving framing's, fading)
-              + (fo && RP.dPart && st !== RP.part ? { L: -1, R: 1 }[relOf(RP.dPart, e)] * fo * FILM.push * (isFeed() ? H : W) || 0 : 0);   // site: FILM — out of the film's way (FEED: up / down)   // 2026-10-22: by RELATION
-      const fv = isFeed();
-      const dy = fv ? 0 : (m ? mix(shiftOfY(RP.dFrom, e), shiftOfY(RP.dPart, e), u) : pa * shiftOfY(RP.dPart, e))   // 2026-10-22 COLUMNS: the column's shifts on y (its peeks above / below, the nudge, the film's push down), the hovered side's lift
-              + (m ? (1 - u) * (RP.nvFrom || 0) * nudgeDirY(RP.dFrom, e) : pa * nudgeOfY(RP.dPart, e))
-              + (fo && RP.dPart && st !== RP.part ? { U: -1, D: 1 }[relOf(RP.dPart, e)] * fo * FILM.push * H || 0 : 0)
-              + (m ? 0 : pa * hoverY(e));
+              + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * (isFeed() ? H : W) : 0);   // site: FILM — out of the film's way (FEED: up / down)
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
-      const yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * (yh + (fv ? lo : 0)) + C.y + (fv ? d : dy);   // FEED: the peek shift and the lag on y              // its centre on screen
+      const fv = isFeed(), yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * (yh + (fv ? lo : 0)) + C.y + (fv ? d : 0);   // FEED: the peek shift and the lag on y              // its centre on screen
       let kk = C.k, vx = xh - t0, vy = yh;                                                    // … its slot scale, its drawn centre before the slot (its layout centre at p = 0)
       if (ps > 0) { const M = frameOf(st, ps); kk = C.k / M.k; vx = M.k * (xh - t0) + M.x; vy = M.k * yh + M.y; }
       park = up && !mover && ps === 0 && homeOn && (X - eL * C.k > W || X + eR * C.k < 0 || Y + (e.top - yh) * C.k > H || Y + (e.bot - yh) * C.k < 0);
@@ -5559,24 +5461,14 @@ function rowPart() {                        // each row element's zoom place fro
   RP.part = a; placeCover(); rowWrite();
 }
 /* the NEIGHBOUR PEEK (NB): its zones, its hover, the CAMERA MOVE */
-const nzL = $('nzoneL'), nzR = $('nzoneR'), nzT = $('nzoneT'), nzB = $('nzoneB'), NZ = [nzL, nzR, nzT, nzB];   // 2026-10-22 COLUMNS: + above / below
-let nHov = 0;                               // the hovered neighbour: −1 left, +1 right, ±2 above / below, 0 none
-RP.hvS = new Spring({ ...FLIP.spring, precision: .05, value: 0 }); pageSprings.push(RP.hvS); RP.hvRel = ''; RP.hvPx = 0;   // 2026-10-22: the column peek's hover lift (0 → 1, × hvPx on the hvRel side)
-const hvTo = v => { if (RP.hvS.target !== v || (RP.hvS.isDone && RP.hvS.value !== v)) { RP.hvS.set(v); kick(); } };   // (the stacks' retarget(), for the page's spring)
-const nbElOf = side => { const d = RP.dPart; return !d ? null : side === -1 ? d.ln : side === 1 ? d.rn : side === -2 ? d.un : side === 2 ? d.dn : null; };
-const nbOf = side => nbElOf(side)?.st || null;   // 2026-10-22: ±1 the row line's, ±2 the column's (COLUMNS)
+const nzL = $('nzoneL'), nzR = $('nzoneR');
+let nHov = 0;                               // the hovered neighbour: −1 left, +1 right, 0 none
+const nbOf = side => { const d = RP.dPart; return d ? RP.els[d.i + side]?.st || null : null; };
 function placeNZones() {                    // over each neighbour's sliver × NB.zone (+ its hover emergence while hovered), its card height; OPEN only
   const a = activeStack, d = RP.dPart, on = CAMERA && !!a && a.state === 'open' && !!d && d.s === a;
-  for (const z of NZ) {
-    const side = +z.dataset.side, n = on ? nbElOf(side) : null;
+  for (const z of [nzL, nzR]) {
+    const side = +z.dataset.side, n = on ? RP.els[d.i + side] : null;
     if (!n?.st) { if (z.style.cssText) z.style.cssText = ''; continue; }                    // no neighbour on this side: back to its zero size (never display: none — PERF, the .nzone CSS)
-    if (Math.abs(side) === 2) {                                                             // 2026-10-22 COLUMNS: a band along the top / bottom edge over its sliver, its paper's width
-      const g = nbEdgeY(frameOf(a, 1), n, side / 2), sh = side < 0 ? d.U : d.D, pad = NB.pad * PG.KV;
-      const inner = side < 0 ? g.ext + sh : RP.H - (g.ext + sh);
-      const h = NB.zone * Math.max(0, inner) + pad + (nHov === side ? RP.hvPx : 0) + (RP.nPh ? NB.nudge * NB.rest * PG.KV : 0);
-      const l = Math.max(0, g.l - pad), r = Math.min(RP.W, g.r + pad);
-      z.style.cssText = `left:${l}px;top:${side > 0 ? RP.H - h : 0}px;width:${Math.max(0, r - l)}px;height:${h}px`; continue;
-    }
     if (isFeed()) { const pk = window.__mobile.peek(), h = side < 0 ? pk.top + 12 : RP.H - pk.bot + 12; z.style.cssText = `left:0px;top:${side < 0 ? 0 : RP.H - h}px;width:${RP.W}px;height:${h}px`; continue; }   // FEED
     const g = nbEdge(frameOf(a, 1), n, side), sh = side < 0 ? d.L : d.R, pad = NB.pad * PG.KV;   // its tilted inner edge (the corner that shows most)
     const inner = side < 0 ? g.ext + sh : RP.W - (g.ext + sh);
@@ -5590,12 +5482,10 @@ function setNHover(side) {
   side = CAMERA && activeStack?.state === 'open' ? side : 0;
   if (side === nHov) return;
   perfMark('nhover ' + side);
-  if (nHov && Math.abs(nHov) === 1) nbOf(nHov)?.protrude(0, 0, NB.stagger);
-  if (Math.abs(nHov) === 2) hvTo(0);                                                           // 2026-10-22 COLUMNS: the side above / below settles back
+  if (nHov) nbOf(nHov)?.protrude(0, 0, NB.stagger);
   nHov = side;
   const n = side ? nbOf(side) : null;
-  if (n && Math.abs(side) === 2) { RP.hvRel = side < 0 ? 'U' : 'D'; RP.hvPx = NB.hover * n.peekPx; hvTo(1); }   // … lifts NB.hover × its peek (viewport px) on the page's spring
-  else if (n) n.protrude(-side, NB.hover * n.peekPx * n.zoom.S / frameOf(activeStack, 1).k, NB.stagger);   // its flip peek in viewport px (its cards are at k / S)
+  if (n) n.protrude(-side, NB.hover * n.peekPx * n.zoom.S / frameOf(activeStack, 1).k, NB.stagger);   // its flip peek in viewport px (its cards are at k / S)
   placeNZones();
   cursorSync();                             // the arrow toward it on the cursor (2026-10-09)
 }
@@ -5609,7 +5499,7 @@ function moveTo(b) {
   perfMark('move ' + a.name + ' → ' + b.name);
   setNHover(0); b.protrude(0, 0, 0);                                                        // its cards back into its pile (on the PEEK spring, under the move)
   RP.move = { from: a, to: b };
-  const rb = relOf(RP.dPart, elOf(b)), side = rb === 'L' || rb === 'U' ? -1 : 1;                 // b's side of a (THE KEYS: which end of its run it arrives at)   // 2026-10-22: by RELATION (a column's: above −1 / below +1)
+  const side = RP.els.findIndex(e => e.st === b) < RP.els.findIndex(e => e.st === a) ? -1 : 1;   // b's side of a in the row (THE KEYS: which end of its run it arrives at)
   a.leave(); b.arrive(isFeed() ? 1 : side);                                                 // FEED: a page arrives at the pile's front card (the run's reversal is a row idea)
   rowPart();
   if (isFeed()) keepWindow();                                                               // FEED: the decode window follows the page
@@ -5625,7 +5515,7 @@ function moveBack(a) {                      // FEED 2026-10-18, the CATCH: the m
   rowPart(); keepWindow();
   return true;
 }
-window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite, get activeStack() { return activeStack; } };   // debug / tuning
+window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
 window.__cap = { groups: CAP_GROUPS, wait: CAP_WAIT, group: capGroup };   // site 2026-10-11: the CAPTION GROUP and CAP_WAIT (debug / tuning)
 
 /* ============================================================
@@ -5712,7 +5602,7 @@ zoneL.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') act
 zoneL.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && activeStack?.zone === -1) activeStack.setVHover(0); });
 zoneR.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') activeStack?.setVHover(1); });
 zoneR.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && activeStack?.zone === 1) activeStack.setVHover(0); });
-for (const z of NZ) {                                                                      // site: the neighbour zones (the NB note): hover; the click is the pointerup's (moveTo) and never closes   // 2026-10-22: + the column's
+for (const z of [nzL, nzR]) {                                                              // site: the neighbour zones (the NB note): hover; the click is the pointerup's (moveTo) and never closes
   const side = +z.dataset.side;
   z.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') setNHover(side); });
   z.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && nHov === side) setNHover(0); });
@@ -5733,7 +5623,7 @@ function keyStep(dir, walkOnly = false) {
   keyQ = 0; keyQW = false;
   if (!a || a.state === 'close' || a.frozen) return;                                       // closing to HOME: nothing to walk to
   if (a.state !== 'open') { keyQ = dir; keyQW = walkOnly; return; }                        // zooming in / the camera moving: at the landing
-  if (Math.abs(dir) === 1 && a.walk(dir)) return;                                          // a card left that way: the flip took the step (2026-10-22: ±2 = the column, no walk)
+  if (a.walk(dir)) return;                                                                 // a card left that way: the flip took the step
   if (walkOnly) return;
   const b = nbOf(dir);
   if (!b || b.blocked()) return;                                                           // the row's end
@@ -5751,14 +5641,13 @@ function feedStep() {
   moveTo(b);
 }
 if (KEYS) addEventListener('keydown', e => {
-  const K = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 }[e.key];              // 2026-10-22 COLUMNS: ↑ ↓ = the column's neighbours (keyStep(±2))
-  if (!K || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;   // ⌘← / ⌥← stay the browser's
+  if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;   // ⌘← / ⌥← stay the browser's
   const a = activeStack, t = e.target;
   if (!a || e.defaultPrevented || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
   e.preventDefault();
   const f = filmGuard(); if (f) { f.stop(); return; }
   if (e.repeat && (a.state !== 'open' || RP.move || a.flying)) return;
-  keyStep(K);
+  keyStep(e.key === 'ArrowRight' ? 1 : -1);
 });
 /* site 2026-10-11 (owner: "space on keyboard to play the video"): SPACE in OPEN = the open pile's play button, as its click (the
    stack's playKey()) — the MacBook's film (while it plays, space stops it: the FILM's own key guard, below, takes it first), the
@@ -6901,11 +6790,11 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
    phone: ?pill=1). */
 const PILL_ON = !!window.PillShow && (!window.__mobile?.on || pageQuery.get('pill') === '1');
 if (PILL_ON) {
-  const slow = parseFloat(pageQuery.get('pillslow')), PILL_SEQ = pageQuery.get('pillseq') === '1';   // site 2026-10-22: the click sequence only with ?pillseq=1 (the COMB SHOTS' note, below)
+  const slow = parseFloat(pageQuery.get('pillslow'));
   stacks.push(makeStack($('pillshow'), { name: 'pillshow', idp: 'ps-', images: [{ id: 'pillshow', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAKCAYAAADVTVykAAAAEklEQVR42mNgGAWjYBSMgpEOAAUKAAEVKR6qAAAAAElFTkSuQmCC', w: 2560, h: 800 }], deck: [0],
                                          knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 },
-                                         scene: cv => { const sc = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez, comb: pageQuery.get('pillcomb') !== '0' }); if (!PILL_SEQ) sc.tap = null; return (window.__pillScene = sc); },   // __pillScene: debug (its debug()); no tap = a click / SPACE on the open page is the page's (the close), not a step
-                                         openB: (W, H) => pageB(W, H), openDy: PILL_SEQ ? (W, H, B) => -window.PillShow.dy * B : undefined }));   // 2026-10-22: seated above the centre only for the sequence's panel
+                                         scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez, comb: pageQuery.get('pillcomb') !== '0' })),   // __pillScene: debug (its debug())
+                                         openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B }));
 } else $('pillshow').remove();
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
    brew/polaroid scan renders, 2400 × 2918 webp, not downsized since 2026-10-17: brew/polaroid card.py --full). FULL (owner 2026-10-17:
@@ -7023,18 +6912,6 @@ stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: 
    on it, since it takes too little of the space"): 1.2, ?clipzoom= to try others.
    ?clipprint=1: the first try — the print of its first frame with the photo prints' treatment (the same paper and table shadow; photo
    1920 × 1080 + 49 px paper = the window's fractions of the card), rest −.9° with the prints' hover, data-size 1. Played as the CD's song. */
-/* site 2026-10-22 — THE COMB SHOTS as PHOTO PRINTS, the MacBook's column after the pill (the markup's COLUMN note): the room print's treatment (POL_KNOBS,
-   castOnly, a table-shadow texture each — one aspect, so the same fractions), no TURN (no back), tilts of their own (hand-laid, as
-   the NEO prints'), the hover turning them left as the prints. With the pill (PILL_ON): without it they leave the DOM before the
-   first layout, as the pill does. The pill's click sequence is OFF with them here (the owner's alternate path: the details are
-   these, under the MacBook — PILL_SEQ, ?pillseq=1 = the sequence, each click on the open page its next step). */
-const COMB_PHOTOS = [['comb-squircle', 'cs-', 1.2], ['comb-corner', 'cc-', -.9], ['comb-compare', 'cv-', .7], ['comb-pill-black', 'cpb-', -1.1], ['comb-pill', 'cp-', .9], ['comb-pillside', 'cps-', -.8]];
-const COMB_UP = -(3154 / 1842 - 1) / 2;
-for (const [id, idp, rot] of COMB_PHOTOS) {
-  if (!PILL_ON) { $(id).remove(); continue; }
-  stacks.push(makeStack($(id), { name: id, idp, images: [{ id, src: `../assets/photo/${id}-print.webp`, w: 3154, h: 1842 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
-                                 floor: { src: `../assets/photo/${id}-floor.webp`, fx: .03331, fy: .05703 }, rest: { rot, up: COMB_UP, hover: -1 } }));
-}
 const CLIP_PRINT = pageQuery.get('clipprint') === '1';
 const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(pageQuery.get('clipzoom')));
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
