@@ -11,7 +11,9 @@
                       its corners on THE ROOM LAW (below): the radius holds while the cap opens into two corners, never squeezed
      panel  → corner  the camera zooms into its top-right corner at the corner shot's scale (brew comb-shots/02-corner: the corner
                       point at (.62, .22) of a 16:9 frame covering the screen, the corner's radius 351 / 1920 of that frame)
-     corner → circle  the camera zooms back out, and grow-on-lift's CLOSE plays at once: the panel collapses into the bubble
+     corner → circle  the camera zooms back out, and THE GENIE plays at once (owner 2026-10-22: "retract from the panel to circle must
+                      be genie animation"): the panel is pulled up into the bubble on its top line — brew's genie minimize, as the app
+                      runs it (below)
      circle → pill    grow-on-lift's OPEN (anticipation, body springs, the lift, the balloon) — then the page zooms out on its own,
                       as the MacBook's film ends (onend → site.html: the close at endMs)
    The camera's moves: the site's iOS 7 zoom curve, cubic-bezier(.37, .14, .32, 1), SLOW × slower (owner: "3 times slower, or even 4":
@@ -172,6 +174,18 @@
     return m;
   }
 
+  /* ---- the GENIE's math — squircle-fit/genie-squircle.html's, as FloatingDot.swift's GenieTransit ports it ---- */
+  function genieSpring(tau, z){                                         // unit step response of a damped spring (ωn = 1)
+    if(tau <= 0) return 0;
+    if(z >= 1) return 1 - Math.exp(-tau) * (1 + tau);
+    const wd = Math.sqrt(1 - z*z);
+    return 1 - Math.exp(-z*tau) * (Math.cos(wd*tau) + (z/wd)*Math.sin(wd*tau));
+  }
+  function leadEase(t, lead){                                           // SIGNED: + front-loads (rounds early) · − back-loads
+    const a = 1 + 2*Math.abs(lead); t = clamp(t, 0, 1);
+    return lead >= 0 ? 1 - Math.pow(1 - t, a) : Math.pow(t, a);
+  }
+
 
   /* ---- identity plumbing: arc-length resample + bbox-normalise ---- */
   function resampleByArc(pts, N){
@@ -266,6 +280,20 @@
   const CIRCLE = { w: 64, h: 64, r: 32 }, PILL = { w: 256, h: 80, r: 40 };
   const PANEL = { w: 256, h: 256 / PANEL_WH, r: PANEL_RH * 256 / PANEL_WH };   // 256 × 197.13, r 41.35: the pill's width, grown down
   const STATES = [CIRCLE, PILL, PANEL];                                 // grow-on-lift's rests: circle · pill · (here) the measured panel
+
+  /* the genie's reshape: 17 clean outlines from the panel to the circle at lerped (W, H, r) on THE ROOM LAW (the lab's geomM pinches
+     the corner to r 22.7 three quarters through: the pill → panel's dip again), arc-length resampled so vertex i is the same share of
+     the perimeter at every step, normalised to their boxes. ~85 ms in all: built a step per timer tick while the pill rests (warm) */
+  const GENIE_STEPS = 16, GENIE_LUT = [];
+  function genieLUTStep(){
+    const k = GENIE_LUT.length;
+    if(k > GENIE_STEPS) return false;
+    const t = k / GENIE_STEPS, W = lerp(PANEL.w, CIRCLE.w, t), H = lerp(PANEL.h, CIRCLE.h, t), r = lerp(PANEL.r, CIRCLE.r, t);
+    GENIE_LUT.push(toLocalUV(resampleByArc(unifiedOutline2(0, 0, W, H, Math.min(r, W/2, H/2), null, 'G4', roomM(W, H, r)), N_VERTS)));
+    return k < GENIE_STEPS;
+  }
+  let warming = false;
+  function warmGenie(){ if(warming) return; warming = true; (function go(){ if(genieLUTStep()) setTimeout(go, 16); })(); }
 
   /* THE CURVATURE COMB, on ?pillcomb=1 only (2026-10-22: the instrument the room law is judged by — the owner turned it off the
      showcase the same day): comb-shots.html's &black look, as a91dd9c had it — blue hairs along the outward normal, length ∝ κ
@@ -453,7 +481,7 @@
     const MORPH = { active: false, a: PILL, b: PILL, p: 1, v: 0, dur: EXPAND_S, dm: 0 };
     function morphTo(a, b, dur){                                         // a pose drawn on another m (a leave from the close: geomM's) eases
       const dm = a.m == null ? 0 : a.m - roomM(a.w, a.h, a.r);           // onto the room law on the morph's own clock — no pop at its start
-      Object.assign(MORPH, { active: true, a, b, p: 0, v: 0, dur, dm });
+      Object.assign(MORPH, { active: true, a, b, p: 0, v: 0, dur, dm, ghost: null });
     }
     function morphStep(h){
       if(!MORPH.active) return;
@@ -461,6 +489,51 @@
       const a = -k*(MORPH.p - 1) - c*MORPH.v;
       MORPH.p += (MORPH.v + a*h)*h; MORPH.v += a*h;
       if(Math.abs(MORPH.p - 1) < 1e-4 && Math.abs(MORPH.v) < 1e-3){ MORPH.p = 1; MORPH.v = 0; MORPH.active = false; }
+    }
+
+    /* ---- THE GENIE — the panel's retract into the circle (owner 2026-10-22: "retract from the panel to circle must be genie
+       animation"): brew's genie minimize as the app runs it (FloatingDot.swift's GenieTransit, the lab's defaults): the circle shares
+       the panel's top line and centre — the island law, and the dot the pill grows back out of — so the funnel pulls UP. Only the four
+       box corners have clocks, riding straight rails to the circle's box: the near (top) row leads by the 6% stagger, the far (bottom)
+       row whips through after it; every vertex sits bilinearly in their quad, so the walls stay straight (the corner-clock keystone).
+       Each clock is the lab's ring settle on raw time over 1.95 s (a critical backbone at twice the rate + 18% of a ζ .32 spring: the
+       body lands ~.3 s in, passes the circle by ~1.9%, comes back, a hairline third); the reshape rides the two clocks' mean through the
+       lab's +.47 lead (rounds early). It ends at its perceptual settle — every corner within .1 world px of the circle's — not at the
+       clock's: the ring's tail past that is invisible, and a click waiting for the open would wait on it. No bubble skin (the film's
+       call: the circle opens into the pill next). ---- */
+    const GENIE = { active: false, t: 0, dur: 1950, spread: 0.06, bounce: 0.18, lead: 0.47, endMs: 1950 };
+    function genieRowT(v, prog){                                         // v 0 = the top row (nearer the circle: it leads)
+      const mag = Math.abs(GENIE.spread), w = GENIE.spread > 0 ? v : 1 - v;
+      const uc = clamp((prog - w * mag) / Math.max(1 - mag, 1e-4), 0, 1);
+      const T = 5.5 / 0.32, A = 0.30 * GENIE.bounce;                     // SPRING_T / RING_Z · the ring's share
+      const mix = tau => { const B = genieSpring(2 * tau, 1); return B + A * (genieSpring(tau, 0.32) - B); };
+      return mix(uc * T) / mix(T);
+    }
+    function genieCorner(u, v, prog){                                    // a box corner on its straight rail: the panel's → the circle's
+      const t = genieRowT(v, prog), sx = (u - 0.5) * PANEL.w, sy = v * PANEL.h, ex = (u - 0.5) * CIRCLE.w, ey = v * CIRCLE.h;
+      return [ sx + (ex - sx) * t, sy + (ey - sy) * t ];
+    }
+    function genieOutline(prog){
+      while(genieLUTStep());                                             // warm already (landed()); finished here if not
+      const TL = genieCorner(0, 0, prog), TR = genieCorner(1, 0, prog), BR = genieCorner(1, 1, prog), BL = genieCorner(0, 1, prog);
+      const tSh = leadEase((genieRowT(0, prog) + genieRowT(1, prog)) / 2, GENIE.lead);
+      const x = tSh * GENIE_STEPS, lo = Math.min(Math.floor(x), GENIE_STEPS), hi = Math.min(lo + 1, GENIE_STEPS), f = x - lo;
+      const A = GENIE_LUT[lo], B = GENIE_LUT[hi], out = new Array(A.length);
+      for(let i = 0; i < A.length; i++){
+        const u = A[i].u + (B[i].u - A[i].u) * f, v = A[i].v + (B[i].v - A[i].v) * f;
+        const a = (1 - u)*(1 - v), b = u*(1 - v), c = u*v, d = (1 - u)*v;
+        out[i] = [ a*TL[0] + b*TR[0] + c*BR[0] + d*BL[0], a*TL[1] + b*TR[1] + c*BR[1] + d*BL[1] ];
+      }
+      return out;
+    }
+    function startGenie(){
+      const travel = [ Math.hypot((PANEL.w - CIRCLE.w) / 2, 0), Math.hypot((PANEL.w - CIRCLE.w) / 2, PANEL.h - CIRCLE.h) ];   // top · bottom row
+      let end = 0;
+      for(let i = 1024; i >= 0 && !end; i--){                            // the perceptual settle: marched back from the clock's end
+        const prog = i / 1024;
+        if(travel[0] * Math.abs(genieRowT(0, prog) - 1) >= .1 || travel[1] * Math.abs(genieRowT(1, prog) - 1) >= .1) end = (i + 1) / 1024 * GENIE.dur;
+      }
+      Object.assign(GENIE, { active: true, t: 0, endMs: Math.min(GENIE.dur, end || GENIE.dur) });
     }
 
     /* ---- the CAMERA: u 0 = the open framing, 1 = the corner; tweened on the iOS 7 curve ---- */
@@ -492,7 +565,13 @@
     function pose(){
       if(MORPH.active){
         const t = MORPH.p, a = MORPH.a, b = MORPH.b, w = lerp(a.w, b.w, t), h = lerp(a.h, b.h, t), r = lerp(a.r, b.r, t);
-        return { w, h, r, bH: 0, bV: 0, e: 0, m: clamp(roomM(w, h, r) + MORPH.dm * (1 - smoothstep(t)), 0, 1) };   // the room law
+        return { w, h, r, bH: 0, bV: 0, e: 0, m: clamp(roomM(w, h, r) + MORPH.dm * (1 - smoothstep(t)), 0, 1),   // the room law
+                 ghost: MORPH.ghost ? t : null };
+      }
+      if(GENIE.active){                                                  // its box (the top row never leaves the line) and its corner
+        const prog = GENIE.t / GENIE.dur, TL = genieCorner(0, 0, prog), TR = genieCorner(1, 0, prog), BR = genieCorner(1, 1, prog), BL = genieCorner(0, 1, prog);
+        const tSh = leadEase((genieRowT(0, prog) + genieRowT(1, prog)) / 2, GENIE.lead);
+        return { w: Math.max(TR[0] - TL[0], BR[0] - BL[0]), h: Math.max(BL[1], BR[1]), r: lerp(PANEL.r, CIRCLE.r, tSh), bH: 0, bV: 0, e: 0, genie: prog };
       }
       if(GROW.active) return growPose();
       const R = STATES[cur]; return { w: R.w, h: R.h, r: R.r, bH: 0, bV: 0, e: 0 };
@@ -500,14 +579,19 @@
     let lastKey = '', lastPts = null, lastComb = null;
     function outline(P){
       const key = P.w.toFixed(4) + '_' + P.h.toFixed(4) + '_' + P.r.toFixed(4) + '_' + P.bH.toFixed(5) + '_' + P.bV.toFixed(5) + '_' + (P.e || 0).toFixed(5)
-                + (P.m == null ? '' : '_' + P.m.toFixed(6));
+                + (P.m == null ? '' : '_' + P.m.toFixed(6)) + (P.genie == null ? '' : '_g' + P.genie.toFixed(7)) + (P.ghost == null ? '' : '_h' + P.ghost.toFixed(6));
       if(key === lastKey) return lastPts;
-      if(SHOW_COMB && !(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6))   // the comb reads the generator's own outline (1400 a quadrant): the stills'
+      if(P.genie != null) lastPts = genieOutline(P.genie);
+      else if(SHOW_COMB && P.ghost == null && !(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6))   // the comb reads the generator's own outline (1400 a quadrant): the stills'
         lastPts = unifiedOutline2(0, P.h / 2, P.w, P.h, Math.min(P.r, P.w/2, P.h/2), null, 'G4', P.m);
       else {
         const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV, P.m);
         const s = 1 + (P.e || 0), cy = P.h / 2;                          // top-pinned (anchor 0): the island law
         lastPts = id.map(q => [ (q.u - 0.5) * P.w * s, cy + (q.v - 0.5) * P.h / s ]);
+        if(P.ghost != null && MORPH.ghost){                               // a leave out of the genie: the morph starts ON its keystone and
+          const g = MORPH.ghost, b = smoothstep(P.ghost / 0.5);          // leaves it over the first half (vertex i: the same share of the
+          lastPts = lastPts.map((q, i) => [ g[i][0] + (q[0] - g[i][0]) * b, g[i][1] + (q[1] - g[i][1]) * b ]);   // perimeter in both)
+        }
       }
       lastKey = key; lastComb = null;
       return lastPts;
@@ -656,17 +740,18 @@
     let acc = 0;
     function step(ms){                                                   // the page's frame (site.html's stack step): ms
       ms = Math.max(0, Math.min(64, ms || 0));
-      const moving = MORPH.active || GROW.active || CAM.active;
+      const moving = MORPH.active || GROW.active || CAM.active || GENIE.active;
       if(moving){
         acc += ms / 1000;
         while(acc >= GROW.h - 1e-9){ growStep(GROW.h); morphStep(GROW.h); acc -= GROW.h; }
         camStep(ms);
+        if(GENIE.active && (GENIE.t += ms) >= GENIE.endMs) GENIE.active = false;   // landed: the circle's rest from here
         dirty = true;
       } else acc = 0;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
       else if(phase === 'zoomin' && !CAM.active){ phase = 'corner'; after(); }
-      else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; armGrow(STATES[0]); cur = 0; dirty = true; }
-      else if(phase === 'closing' && !GROW.active){ phase = 'circle'; after(); }
+      else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; startGenie(); cur = 0; dirty = true; }
+      else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
       else if(phase === 'opening'){
         tOpen += ms;
         if(!GROW.active || tOpen >= END_MS){ phase = 'ending'; queued = false; if(api.onend) api.onend(); }
@@ -675,13 +760,13 @@
       if(dirty) draw();
     }
     function snapHome(){                                                 // the pill, still, at the open framing
-      MORPH.active = false; GROW.active = false; CAM.active = false; CAM.u = 0;
+      MORPH.active = false; GROW.active = false; CAM.active = false; GENIE.active = false; CAM.u = 0;
       cur = 1; phase = 'pill'; queued = false; acc = 0; landed = false; dirty = true;
     }
     const api = {
       onend: null,
       endMs: OUT_MS,                                                     // the page's own zoom out (site.html: closeNow's drive)
-      get busy(){ return dirty || MORPH.active || GROW.active || CAM.active; },
+      get busy(){ return dirty || MORPH.active || GROW.active || CAM.active || GENIE.active; },
       get out(){ return CAM.u; },                                        // the neighbours' slide out (site.html: filmOut)
       get state(){ return phase; },
       tap,
@@ -699,21 +784,23 @@
         shows();                                                         // OPEN's is drawn already (readyBoth()): only the swap
         if(base && m === 'open'){ regrow(); if(dirty) draw(); }
       },
-      landed(){ landed = true; regrow(); if(dirty) draw(); },   // site.html's enterOpen(): the zoom is in — grown for the next step, nothing moving
+      landed(){ landed = true; warmGenie(); regrow(); if(dirty) draw(); },   // + the genie's reshape, a step per tick, while the pill rests   // site.html's enterOpen(): the zoom is in — grown for the next step, nothing moving
       leave(own){                                                        // the page closes: its own end (own) or a move / close mid-way
         landed = false;
         if(own || phase === 'ending') return;
         const P = pose(), r0 = Math.min(P.r, P.w/2, P.h/2);
-        const from = { w: P.w, h: P.h, r: r0, m: P.m != null ? P.m : geomM(P.w, P.h, r0) };   // its corner as drawn: the morph eases it home
-        GROW.active = false;
-        if(Math.abs(from.w - PILL.w) > .01 || Math.abs(from.h - PILL.h) > .01 || Math.abs(from.r - PILL.r) > .01) morphTo(from, PILL, .45);
+        const from = { w: P.w, h: P.h, r: r0, m: P.m != null ? P.m : P.genie != null ? roomM(P.w, P.h, r0) : geomM(P.w, P.h, r0) };   // its corner as drawn: the morph eases it home
+        const ghost = P.genie != null ? outline(P).slice() : null;       // out of the genie: its keystone, which the morph starts on
+        GROW.active = false; GENIE.active = false;
+        if(Math.abs(from.w - PILL.w) > .01 || Math.abs(from.h - PILL.h) > .01 || Math.abs(from.r - PILL.r) > .01){ morphTo(from, PILL, .45); MORPH.ghost = ghost; }
         else MORPH.active = false;
         if(CAM.u > 0) camTo(0, opt.outMs || 450);
         cur = 1; phase = 'reset'; queued = false; dirty = true;
       },
       home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
-               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
+               genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null,
+               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
     };
     return api;
   }
