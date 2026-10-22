@@ -5,9 +5,9 @@
    unifiedOutline2, as combcard.js ports it), filled live on a canvas at the screen's own pixels — never a bitmap scaled up.
 
    The sequence — each step a click anywhere on the open page (or SPACE); a click while a step still moves is kept for its end:
-     pill   → panel   the pill grows DOWN into grow-on-lift's two-row panel (266 × 102, r 40: the comb-shots stills' and footage's;
-                      the owner's reference panel behind ?pillpanel=ref) on one critically damped spring: no lift, no pop, no bow
-                      (owner: "only like vertical expansion … just pure morphing")
+     pill   → panel   the pill grows DOWN into the measured panel (squircle-fit/ref/shortcut-panel-ref.png, the owner's reference:
+                      W / H 1.2987 and r = .2098 H on this generator, rms .77 px over its 1346 px panel) — its height alone, on one
+                      critically damped spring: no lift, no pop, no bow (owner: "only like vertical expansion … just pure morphing")
      panel  → corner  the camera zooms into its top-right corner at the corner shot's scale (brew comb-shots/02-corner: the corner
                       point at (.62, .22) of a 16:9 frame covering the screen, the corner's radius 351 / 1920 of that frame)
      corner → circle  the camera zooms back out, and grow-on-lift's CLOSE plays at once: the panel collapses into the bubble
@@ -230,54 +230,10 @@
   /* ============================================================
      The shapes — world units (the DI's points)
      ============================================================ */
-  /* the panel the pill grows into: grow-on-lift's two-row panel, the one of brew's comb-shots stills and footage (05-panel.png,
-     panel-comb.mov, circle-panel-comb.mov: 266 × 102, r 40 — owner 2026-10-21: "instead of the shape that I showed in the image, we do
-     the shape that we've done the images and footage with"). The owner's reference panel of that morning (squircle-fit/ref/
-     shortcut-panel-ref.png, fitted on this generator: W / H 1.2987, r .2098 H, rms .77 px) stays behind ?pillpanel=ref */
+  const PANEL_WH = 1.29866, PANEL_RH = .20975;                          // the reference panel, fitted (cx, cy, W, H, r free; rms .77 px)
   const CIRCLE = { w: 64, h: 64, r: 32 }, PILL = { w: 256, h: 80, r: 40 };
-  const PANEL = /[?&]pillpanel=ref(&|$)/.test(location.search) ? { w: 256, h: 256 / 1.29866, r: .20975 * 256 / 1.29866 }
-                                                                : { w: 266, h: 102, r: 40 };
-  const STATES = [CIRCLE, PILL, PANEL];                                 // grow-on-lift's rests: circle · pill · panel
-  const WIDE = Math.max(PILL.w, PANEL.w);
-
-  /* THE CURVATURE COMB (owner 2026-10-21: "turn on the curvature for now for every single one of these"): comb-shots.html's &black look —
-     blue hairs along the outward normal, length ∝ κ (800 · κ world px: half the radius at κ = 1 / r, as the stills' CF .5 and the
-     footage's 20 at 1 / 40), a red envelope through their tips, no edge line — off the generator's own outline (κ over a 1.2 world px
-     span, the stills' combOf). Hairs a fixed 1 / 320 of the screen's width apart (the stills' 3 px of a 960 stage), lines .7 / .95 css
-     px whatever the zoom, so the corner shows it as 02-corner does. ?pillcomb=0: the bare shapes */
-  const COMB = { hair: 'rgba(52,132,172,0.78)', env: '#d9484a', wHair: .7, wEnv: .95, span: 1.2, scale: 800 };
-  function combOf(outline){
-    let P0 = 0;
-    for(let i = 0; i < outline.length; i++){ const a = outline[i], b = outline[(i + 1) % outline.length]; P0 += Math.hypot(b[0] - a[0], b[1] - a[1]); }
-    const n = Math.min(24000, Math.ceil(P0 / 0.08));
-    const pts = resampleByArc(outline, n);
-    let A2 = 0;
-    for(let i = 0; i < n; i++){ const a = pts[i], b = pts[(i + 1) % n]; A2 += a[0]*b[1] - b[0]*a[1]; }
-    const o = A2 >= 0 ? 1 : -1, s = Math.max(1, Math.round(COMB.span / (P0 / n)));
-    const raw = new Float64Array(n);
-    for(let i = 0; i < n; i++){
-      const a = pts[(i - s + n) % n], b = pts[i], c = pts[(i + s) % n];
-      const ab = Math.hypot(b[0] - a[0], b[1] - a[1]), bc = Math.hypot(c[0] - b[0], c[1] - b[1]);
-      const ac = Math.hypot(c[0] - a[0], c[1] - a[1]);
-      const cr = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0]);
-      raw[i] = ab*bc*ac > 1e-12 ? o * 2*cr / (ab*bc*ac) : 0;
-    }
-    const k = new Float64Array(n), h = Math.max(1, s >> 1);
-    for(let i = 0; i < n; i++){
-      let acc = 0;
-      for(let j = -h; j <= h; j++) acc += raw[(i + j + n) % n];
-      k[i] = acc / (2*h + 1);
-    }
-    const tips = new Array(n);
-    for(let i = 0; i < n; i++){
-      const a = pts[(i - s + n) % n], c = pts[(i + s) % n];
-      let tx = c[0] - a[0], ty = c[1] - a[1];
-      const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
-      const len = k[i] * COMB.scale;
-      tips[i] = [ pts[i][0] + o*ty*len, pts[i][1] - o*tx*len ];
-    }
-    return { pts, tips, k, P: P0 };
-  }
+  const PANEL = { w: 256, h: 256 / PANEL_WH, r: PANEL_RH * 256 / PANEL_WH };   // 256 × 197.13, r 41.35: the pill's width, grown down
+  const STATES = [CIRCLE, PILL, PANEL];                                 // grow-on-lift's rests: circle · pill · (here) the measured panel
 
   /* the 07-26 float shadow (grow-on-lift / genie / combcard.js), world px */
   const SH = { ox: 93, oy: 109, blur: 80, spread: 7, alpha: 0.18, fall: 0.89, layers: 3 };
@@ -309,7 +265,6 @@
     const ease = bezier.apply(null, opt.bez || [.37, .14, .32, 1]);
     const EXPAND_S = opt.expand > 0 ? opt.expand : .9;                 // the pure morph's spring (critically damped), s
     const END_MS = opt.endAt > 0 ? opt.endAt : 1100;                    // the OPEN's age at which the page starts its own zoom out
-    const SHOW_COMB = opt.comb !== false;                                // the curvature comb (on unless site.html's ?pillcomb=0)
     const ctx = cv.getContext('2d');
     const sh = document.createElement('canvas'), shx = sh.getContext('2d');
     sh.className = 'scene-sh'; sh.setAttribute('aria-hidden', 'true');
@@ -468,19 +423,16 @@
       if(GROW.active) return growPose();
       const R = STATES[cur]; return { w: R.w, h: R.h, r: R.r, bH: 0, bV: 0, e: 0 };
     }
-    let lastKey = '', lastPts = null, lastComb = null;
+    let lastKey = '', lastPts = null;
     function outline(P){
       const key = P.w.toFixed(4) + '_' + P.h.toFixed(4) + '_' + P.r.toFixed(4) + '_' + P.bH.toFixed(5) + '_' + P.bV.toFixed(5) + '_' + (P.e || 0).toFixed(5);
       if(key === lastKey) return lastPts;
-      if(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6){         // grow-on-lift's balloon / egg: its identity, mapped (the footage's)
-        const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV);
-        const s = 1 + (P.e || 0), cy = P.h / 2;                          // top-pinned (anchor 0): the island law
-        lastPts = id.map(q => [ (q.u - 0.5) * P.w * s, cy + (q.v - 0.5) * P.h / s ]);
-      } else lastPts = unifiedOutline2(0, P.h / 2, P.w, P.h, Math.min(P.r, P.w/2, P.h/2), null, 'G4');   // the generator's own outline (1400 a quadrant): the stills'
-      lastKey = key; lastComb = null;
+      const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV);
+      const s = 1 + (P.e || 0), cy = P.h / 2;                            // top-pinned (anchor 0): the island law
+      lastPts = id.map(q => [ (q.u - 0.5) * P.w * s, cy + (q.v - 0.5) * P.h / s ]);
+      lastKey = key;
       return lastPts;
     }
-    function combFor(pts){ if(!lastComb || pts !== lastPts) lastComb = combOf(pts); return lastComb; }
 
     /* ---- drawing ---- */
     /* the SHAPE canvases, two: OPEN's at the OPEN page's device px and HOME's at HOME's (OPEN ÷ S) — each 1 : 1 where it shows, so the
@@ -490,7 +442,7 @@
        none 24–38, the room print's 23–32). OPEN's covers only what the step needs — 'pill' (the page's zooms), 'panel' (its growth,
        grow-on-lift's close and open), 'full' (the screen: the corner; 5.2 MP costs ~50 ms even allocated long before) — grown while
        nothing moves: the landing, a rest before the next step. */
-    const MARGIN = 48;                                                   // world px round the shape: the comb's hairs (≤ ~26), the grow's pop and balloon, the edge's AA
+    const MARGIN = 24;                                                   // world px round the shape: the grow's pop and balloon, the edge's AA
     const cvH = document.createElement('canvas'), ctxH = cvH.getContext('2d');
     cvH.className = 'scene-home'; cvH.setAttribute('aria-hidden', 'true');
     cvH.style.cssText = 'position:absolute;z-index:3;display:block;pointer-events:none';
@@ -500,8 +452,8 @@
       const { W, H } = G;
       if(name === 'full') return { name, x: 0, y: 0, w: W, h: H };
       const hh = name === 'panel' ? PANEL.h : PILL.h, m = MARGIN;
-      const x = Math.max(0, Math.floor(base.x - base.k * (WIDE / 2 + m))), y = Math.max(0, Math.floor(base.y - base.k * m));
-      return { name, x, y, w: Math.min(W, Math.ceil(base.x + base.k * (WIDE / 2 + m))) - x, h: Math.min(H, Math.ceil(base.y + base.k * (hh + m))) - y };
+      const x = Math.max(0, Math.floor(base.x - base.k * (PILL.w / 2 + m))), y = Math.max(0, Math.floor(base.y - base.k * m));
+      return { name, x, y, w: Math.min(W, Math.ceil(base.x + base.k * (PILL.w / 2 + m))) - x, h: Math.min(H, Math.ceil(base.y + base.k * (hh + m))) - y };
     }
     function setBox(C, name, res){                                       // true: re-allocated (its pixels to draw)
       const b = boxOf(name);
@@ -575,21 +527,6 @@
       c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, C.el.width, C.el.height);
       c.setTransform(C.rx * cam.k, 0, 0, C.ry * cam.k, C.rx * (cam.x - b.x), C.ry * (cam.y - b.y));
       trace(c, pts); c.fillStyle = '#000'; c.fill();
-      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k);
-    }
-    function drawComb(c, K, u){                                          // u: canvas px (= device px where it shows) per world px
-      const cssW = u / G.dpr, gap = G.W / 320, n = K.pts.length;
-      const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
-      c.lineCap = 'butt';
-      c.beginPath();
-      for(let j = 0; j < nh; j++){
-        const i = Math.round(j * n / nh) % n;
-        if(Math.abs(K.k[i]) * COMB.scale * cssW < .5) continue;          // under half a px: not a hair (a butt stroke of ~0 length still dots)
-        c.moveTo(K.pts[i][0], K.pts[i][1]); c.lineTo(K.tips[i][0], K.tips[i][1]);
-      }
-      c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair); c.stroke();
-      c.lineJoin = 'round';
-      trace(c, K.tips); c.strokeStyle = COMB.env; c.lineWidth = lw(COMB.wEnv); c.stroke();
     }
     let dirty = true;
     function draw(){                                                     // the seen canvas + the shadow (the pose / camera of now)
