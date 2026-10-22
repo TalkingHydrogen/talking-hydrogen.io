@@ -293,13 +293,15 @@
     return k < GENIE_STEPS;
   }
   let warming = false;
-  function warmGenie(){ if(warming) return; warming = true; (function go(){ if(genieLUTStep()) setTimeout(go, 16); })(); }
+  function warmGenie(){ if(warming) return; warming = true; (function go(){ if(genieLUTStep()) setTimeout(go, 16); else if(CORNER_COMB) setTimeout(panelComb, 16); })(); }   // then the corner's comb
 
-  /* THE CURVATURE COMB, on ?pillcomb=1 only (2026-10-22: the instrument the room law is judged by — the owner turned it off the
-     showcase the same day): comb-shots.html's &black look, as a91dd9c had it — blue hairs along the outward normal, length ∝ κ
-     (800 · κ world px), a red envelope through their tips, off the generator's own outline (κ over a 1.2 world px span, the stills'
-     combOf); hairs 1 / 320 of the screen's width apart, lines .7 / .95 css px whatever the zoom */
-  const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search);
+  /* THE CURVATURE COMB — comb-shots.html's &black look, as a91dd9c had it: blue hairs along the outward normal, length ∝ κ (800 · κ world
+     px: half the radius at κ = 1 / r, the stills' CF .5), a red envelope through their tips, off the generator's own outline (κ over a
+     1.2 world px span, the stills' combOf); hairs 1 / 320 of the screen's width apart, lines .7 / .95 css px whatever the zoom.
+     THE CORNER'S (owner 2026-10-22: "when it zooms in on the corner slowly start fading in the comb after its almost done zooming in"):
+     on the panel in the corner shot only — it starts once the camera is 90% of the way in and fades in slowly, past the landing, and
+     leaves as the camera starts back out (the create()'s CF). ?pillcomb=0: never · ?pillcomb=1: on every step (the instrument) */
+  const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search), CORNER_COMB = !/[?&]pillcomb=0(&|$)/.test(location.search);
   const COMB = { hair: 'rgba(52,132,172,0.78)', env: '#d9484a', wHair: .7, wEnv: .95, span: 1.2, scale: 800 };
   function combOf(outline){
     let P0 = 0;
@@ -333,6 +335,8 @@
     }
     return { pts, tips, k, P: P0 };
   }
+  let PANEL_COMB = null;                                                // the panel's comb, off its own generator outline (≈10 ms: warmed)
+  function panelComb(){ return PANEL_COMB || (PANEL_COMB = combOf(unifiedOutline2(0, PANEL.h / 2, PANEL.w, PANEL.h, PANEL.r, null, 'G4'))); }
 
   /* the 07-26 float shadow (grow-on-lift / genie / combcard.js), world px */
   const SH = { ox: 93, oy: 109, blur: 80, spread: 7, alpha: 0.18, fall: 0.89, layers: 3 };
@@ -540,6 +544,18 @@
       Object.assign(GENIE, { active: true, t: 0, endMs: Math.min(GENIE.dur, end || GENIE.dur) });
     }
 
+    /* ---- the corner's comb: its opacity, tweened (ease in-out) on the sequence's clock — in once the camera is COMB_AT of the way into
+       the corner, over COMB_IN; out over COMB_OUT from the click that starts the camera back ---- */
+    const COMB_AT = .9, COMB_IN = 1200, COMB_OUT = 600;
+    const CF = { a: 0, from: 0, to: 0, t: 0, T: 1 };
+    function combFade(to, ms){ if(CF.to !== to) Object.assign(CF, { from: CF.a, to, t: 0, T: Math.max(1, ms) }); }
+    function combStep(ms){
+      if(CF.a === CF.to) return false;
+      CF.t = Math.min(CF.T, CF.t + ms);
+      CF.a = CF.t >= CF.T ? CF.to : lerp(CF.from, CF.to, smoothstep(CF.t / CF.T));
+      return true;
+    }
+
     /* ---- the CAMERA: u 0 = the open framing, 1 = the corner; tweened on the iOS 7 curve ---- */
     const CAM = { active: false, u: 0, u0: 0, u1: 0, t: 0, T: 1 };
     function camTo(u1, ms){ Object.assign(CAM, { active: true, u0: CAM.u, u1, t: 0, T: Math.max(1, ms) }); }
@@ -695,12 +711,13 @@
       c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, C.el.width, C.el.height);
       c.setTransform(C.rx * cam.k, 0, 0, C.ry * cam.k, C.rx * (cam.x - b.x), C.ry * (cam.y - b.y));
       trace(c, pts); c.fillStyle = '#000'; c.fill();
-      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k);
+      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k, 1);
+      else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a);   // the corner's: the panel at rest
     }
-    function drawComb(c, K, u){                                          // u: canvas px (= device px where it shows) per world px
+    function drawComb(c, K, u, alpha){                                   // u: canvas px (= device px where it shows) per world px
       const cssW = u / G.dpr, gap = G.W / 320, n = K.pts.length;
       const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
-      c.lineCap = 'butt';
+      c.globalAlpha = alpha; c.lineCap = 'butt';
       c.beginPath();
       for(let j = 0; j < nh; j++){
         const i = Math.round(j * n / nh) % n;
@@ -710,6 +727,7 @@
       c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair); c.stroke();
       c.lineJoin = 'round';
       trace(c, K.tips); c.strokeStyle = COMB.env; c.lineWidth = lw(COMB.wEnv); c.stroke();
+      c.globalAlpha = 1;
     }
     let dirty = true;
     function draw(){                                                     // the seen canvas + the shadow (the pose / camera of now)
@@ -735,7 +753,7 @@
     function tap(){
       if(phase === 'pill'){ phase = 'expand'; morphTo(PILL, PANEL, EXPAND_S); }
       else if(phase === 'panel'){ phase = 'zoomin'; camTo(1, IN_MS); }
-      else if(phase === 'corner'){ phase = 'zoomout'; camTo(0, OUT_MS); }
+      else if(phase === 'corner'){ phase = 'zoomout'; camTo(0, OUT_MS); combFade(0, COMB_OUT); }
       else if(phase === 'circle'){ phase = 'opening'; tOpen = 0; armGrow(STATES[1]); cur = 1; }
       else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing') queued = true;
       regrow();
@@ -753,6 +771,8 @@
         if(GENIE.active && (GENIE.t += sms) >= GENIE.endMs) GENIE.active = false;   // landed: the circle's rest from here
         dirty = true;
       } else acc = 0;
+      if(CORNER_COMB && phase === 'zoomin' && CAM.u >= COMB_AT) combFade(1, COMB_IN);   // almost in: the comb starts to show
+      if(combStep(sms)) dirty = true;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
       else if(phase === 'zoomin' && !CAM.active){ phase = 'corner'; after(); }
       else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; startGenie(); cur = 0; dirty = true; }
@@ -765,13 +785,13 @@
       if(dirty) draw();
     }
     function snapHome(){                                                 // the pill, still, at the open framing
-      MORPH.active = false; GROW.active = false; CAM.active = false; GENIE.active = false; CAM.u = 0;
+      MORPH.active = false; GROW.active = false; CAM.active = false; GENIE.active = false; CAM.u = 0; CF.a = CF.to = 0;
       cur = 1; phase = 'pill'; queued = false; acc = 0; landed = false; dirty = true;
     }
     const api = {
       onend: null,
       endMs: OUT_MS * TIME,                                              // the page's own zoom out (site.html: closeNow's drive), on the sequence's clock
-      get busy(){ return dirty || MORPH.active || GROW.active || CAM.active || GENIE.active; },
+      get busy(){ return dirty || MORPH.active || GROW.active || CAM.active || GENIE.active || CF.a !== CF.to; },
       get out(){ return CAM.u; },                                        // the neighbours' slide out (site.html: filmOut)
       get state(){ return phase; },
       tap,
@@ -800,11 +820,12 @@
         if(Math.abs(from.w - PILL.w) > .01 || Math.abs(from.h - PILL.h) > .01 || Math.abs(from.r - PILL.r) > .01){ morphTo(from, PILL, .45); MORPH.ghost = ghost; }
         else MORPH.active = false;
         if(CAM.u > 0) camTo(0, opt.outMs || 450);
+        combFade(0, 200);
         cur = 1; phase = 'reset'; queued = false; dirty = true;
       },
       home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
-               genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null,
+               genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null, comb: +CF.a.toFixed(4),
                pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
     };
     return api;
