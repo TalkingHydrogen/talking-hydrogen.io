@@ -7,7 +7,8 @@
    The sequence — each step a click anywhere on the open page (or SPACE); a click while a step still moves is kept for its end:
      pill   → panel   the pill grows DOWN into the measured panel (squircle-fit/ref/shortcut-panel-ref.png, the owner's reference:
                       W / H 1.2987 and r = .2098 H on this generator, rms .77 px over its 1346 px panel) — its height alone, on one
-                      critically damped spring: no lift, no pop, no bow (owner: "only like vertical expansion … just pure morphing")
+                      critically damped spring: no lift, no pop, no bow (owner: "only like vertical expansion … just pure morphing");
+                      its corners on THE ROOM LAW (below): the radius holds while the cap opens into two corners, never squeezed
      panel  → corner  the camera zooms into its top-right corner at the corner shot's scale (brew comb-shots/02-corner: the corner
                       point at (.62, .22) of a 16:9 frame covering the screen, the corner's radius 351 / 1920 of that frame)
      corner → circle  the camera zooms back out, and grow-on-lift's CLOSE plays at once: the panel collapses into the bubble
@@ -140,6 +141,37 @@
     return out;
   }
 
+  /* ---- THE ROOM LAW — the corner's character m on the pure morph (owner 2026-10-22: "currently it breaks by reducing the corner
+     radius and then starting to move and expand hence increasing it again"). The generator's own m (geomM) hands the pill's cap to
+     the panel's corner (m 1 → 0) by H = 2r / .7, but that corner, tail and all, is e(0) = 2.14 r tall: until the side has that room,
+     fitH shrinks it to fit, so the pill → panel's radius ran 37.7 → 26.8 → 41.4 (H 80 → 115 → 197). Here m is the corner that FITS
+     the room — e(m) = (H / 2) / r, e the unit corner's height (K 1, no mid) on the generator's own m-dependent preset — so K stays
+     1 / r: the radius holds (37.7 → 40.1 → 41.4, never back) while the cap's plateau sinks into a valley between two corners (κ at
+     the side's middle = m K), until the side is straight (m 0) and only grows. One blend, at the pill: its cap is squeezed already
+     (e(1) = 1.062: r 37.65 drawn at r 40), so the plateau starts to sink only as that squeeze is spent — the radius's growth eased
+     out over L = 2 (e(1) − 1) of room (C2), m leaving 1 with zero slope. A function of the pose alone: the rests are geomM's own
+     (the pill 1, the panel 0), and the way back is the way there. ---- */
+  function unitHeight(m){                                               // fitH's own check (N 260), at K = 1
+    const HP = Math.PI/2, rampShare = clamp(lerp(1.00, 0.60, m), 0, 1), conc = lerp(0.04, 0.00, m), p = conc <= 1e-9 ? 1 : 1 + conc*8;
+    return marchQuadrant(1, m, 0, Math.min(rampShare*HP*(1 + m)/2, HP*0.96), p, 'G4', 260, 0).ey;
+  }
+  const ROOM_E1 = unitHeight(1), ROOM_E0 = unitHeight(0), ROOM_L = 2*(ROOM_E1 - 1);   // 1.0624 · 2.1448 · .1249
+  let _rmW = NaN, _rmH = NaN, _rmR = NaN, _rm = 1;
+  function roomM(W, H, r){
+    if(W === _rmW && H === _rmH && r === _rmR) return _rm;
+    const x = (H/2) / Math.min(r, W/2, H/2), u = clamp((x - 1) / ROOM_L, 0, 1);   // the side's room, in radii
+    const sig = Math.min(1, (1 + ROOM_L*(u - u*u*u + u*u*u*u/2)) / ROOM_E1);         // the radius drawn ÷ r: the pill's squeeze, spent
+    const need = u <= 0 ? ROOM_E1 : x / sig;                             // the unit corner's height that fits
+    let m = need <= ROOM_E1 ? 1 : need >= ROOM_E0 ? 0 : -1;
+    if(m < 0){
+      let lo = 0, hi = 1;                                               // e falls as m rises: e(0) = E0 > need > E1 = e(1)
+      for(let i = 0; i < 30; i++){ const md = (lo + hi)/2; if(unitHeight(md) > need) lo = md; else hi = md; }
+      m = (lo + hi)/2;
+    }
+    _rmW = W; _rmH = H; _rmR = r; _rm = m;
+    return m;
+  }
+
 
   /* ---- identity plumbing: arc-length resample + bbox-normalise ---- */
   function resampleByArc(pts, N){
@@ -192,10 +224,10 @@
   // is REGENERATED at every (W, H, r) it passes through, never two outlines
   // blended (a two-pose vertex blend stays cornered then snaps at the end)
   let _gid = null, _gidKey = '';
-  function growIdentity(W, H, r, bH, bV){
-    const key = W.toFixed(2)+'_'+H.toFixed(2)+'_'+r.toFixed(2)+'_'+bH.toFixed(4)+'_'+bV.toFixed(4);
+  function growIdentity(W, H, r, bH, bV, m){                           // m: a driven corner (the room law), else the generator's geomM
+    const key = W.toFixed(2)+'_'+H.toFixed(2)+'_'+r.toFixed(2)+'_'+bH.toFixed(4)+'_'+bV.toFixed(4)+(m == null ? '' : '_'+m.toFixed(6));
     if(key === _gidKey) return _gid;
-    const o = unifiedOutline2(0, 0, W, H, Math.min(r, W/2, H/2), null, 'G4');
+    const o = unifiedOutline2(0, 0, W, H, Math.min(r, W/2, H/2), null, 'G4', m);
     let id = toLocalUV(resampleByArc(o, N_VERTS));
     if(bH > 1e-4 || bV > 1e-4) id = bulgeUV(id, W, H, bH, bV);
     _gidKey = key; _gid = id;
@@ -234,6 +266,45 @@
   const CIRCLE = { w: 64, h: 64, r: 32 }, PILL = { w: 256, h: 80, r: 40 };
   const PANEL = { w: 256, h: 256 / PANEL_WH, r: PANEL_RH * 256 / PANEL_WH };   // 256 × 197.13, r 41.35: the pill's width, grown down
   const STATES = [CIRCLE, PILL, PANEL];                                 // grow-on-lift's rests: circle · pill · (here) the measured panel
+
+  /* THE CURVATURE COMB, on ?pillcomb=1 only (2026-10-22: the instrument the room law is judged by — the owner turned it off the
+     showcase the same day): comb-shots.html's &black look, as a91dd9c had it — blue hairs along the outward normal, length ∝ κ
+     (800 · κ world px), a red envelope through their tips, off the generator's own outline (κ over a 1.2 world px span, the stills'
+     combOf); hairs 1 / 320 of the screen's width apart, lines .7 / .95 css px whatever the zoom */
+  const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search);
+  const COMB = { hair: 'rgba(52,132,172,0.78)', env: '#d9484a', wHair: .7, wEnv: .95, span: 1.2, scale: 800 };
+  function combOf(outline){
+    let P0 = 0;
+    for(let i = 0; i < outline.length; i++){ const a = outline[i], b = outline[(i + 1) % outline.length]; P0 += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+    const n = Math.min(24000, Math.ceil(P0 / 0.08));
+    const pts = resampleByArc(outline, n);
+    let A2 = 0;
+    for(let i = 0; i < n; i++){ const a = pts[i], b = pts[(i + 1) % n]; A2 += a[0]*b[1] - b[0]*a[1]; }
+    const o = A2 >= 0 ? 1 : -1, s = Math.max(1, Math.round(COMB.span / (P0 / n)));
+    const raw = new Float64Array(n);
+    for(let i = 0; i < n; i++){
+      const a = pts[(i - s + n) % n], b = pts[i], c = pts[(i + s) % n];
+      const ab = Math.hypot(b[0] - a[0], b[1] - a[1]), bc = Math.hypot(c[0] - b[0], c[1] - b[1]);
+      const ac = Math.hypot(c[0] - a[0], c[1] - a[1]);
+      const cr = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0]);
+      raw[i] = ab*bc*ac > 1e-12 ? o * 2*cr / (ab*bc*ac) : 0;
+    }
+    const k = new Float64Array(n), h = Math.max(1, s >> 1);
+    for(let i = 0; i < n; i++){
+      let acc = 0;
+      for(let j = -h; j <= h; j++) acc += raw[(i + j + n) % n];
+      k[i] = acc / (2*h + 1);
+    }
+    const tips = new Array(n);
+    for(let i = 0; i < n; i++){
+      const a = pts[(i - s + n) % n], c = pts[(i + s) % n];
+      let tx = c[0] - a[0], ty = c[1] - a[1];
+      const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+      const len = k[i] * COMB.scale;
+      tips[i] = [ pts[i][0] + o*ty*len, pts[i][1] - o*tx*len ];
+    }
+    return { pts, tips, k, P: P0 };
+  }
 
   /* the 07-26 float shadow (grow-on-lift / genie / combcard.js), world px */
   const SH = { ox: 93, oy: 109, blur: 80, spread: 7, alpha: 0.18, fall: 0.89, layers: 3 };
@@ -379,8 +450,11 @@
 
     /* ---- the PURE MORPH (the pill growing into the panel; a leave's way back to the pill): (w, h, r) on one critically damped
        spring, the outline regenerated at every pose it passes (the reshape law), no identity bulge ---- */
-    const MORPH = { active: false, a: PILL, b: PILL, p: 1, v: 0, dur: EXPAND_S };
-    function morphTo(a, b, dur){ Object.assign(MORPH, { active: true, a, b, p: 0, v: 0, dur }); }
+    const MORPH = { active: false, a: PILL, b: PILL, p: 1, v: 0, dur: EXPAND_S, dm: 0 };
+    function morphTo(a, b, dur){                                         // a pose drawn on another m (a leave from the close: geomM's) eases
+      const dm = a.m == null ? 0 : a.m - roomM(a.w, a.h, a.r);           // onto the room law on the morph's own clock — no pop at its start
+      Object.assign(MORPH, { active: true, a, b, p: 0, v: 0, dur, dm });
+    }
     function morphStep(h){
       if(!MORPH.active) return;
       const [k, c] = springKC(MORPH.dur, 0);
@@ -417,22 +491,28 @@
     /* ---- the pose and its outline (world: x about 0, y down from the top line) ---- */
     function pose(){
       if(MORPH.active){
-        const t = MORPH.p, a = MORPH.a, b = MORPH.b;
-        return { w: lerp(a.w, b.w, t), h: lerp(a.h, b.h, t), r: lerp(a.r, b.r, t), bH: 0, bV: 0, e: 0 };
+        const t = MORPH.p, a = MORPH.a, b = MORPH.b, w = lerp(a.w, b.w, t), h = lerp(a.h, b.h, t), r = lerp(a.r, b.r, t);
+        return { w, h, r, bH: 0, bV: 0, e: 0, m: clamp(roomM(w, h, r) + MORPH.dm * (1 - smoothstep(t)), 0, 1) };   // the room law
       }
       if(GROW.active) return growPose();
       const R = STATES[cur]; return { w: R.w, h: R.h, r: R.r, bH: 0, bV: 0, e: 0 };
     }
-    let lastKey = '', lastPts = null;
+    let lastKey = '', lastPts = null, lastComb = null;
     function outline(P){
-      const key = P.w.toFixed(4) + '_' + P.h.toFixed(4) + '_' + P.r.toFixed(4) + '_' + P.bH.toFixed(5) + '_' + P.bV.toFixed(5) + '_' + (P.e || 0).toFixed(5);
+      const key = P.w.toFixed(4) + '_' + P.h.toFixed(4) + '_' + P.r.toFixed(4) + '_' + P.bH.toFixed(5) + '_' + P.bV.toFixed(5) + '_' + (P.e || 0).toFixed(5)
+                + (P.m == null ? '' : '_' + P.m.toFixed(6));
       if(key === lastKey) return lastPts;
-      const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV);
-      const s = 1 + (P.e || 0), cy = P.h / 2;                            // top-pinned (anchor 0): the island law
-      lastPts = id.map(q => [ (q.u - 0.5) * P.w * s, cy + (q.v - 0.5) * P.h / s ]);
-      lastKey = key;
+      if(SHOW_COMB && !(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6))   // the comb reads the generator's own outline (1400 a quadrant): the stills'
+        lastPts = unifiedOutline2(0, P.h / 2, P.w, P.h, Math.min(P.r, P.w/2, P.h/2), null, 'G4', P.m);
+      else {
+        const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV, P.m);
+        const s = 1 + (P.e || 0), cy = P.h / 2;                          // top-pinned (anchor 0): the island law
+        lastPts = id.map(q => [ (q.u - 0.5) * P.w * s, cy + (q.v - 0.5) * P.h / s ]);
+      }
+      lastKey = key; lastComb = null;
       return lastPts;
     }
+    function combFor(pts){ if(!lastComb || pts !== lastPts) lastComb = combOf(pts); return lastComb; }
 
     /* ---- drawing ---- */
     /* the SHAPE canvases, two: OPEN's at the OPEN page's device px and HOME's at HOME's (OPEN ÷ S) — each 1 : 1 where it shows, so the
@@ -442,7 +522,7 @@
        none 24–38, the room print's 23–32). OPEN's covers only what the step needs — 'pill' (the page's zooms), 'panel' (its growth,
        grow-on-lift's close and open), 'full' (the screen: the corner; 5.2 MP costs ~50 ms even allocated long before) — grown while
        nothing moves: the landing, a rest before the next step. */
-    const MARGIN = 24;                                                   // world px round the shape: the grow's pop and balloon, the edge's AA
+    const MARGIN = SHOW_COMB ? 48 : 24;                                  // world px round the shape: the grow's pop and balloon, the edge's AA (the comb's hairs ≤ ~26)
     const cvH = document.createElement('canvas'), ctxH = cvH.getContext('2d');
     cvH.className = 'scene-home'; cvH.setAttribute('aria-hidden', 'true');
     cvH.style.cssText = 'position:absolute;z-index:3;display:block;pointer-events:none';
@@ -527,6 +607,21 @@
       c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, C.el.width, C.el.height);
       c.setTransform(C.rx * cam.k, 0, 0, C.ry * cam.k, C.rx * (cam.x - b.x), C.ry * (cam.y - b.y));
       trace(c, pts); c.fillStyle = '#000'; c.fill();
+      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k);
+    }
+    function drawComb(c, K, u){                                          // u: canvas px (= device px where it shows) per world px
+      const cssW = u / G.dpr, gap = G.W / 320, n = K.pts.length;
+      const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
+      c.lineCap = 'butt';
+      c.beginPath();
+      for(let j = 0; j < nh; j++){
+        const i = Math.round(j * n / nh) % n;
+        if(Math.abs(K.k[i]) * COMB.scale * cssW < .5) continue;          // under half a px: not a hair (a butt stroke of ~0 length still dots)
+        c.moveTo(K.pts[i][0], K.pts[i][1]); c.lineTo(K.tips[i][0], K.tips[i][1]);
+      }
+      c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair); c.stroke();
+      c.lineJoin = 'round';
+      trace(c, K.tips); c.strokeStyle = COMB.env; c.lineWidth = lw(COMB.wEnv); c.stroke();
     }
     let dirty = true;
     function draw(){                                                     // the seen canvas + the shadow (the pose / camera of now)
@@ -608,7 +703,8 @@
       leave(own){                                                        // the page closes: its own end (own) or a move / close mid-way
         landed = false;
         if(own || phase === 'ending') return;
-        const P = pose(), from = { w: P.w, h: P.h, r: Math.min(P.r, P.w/2, P.h/2) };
+        const P = pose(), r0 = Math.min(P.r, P.w/2, P.h/2);
+        const from = { w: P.w, h: P.h, r: r0, m: P.m != null ? P.m : geomM(P.w, P.h, r0) };   // its corner as drawn: the morph eases it home
         GROW.active = false;
         if(Math.abs(from.w - PILL.w) > .01 || Math.abs(from.h - PILL.h) > .01 || Math.abs(from.r - PILL.r) > .01) morphTo(from, PILL, .45);
         else MORPH.active = false;
@@ -616,7 +712,8 @@
         cur = 1; phase = 'reset'; queued = false; dirty = true;
       },
       home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },
-      debug(){ return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active, moving: MORPH.active || GROW.active || CAM.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
+      debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
+               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
     };
     return api;
   }
