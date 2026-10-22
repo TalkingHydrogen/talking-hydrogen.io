@@ -364,6 +364,10 @@
     const ease = bezier.apply(null, opt.bez || [.37, .14, .32, 1]);
     const EXPAND_S = opt.expand > 0 ? opt.expand : .9;                 // the pure morph's spring (critically damped), s
     const END_MS = opt.endAt > 0 ? opt.endAt : 1100;                    // the OPEN's age at which the page starts its own zoom out
+    /* THE SEQUENCE'S CLOCK (owner 2026-10-22: "slow all animations down like 30%"): every step plays TIME × slower — its springs, the
+       camera's moves, the genie, grow-on-lift's open, and the page's own zoom out at the end (endMs) — one dilation, so nothing changes
+       but the pace. ?pilltime= (1.43 = 70% speed). A leave stays on real time: its morph keeps step with the page's standard close */
+    const TIME = opt.time > 0 ? opt.time : (parseFloat((/[?&]pilltime=([\d.]+)/.exec(location.search) || [])[1]) || 1.3);
     const ctx = cv.getContext('2d');
     const sh = document.createElement('canvas'), shx = sh.getContext('2d');
     sh.className = 'scene-sh'; sh.setAttribute('aria-hidden', 'true');
@@ -740,12 +744,13 @@
     let acc = 0;
     function step(ms){                                                   // the page's frame (site.html's stack step): ms
       ms = Math.max(0, Math.min(64, ms || 0));
+      const sms = phase === 'reset' ? ms : ms / TIME;                    // the sequence's clock (a leave: the page's)
       const moving = MORPH.active || GROW.active || CAM.active || GENIE.active;
       if(moving){
-        acc += ms / 1000;
+        acc += sms / 1000;
         while(acc >= GROW.h - 1e-9){ growStep(GROW.h); morphStep(GROW.h); acc -= GROW.h; }
-        camStep(ms);
-        if(GENIE.active && (GENIE.t += ms) >= GENIE.endMs) GENIE.active = false;   // landed: the circle's rest from here
+        camStep(sms);
+        if(GENIE.active && (GENIE.t += sms) >= GENIE.endMs) GENIE.active = false;   // landed: the circle's rest from here
         dirty = true;
       } else acc = 0;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
@@ -753,7 +758,7 @@
       else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; startGenie(); cur = 0; dirty = true; }
       else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
       else if(phase === 'opening'){
-        tOpen += ms;
+        tOpen += sms;
         if(!GROW.active || tOpen >= END_MS){ phase = 'ending'; queued = false; if(api.onend) api.onend(); }
       } else if(phase === 'reset' && !MORPH.active && !CAM.active) phase = 'held';
       regrow();
@@ -765,7 +770,7 @@
     }
     const api = {
       onend: null,
-      endMs: OUT_MS,                                                     // the page's own zoom out (site.html: closeNow's drive)
+      endMs: OUT_MS * TIME,                                              // the page's own zoom out (site.html: closeNow's drive), on the sequence's clock
       get busy(){ return dirty || MORPH.active || GROW.active || CAM.active || GENIE.active; },
       get out(){ return CAM.u; },                                        // the neighbours' slide out (site.html: filmOut)
       get state(){ return phase; },
