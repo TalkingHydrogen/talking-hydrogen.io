@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=f088c2a."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=fb08029."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -500,8 +500,9 @@
        photos" + "under the macbook"): the pill and the six comb-shot prints are `.wrap.under` members of the MacBook's column
        (data-under="macbook"), laid out under it, centred, COL.gap apart (colLayout(); ?colgap= × the row's gap) — below the fold at
        HOME. In OPEN they are the MacBook's neighbours BELOW, as the row's are beside: the next one's top edge peeks NB.rest inside the
-       bottom edge (the previous one's bottom inside the top), a hover lifts it NB.hover × its peek, a click on it / ↓ ↑ / a wheel
-       (the WHEEL IN OPEN note) moves the camera there. A member has no left / right neighbours: the row line is above it.
+       bottom edge (the previous one's bottom inside the top), a hover lifts it NB.hover × its peek, a click on it / ↓ ↑ moves the
+       camera there (a wheel in OPEN was tried the same day and reverted: owner, "it just gets stuck"). A member has no left / right
+       neighbours: the row line is above it.
        THE PILL SHOWCASE (2026-10-21: "right next to a MacBook, there'll be a pill floating with a shadow and everything … rendered
        natively in HTML in the highest resolution possible to show off that curve"): brew's black pill (the DI's 256 × 80) with the
        07-26 float shadow, drawn live by proto/pillshow.js on a canvas at the screen's own pixels, a stack of one whose card is the
@@ -746,9 +747,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=f088c2a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=fb08029"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=f088c2a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=fb08029"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5241,7 +5242,8 @@ function capWrite(e, park, own = e.st, dx = 0, dy = 0) {   // MOBILE: dy = a gro
    line is above (U). nbOf(±1) = the row line's neighbours (a head's; a member has none), nbOf(±2) = the column's. The peeks above /
    below: the nearest's paper edge NB.rest inside the top / bottom edge (nbEdgeY()), the hover lifting the whole side NB.hover × its peek
    on the page's hvS spring (the row's cards slide on their own peek springs: x only), the NUDGE inward on y, the FILM's push down.
-   The zones #nzoneT / #nzoneB (n- / s-resize). ↓ ↑ and the WHEEL IN OPEN move the camera (keyStep(±2)). A phone has no columns (the
+   The zones #nzoneT / #nzoneB (n- / s-resize). ↓ ↑ move the camera (keyStep(±2)); the wheel does nothing in OPEN, as before (a
+   one-step wheel, then a two-finger drag, were tried 2026-10-22 and reverted the same day — owner: "it just gets stuck"). A phone has no columns (the
    pill and its prints leave the DOM there), so the FEED's own vertical model is untouched. */
 const COL = { gap: pageQuery.has('colgap') ? parseFloat(pageQuery.get('colgap')) : 1 };   // × the row's column gap (?colgap=)
 function colMeasure() {                     // rowMeasure(): e.under = its head's record · e.col = a head's members (DOM order) · e.ci = its place in the column (the head 0) · e.li = the row LINE index (heads)
@@ -5623,7 +5625,7 @@ function moveBack(a) {                      // FEED 2026-10-18, the CATCH: the m
   rowPart(); keepWindow();
   return true;
 }
-window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite };   // debug / tuning
+window.__row = { RP, ROWPHYS, PART, NB, frameOf, camera, sideShift, moveTo, setNHover, placeNZones, layoutAll, rowWrite, get activeStack() { return activeStack; } };   // debug / tuning
 window.__cap = { groups: CAP_GROUPS, wait: CAP_WAIT, group: capGroup };   // site 2026-10-11: the CAPTION GROUP and CAP_WAIT (debug / tuning)
 
 /* ============================================================
@@ -5716,27 +5718,6 @@ for (const z of NZ) {                                                           
   z.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && nHov === side) setNHover(0); });
   z.addEventListener('click', e => e.stopPropagation());
 }
-/* site 2026-10-22 — the WHEEL IN OPEN (the COLUMNS note; owner: "it can be clicked or scrolled"): a wheel / trackpad stream in OPEN
-   (desktop) is one step, as an arrow key: its axis locks once its travel passes OW.px, sideways → keyStep(±1) (the pile's next card,
-   else the row neighbour), up / down → keyStep(±2) (the column's); the rest of the stream (its momentum tail) is spent until a gap
-   of OW.gap ms. A stream while the camera flies is kept for the landing (keyStep's own queue). Passive: the SINK's root scroll under it
-   stays native. ?owheel=0 off; ?owpx= the travel. The FILM's guard first (a scroll stops it, as a click). HOME is the row's (above). */
-const OW = { on: pageQuery.get('owheel') !== '0' && !window.__mobile?.on, px: parseFloat(pageQuery.get('owpx')) || 40, gap: 150 };
-let ow = { t: -1e9, x: 0, y: 0, axis: 0, spent: false };
-if (OW.on) addEventListener('wheel', e => {
-  if (!activeStack || e.ctrlKey || isFeed()) return;
-  const now = performance.now(), k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerWidth : 1;
-  if (now - ow.t > OW.gap) ow = { t: now, x: 0, y: 0, axis: 0, spent: false };
-  ow.t = now; ow.x += e.deltaX * k; ow.y += e.deltaY * k;
-  if (ow.spent) return;
-  if (!ow.axis) { if (Math.abs(ow.x) < OW.px && Math.abs(ow.y) < OW.px) return; ow.axis = Math.abs(ow.x) >= Math.abs(ow.y) ? 1 : 2; }
-  const v = ow.axis === 1 ? ow.x : ow.y; if (Math.abs(v) < OW.px) return;
-  ow.spent = true;
-  const a = activeStack, t = e.target;
-  if (!KEYS || a.frozen || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-  const f = filmGuard(); if (f) { f.stop(); return; }
-  keyStep((v > 0 ? 1 : -1) * ow.axis);
-}, { passive: true });
 /* site 2026-10-10 — THE KEYS (the stack's walk() note): ← / → in OPEN = the pile's next card that way (a flip, as its zone's click),
    else the neighbour on that side (moveTo(), as a click on its sliver). A press while the camera flies (a zoom in, a move) is kept —
    the last one — and taken at the landing (keyLand(), enterOpen()); a held key's repeats wait for the last step to land, so holding
