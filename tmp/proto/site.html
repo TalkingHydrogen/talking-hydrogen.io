@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=a91dd9c."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=4776a51."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -505,6 +505,33 @@
   <div class="wrap" id="pillshow" data-size=".7" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the invisible frame + the scene): PILLSHOW in BOOT -->
   </div></div>
+  <!-- site 2026-10-22: THE COMB SHOTS as PHOTO PRINTS right of the pill (owner: "lets try alternate path, scroll horizontally to reveal
+       details about the project … there is a pill put next to the macbook to show details of the comb shots. Can we just put it lower
+       horizontally and have the affordance be the same as the right left stuff, it can be clicked or scrolled. Put there stuff from the
+       folder as photos"): six of brew's squircle-fit/comb-shots renders (3840 × 2160, their #f6f6f6 page and float shadow as rendered) —
+       the 1:1 squircle under the comb, its corner, the circle vs the Apple corner, the pill, the pill on the warm card, the pill's side
+       (no comb) — each a pile of one printed as the room print (photoprint.py --long 3000 --border-px 77 --edge-px 4.69 →
+       assets/photo/comb-*-print.webp 3154 × 1842 + their table shadows), reached as every row element: the HOME scroll, the OPEN
+       neighbour peek (click), the arrow keys. COMB_PHOTOS in BOOT; data-size 1 (the prints'); data-age 23 (brew's, the pill's). With
+       the pill: desktop only (?pill=1 on a phone). The pill's click sequence is OFF while they are here (?pillseq=1 brings it back) -->
+  <div class="wrap" id="comb-squircle" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
+  <div class="wrap" id="comb-corner" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
+  <div class="wrap" id="comb-compare" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
+  <div class="wrap" id="comb-pill-black" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
+  <div class="wrap" id="comb-pill" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
+  <div class="wrap" id="comb-pillside" data-size="1" data-age="23"><div class="box">
+    <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the print): COMB_PHOTOS in BOOT -->
+  </div></div>
   <!-- site 2026-10-17: the CURVATURE COMB pair right of the MacBook (owner: "lets get these two on the website right from the macbook" —
        brew's squircle-fit/comb-shots: the Apple 1:1 squircle under the Alias curvature comb). #squircle = the still (01-squircle.png:
        the 1:1 square, every corner's comb a smooth bell), #growcomb = the clip (grow-comb.mov: grow-on-lift's circle growing into the
@@ -713,9 +740,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=a91dd9c"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=4776a51"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=a91dd9c"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=4776a51"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -6790,10 +6817,10 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
    phone: ?pill=1). */
 const PILL_ON = !!window.PillShow && (!window.__mobile?.on || pageQuery.get('pill') === '1');
 if (PILL_ON) {
-  const slow = parseFloat(pageQuery.get('pillslow'));
+  const slow = parseFloat(pageQuery.get('pillslow')), PILL_SEQ = pageQuery.get('pillseq') === '1';   // site 2026-10-22: the click sequence only with ?pillseq=1 (the COMB SHOTS' note, below)
   stacks.push(makeStack($('pillshow'), { name: 'pillshow', idp: 'ps-', images: [{ id: 'pillshow', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAKCAYAAADVTVykAAAAEklEQVR42mNgGAWjYBSMgpEOAAUKAAEVKR6qAAAAAElFTkSuQmCC', w: 2560, h: 800 }], deck: [0],
                                          knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 },
-                                         scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez, comb: pageQuery.get('pillcomb') !== '0' })),   // __pillScene: debug (its debug())
+                                         scene: cv => { const sc = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez, comb: pageQuery.get('pillcomb') !== '0' }); if (!PILL_SEQ) sc.tap = null; return (window.__pillScene = sc); },   // __pillScene: debug (its debug()); no tap = a click / SPACE on the open page is the page's (the close), not a step
                                          openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B }));
 } else $('pillshow').remove();
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
@@ -6912,6 +6939,19 @@ stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: 
    on it, since it takes too little of the space"): 1.2, ?clipzoom= to try others.
    ?clipprint=1: the first try — the print of its first frame with the photo prints' treatment (the same paper and table shadow; photo
    1920 × 1080 + 49 px paper = the window's fractions of the card), rest −.9° with the prints' hover, data-size 1. Played as the CD's song. */
+/* site 2026-10-22 — THE COMB SHOTS as PHOTO PRINTS right of the pill (the markup's note): the room print's treatment (POL_KNOBS,
+   castOnly, a table-shadow texture each — one aspect, so the same fractions), no TURN (no back), on the row's baseline, tilts of
+   their own beside the pill (hand-laid, as the NEO prints'), the hover turning them left as the prints. With the pill (PILL_ON):
+   without it they leave the DOM before the first layout, as the pill does. The pill's click sequence is OFF with them here (the
+   owner's alternate path: the details are these, reached by the row — PILL_SEQ, ?pillseq=1 = the sequence, each click on the open
+   page its next step). */
+const COMB_PHOTOS = [['comb-squircle', 'cs-', 1.2], ['comb-corner', 'cc-', -.9], ['comb-compare', 'cv-', .7], ['comb-pill-black', 'cpb-', -1.1], ['comb-pill', 'cp-', .9], ['comb-pillside', 'cps-', -.8]];
+const COMB_UP = -(3154 / 1842 - 1) / 2;
+for (const [id, idp, rot] of COMB_PHOTOS) {
+  if (!PILL_ON) { $(id).remove(); continue; }
+  stacks.push(makeStack($(id), { name: id, idp, images: [{ id, src: `../assets/photo/${id}-print.webp`, w: 3154, h: 1842 }], deck: [0], knobs: POL_KNOBS, castOnly: true,
+                                 floor: { src: `../assets/photo/${id}-floor.webp`, fx: .03331, fy: .05703 }, rest: { rot, up: COMB_UP, hover: -1 } }));
+}
 const CLIP_PRINT = pageQuery.get('clipprint') === '1';
 const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(pageQuery.get('clipzoom')));
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
