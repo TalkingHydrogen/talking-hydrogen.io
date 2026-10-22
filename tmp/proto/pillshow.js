@@ -293,15 +293,20 @@
     return k < GENIE_STEPS;
   }
   let warming = false;
-  function warmGenie(){ if(warming) return; warming = true; (function go(){ if(genieLUTStep()) setTimeout(go, 16); else if(CORNER_COMB) setTimeout(panelComb, 16); })(); }   // then the corner's comb
+  function warmGenie(){ if(warming) return; warming = true; (function go(){ if(genieLUTStep()) setTimeout(go, 16); else if(FADE_COMB) setTimeout(panelComb, 16); })(); }   // then the corner's comb
 
   /* THE CURVATURE COMB — comb-shots.html's &black look, as a91dd9c had it: blue hairs along the outward normal, length ∝ κ (800 · κ world
      px: half the radius at κ = 1 / r, the stills' CF .5), a red envelope through their tips, off the generator's own outline (κ over a
      1.2 world px span, the stills' combOf); hairs 1 / 320 of the screen's width apart, lines .7 / .95 css px whatever the zoom.
-     THE CORNER'S (owner 2026-10-22: "when it zooms in on the corner slowly start fading in the comb after its almost done zooming in"):
-     on the panel in the corner shot only — it starts once the camera is 90% of the way in and fades in slowly, past the landing, and
-     leaves as the camera starts back out (the create()'s CF). ?pillcomb=0: never · ?pillcomb=1: on every step (the instrument) */
-  const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search), CORNER_COMB = !/[?&]pillcomb=0(&|$)/.test(location.search);
+     It fades in on two shots (the create()'s CF):
+       THE CORNER (owner 2026-10-22: "when it zooms in on the corner slowly start fading in the comb after its almost done zooming in"):
+       on the panel at rest — it starts once the camera is 90% of the way in, fades in slowly past the landing, and leaves as the
+       camera starts back out;
+       THE CIRCLE'S OPEN (owner, same day: "comb on the expand from circle too, circle appears, the comb fades in, and then expand with
+       comb, and fade out on zoom out"): it fades in once the genie's dot has landed and calmed (its ring under .5 world px), rides the
+       live outline through grow-on-lift's open, and fades out as the page's own zoom out starts.
+     ?pillcomb=0: never · ?pillcomb=1: on every step (the instrument) */
+  const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search), FADE_COMB = !/[?&]pillcomb=0(&|$)/.test(location.search);
   const COMB = { hair: 'rgba(52,132,172,0.78)', env: '#d9484a', wHair: .7, wEnv: .95, span: 1.2, scale: 800 };
   function combOf(outline){
     let P0 = 0;
@@ -509,7 +514,7 @@
        lab's +.47 lead (rounds early). It ends at its perceptual settle — every corner within .1 world px of the circle's — not at the
        clock's: the ring's tail past that is invisible, and a click waiting for the open would wait on it. No bubble skin (the film's
        call: the circle opens into the pill next). ---- */
-    const GENIE = { active: false, t: 0, dur: 1950, spread: 0.06, bounce: 0.18, lead: 0.47, endMs: 1950 };
+    const GENIE = { active: false, t: 0, dur: 1950, spread: 0.06, bounce: 0.18, lead: 0.47, endMs: 1950, combMs: 1950 };
     function genieRowT(v, prog){                                         // v 0 = the top row (nearer the circle: it leads)
       const mag = Math.abs(GENIE.spread), w = GENIE.spread > 0 ? v : 1 - v;
       const uc = clamp((prog - w * mag) / Math.max(1 - mag, 1e-4), 0, 1);
@@ -536,12 +541,14 @@
     }
     function startGenie(){
       const travel = [ Math.hypot((PANEL.w - CIRCLE.w) / 2, 0), Math.hypot((PANEL.w - CIRCLE.w) / 2, PANEL.h - CIRCLE.h) ];   // top · bottom row
-      let end = 0;
-      for(let i = 1024; i >= 0 && !end; i--){                            // the perceptual settle: marched back from the clock's end
-        const prog = i / 1024;
-        if(travel[0] * Math.abs(genieRowT(0, prog) - 1) >= .1 || travel[1] * Math.abs(genieRowT(1, prog) - 1) >= .1) end = (i + 1) / 1024 * GENIE.dur;
-      }
-      Object.assign(GENIE, { active: true, t: 0, endMs: Math.min(GENIE.dur, end || GENIE.dur) });
+      const settle = eps => {                                            // the last instant a corner is still eps off: marched back from the end
+        for(let i = 1024; i >= 0; i--){
+          const prog = i / 1024;
+          if(travel[0] * Math.abs(genieRowT(0, prog) - 1) >= eps || travel[1] * Math.abs(genieRowT(1, prog) - 1) >= eps) return Math.min(GENIE.dur, (i + 1) / 1024 * GENIE.dur);
+        }
+        return 0;
+      };
+      Object.assign(GENIE, { active: true, t: 0, endMs: settle(.1) || GENIE.dur, combMs: settle(.5) });   // the perceptual settle · the comb's cue
     }
 
     /* ---- the corner's comb: its opacity, tweened (ease in-out) on the sequence's clock — in once the camera is COMB_AT of the way into
@@ -599,10 +606,11 @@
     let lastKey = '', lastPts = null, lastComb = null;
     function outline(P){
       const key = P.w.toFixed(4) + '_' + P.h.toFixed(4) + '_' + P.r.toFixed(4) + '_' + P.bH.toFixed(5) + '_' + P.bV.toFixed(5) + '_' + (P.e || 0).toFixed(5)
-                + (P.m == null ? '' : '_' + P.m.toFixed(6)) + (P.genie == null ? '' : '_g' + P.genie.toFixed(7)) + (P.ghost == null ? '' : '_h' + P.ghost.toFixed(6));
+                + (P.m == null ? '' : '_' + P.m.toFixed(6)) + (P.genie == null ? '' : '_g' + P.genie.toFixed(7)) + (P.ghost == null ? '' : '_h' + P.ghost.toFixed(6))
+                + (SHOW_COMB || liveComb() ? '_c' : '');
       if(key === lastKey) return lastPts;
       if(P.genie != null) lastPts = genieOutline(P.genie);
-      else if(SHOW_COMB && P.ghost == null && !(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6))   // the comb reads the generator's own outline (1400 a quadrant): the stills'
+      else if((SHOW_COMB || liveComb()) && P.ghost == null && !(P.bH > 1e-4 || P.bV > 1e-4 || Math.abs(P.e || 0) > 1e-6))   // a comb reads the generator's own outline (1400 a quadrant): the stills'
         lastPts = unifiedOutline2(0, P.h / 2, P.w, P.h, Math.min(P.r, P.w/2, P.h/2), null, 'G4', P.m);
       else {
         const id = growIdentity(P.w, P.h, Math.min(P.r, P.w/2, P.h/2), P.bH, P.bV, P.m);
@@ -617,6 +625,7 @@
       return lastPts;
     }
     function combFor(pts){ if(!lastComb || pts !== lastPts) lastComb = combOf(pts); return lastComb; }
+    function liveComb(){ return FADE_COMB && !SHOW_COMB && CF.a > 1e-3 && (phase === 'closing' || phase === 'circle' || phase === 'opening' || phase === 'ending'); }   // the circle's: on the live outline
 
     /* ---- drawing ---- */
     /* the SHAPE canvases, two: OPEN's at the OPEN page's device px and HOME's at HOME's (OPEN ÷ S) — each 1 : 1 where it shows, so the
@@ -626,7 +635,7 @@
        none 24–38, the room print's 23–32). OPEN's covers only what the step needs — 'pill' (the page's zooms), 'panel' (its growth,
        grow-on-lift's close and open), 'full' (the screen: the corner; 5.2 MP costs ~50 ms even allocated long before) — grown while
        nothing moves: the landing, a rest before the next step. */
-    const MARGIN = SHOW_COMB ? 48 : 24;                                  // world px round the shape: the grow's pop and balloon, the edge's AA (the comb's hairs ≤ ~26)
+    const MARGIN = SHOW_COMB || FADE_COMB ? 48 : 24;                     // world px round the shape: the grow's pop and balloon, the edge's AA, the comb's hairs (the circle's 25)
     const cvH = document.createElement('canvas'), ctxH = cvH.getContext('2d');
     cvH.className = 'scene-home'; cvH.setAttribute('aria-hidden', 'true');
     cvH.style.cssText = 'position:absolute;z-index:3;display:block;pointer-events:none';
@@ -712,6 +721,7 @@
       c.setTransform(C.rx * cam.k, 0, 0, C.ry * cam.k, C.rx * (cam.x - b.x), C.ry * (cam.y - b.y));
       trace(c, pts); c.fillStyle = '#000'; c.fill();
       if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k, 1);
+      else if(liveComb()) drawComb(c, combFor(pts), C.rx * cam.k, CF.a);                     // the circle's and its open: the live outline's
       else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a);   // the corner's: the panel at rest
     }
     function drawComb(c, K, u, alpha){                                   // u: canvas px (= device px where it shows) per world px
@@ -765,13 +775,15 @@
       const sms = phase === 'reset' ? ms : ms / TIME;                    // the sequence's clock (a leave: the page's)
       const moving = MORPH.active || GROW.active || CAM.active || GENIE.active;
       if(moving){
-        acc += sms / 1000;
-        while(acc >= GROW.h - 1e-9){ growStep(GROW.h); morphStep(GROW.h); acc -= GROW.h; }
+        const n = Math.max(1, Math.round(sms / (GROW.h * 1000))), h = sms / 1000 / n;   // the frame's own time in ~1/120 s substeps:
+        for(let i = 0; i < n; i++){ growStep(h); morphStep(h); }        // a fixed 1/120 left 1 or 2 steps on alternate frames once the
+                                                                         // clock was dilated (12.8 ms a 60 Hz frame) — a 2 : 1 judder
         camStep(sms);
         if(GENIE.active && (GENIE.t += sms) >= GENIE.endMs) GENIE.active = false;   // landed: the circle's rest from here
         dirty = true;
       } else acc = 0;
-      if(CORNER_COMB && phase === 'zoomin' && CAM.u >= COMB_AT) combFade(1, COMB_IN);   // almost in: the comb starts to show
+      if(FADE_COMB && phase === 'zoomin' && CAM.u >= COMB_AT) combFade(1, COMB_IN);   // almost in: the comb starts to show
+      if(FADE_COMB && phase === 'closing' && GENIE.t >= GENIE.combMs) combFade(1, COMB_IN);   // the dot has landed and calmed: the comb on it
       if(combStep(sms)) dirty = true;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
       else if(phase === 'zoomin' && !CAM.active){ phase = 'corner'; after(); }
@@ -779,7 +791,7 @@
       else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
       else if(phase === 'opening'){
         tOpen += sms;
-        if(!GROW.active || tOpen >= END_MS){ phase = 'ending'; queued = false; if(api.onend) api.onend(); }
+        if(!GROW.active || tOpen >= END_MS){ phase = 'ending'; queued = false; combFade(0, COMB_OUT); if(api.onend) api.onend(); }   // the zoom out: the comb leaves
       } else if(phase === 'reset' && !MORPH.active && !CAM.active) phase = 'held';
       regrow();
       if(dirty) draw();
