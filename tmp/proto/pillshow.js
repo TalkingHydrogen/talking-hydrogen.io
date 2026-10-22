@@ -14,7 +14,9 @@
      corner → circle  the camera zooms back out, and THE GENIE plays at once (owner 2026-10-22: "retract from the panel to circle must
                       be genie animation"): the panel is pulled up into the bubble on its top line — brew's genie minimize, as the app
                       runs it (below)
-     circle → pill    grow-on-lift's OPEN (anticipation, body springs, the lift, the balloon), under the comb — then it rests there
+     circle → pill    the comb comes on over the bare circle, then grow-on-lift's OPEN plays under it (anticipation, body springs, the
+                      lift, the balloon) — one click (owner 2026-10-22: "click on the cirlce will turn the comb on and then animate") —
+                      and it rests there
      pill   → out     and a click zooms the page out (owner 2026-10-22: "dont zoom out automatically click will zoom it out on the pill
                       with combs"), the comb fading as it goes (onend → site.html: the close at endMs)
    The camera's moves: the site's iOS 7 zoom curve, cubic-bezier(.37, .14, .32, 1), SLOW × slower (owner: "3 times slower, or even 4":
@@ -303,9 +305,10 @@
        THE CORNER (owner 2026-10-22: "when it zooms in on the corner slowly start fading in the comb after its almost done zooming in"):
        on the panel at rest — it starts once the camera is 90% of the way in, fades in slowly past the landing, and leaves as the
        camera starts back out;
-       THE CIRCLE'S OPEN (owner, same day: "comb on the expand from circle too, circle appears, the comb fades in, and then expand with
-       comb, and fade out on zoom out"): it fades in once the genie's dot has landed and calmed (its ring under .5 world px), rides the
-       live outline through grow-on-lift's open, and fades out as the page's own zoom out starts.
+       THE CIRCLE'S OPEN (owner, same day: "comb on the expand from circle too … and then expand with comb, and fade out on zoom out"
+       → "click on the cirlce will turn the comb on and then animate"): the genie's dot rests bare; the click fades the comb in on it
+       (COMB_ON) and the open starts as it lands, the comb riding the live outline through it and the rest; it fades out with the
+       page's own zoom out.
      ?pillcomb=0: never · ?pillcomb=1: on every step (the instrument) */
   const SHOW_COMB = /[?&]pillcomb=1(&|$)/.test(location.search), FADE_COMB = !/[?&]pillcomb=0(&|$)/.test(location.search);
   const COMB = { hair: 'rgba(52,132,172,0.78)', env: '#d9484a', wHair: .7, wEnv: .95, span: 1.2, scale: 800 };
@@ -515,7 +518,7 @@
        lab's +.47 lead (rounds early). It ends at its perceptual settle — every corner within .1 world px of the circle's — not at the
        clock's: the ring's tail past that is invisible, and a click waiting for the open would wait on it. No bubble skin (the film's
        call: the circle opens into the pill next). ---- */
-    const GENIE = { active: false, t: 0, dur: 1950, spread: 0.06, bounce: 0.18, lead: 0.47, endMs: 1950, combMs: 1950 };
+    const GENIE = { active: false, t: 0, dur: 1950, spread: 0.06, bounce: 0.18, lead: 0.47, endMs: 1950 };
     function genieRowT(v, prog){                                         // v 0 = the top row (nearer the circle: it leads)
       const mag = Math.abs(GENIE.spread), w = GENIE.spread > 0 ? v : 1 - v;
       const uc = clamp((prog - w * mag) / Math.max(1 - mag, 1e-4), 0, 1);
@@ -549,12 +552,12 @@
         }
         return 0;
       };
-      Object.assign(GENIE, { active: true, t: 0, endMs: settle(.1) || GENIE.dur, combMs: settle(.5) });   // the perceptual settle · the comb's cue
+      Object.assign(GENIE, { active: true, t: 0, endMs: settle(.1) || GENIE.dur });   // the perceptual settle
     }
 
     /* ---- the corner's comb: its opacity, tweened (ease in-out) on the sequence's clock — in once the camera is COMB_AT of the way into
        the corner, over COMB_IN; out over COMB_OUT from the click that starts the camera back ---- */
-    const COMB_AT = .9, COMB_IN = 1200, COMB_OUT = 600;
+    const COMB_AT = .9, COMB_IN = 1200, COMB_OUT = 600, COMB_ON = 600;   // COMB_ON: the click on the circle — on, then the open
     const CF = { a: 0, from: 0, to: 0, t: 0, T: 1 };
     function combFade(to, ms){ if(CF.to !== to) Object.assign(CF, { from: CF.a, to, t: 0, T: Math.max(1, ms) }); }
     function combStep(ms){
@@ -626,7 +629,7 @@
       return lastPts;
     }
     function combFor(pts){ if(!lastComb || pts !== lastPts) lastComb = combOf(pts); return lastComb; }
-    function liveComb(){ return FADE_COMB && !SHOW_COMB && CF.a > 1e-3 && (phase === 'closing' || phase === 'circle' || phase === 'opening' || phase === 'rest' || phase === 'ending'); }   // the circle's: on the live outline
+    function liveComb(){ return FADE_COMB && !SHOW_COMB && CF.a > 1e-3 && (phase === 'combing' || phase === 'opening' || phase === 'rest' || phase === 'ending'); }   // the circle's: on the live outline
 
     /* ---- drawing ---- */
     /* the SHAPE canvases, two: OPEN's at the OPEN page's device px and HOME's at HOME's (OPEN ÷ S) — each 1 : 1 where it shows, so the
@@ -765,13 +768,14 @@
       if(phase === 'pill'){ phase = 'expand'; morphTo(PILL, PANEL, EXPAND_S); }
       else if(phase === 'panel'){ phase = 'zoomin'; camTo(1, IN_MS); }
       else if(phase === 'corner'){ phase = 'zoomout'; camTo(0, OUT_MS); combFade(0, COMB_OUT); }
-      else if(phase === 'circle'){ phase = 'opening'; tOpen = 0; armGrow(STATES[1]); cur = 1; }
+      else if(phase === 'circle'){ if(FADE_COMB){ phase = 'combing'; combFade(1, COMB_ON); } else startOpen(); }   // the comb on first, then the open
       else if(phase === 'rest' || (phase === 'opening' && tOpen >= END_MS)) finish();   // the pill under its comb: out
-      else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing' || phase === 'opening') queued = true;
+      else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing' || phase === 'combing' || phase === 'opening') queued = true;
       regrow();
       dirty = true;
     }
     let acc = 0;
+    function startOpen(){ phase = 'opening'; tOpen = 0; armGrow(STATES[1]); cur = 1; dirty = true; }   // grow-on-lift's open: circle → pill
     function finish(){ phase = 'ending'; queued = false; combFade(0, COMB_OUT); if(api.onend) api.onend(); }   // the page's zoom out: the comb leaves with it
     function step(ms){                                                   // the page's frame (site.html's stack step): ms
       ms = Math.max(0, Math.min(64, ms || 0));
@@ -786,12 +790,12 @@
         dirty = true;
       } else acc = 0;
       if(FADE_COMB && phase === 'zoomin' && CAM.u >= COMB_AT) combFade(1, COMB_IN);   // almost in: the comb starts to show
-      if(FADE_COMB && phase === 'closing' && GENIE.t >= GENIE.combMs) combFade(1, COMB_IN);   // the dot has landed and calmed: the comb on it
       if(combStep(sms)) dirty = true;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
       else if(phase === 'zoomin' && !CAM.active){ phase = 'corner'; after(); }
       else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; startGenie(); cur = 0; dirty = true; }
       else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
+      else if(phase === 'combing' && CF.a >= 1) startOpen();             // the comb is on: the open (a click meanwhile stays queued for the out)
       else if(phase === 'opening'){
         tOpen += sms;
         if(queued && tOpen >= END_MS) finish();                          // a click during the open: out once its cue has passed
