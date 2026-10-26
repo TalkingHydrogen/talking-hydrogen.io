@@ -27,8 +27,9 @@
    island law). At OPEN the pill is B wide (the photos' open size: site.html's pageB) and the panel it grows into is centred on the
    screen; the card is the pill's own box (its HOME hit area), seated above the screen's centre by PillShow.dy × B (site.html: openDy).
    Three canvases ride the card: the SHAPE twice — OPEN's at the OPEN page's device px, HOME's at HOME's (÷ S), swapped at the zoom's first
-   frame, so neither state is a resampled bitmap (the drawing note) — and the 07-26 float SHADOW on its own small one (¼ px per css px: a
-   gaussian loses nothing upscaled) with the room its tail needs at HOME. */
+   frame, so neither state is a resampled bitmap (the drawing note); HOME's is re-drawn at the camera's scale while the pill peeks beside
+   another open page (NEAR) — and the 07-26 float SHADOW on its own small one (¼ px per css px: a gaussian loses nothing upscaled) with
+   the room its tail needs at HOME. */
 (function(){
   'use strict';
   /* ============================================================
@@ -665,7 +666,14 @@
       C.rx = w / b.w; C.ry = h / b.h;
       return true;
     }
-    const resOpen = () => G.dpr, resHome = () => G.dpr / Math.max(1, G.S);
+    /* the pill as a NEIGHBOUR (owner 2026-10-26: "the pill in this one looks low rez in zoomed in preview … on the left"): the page's
+       camera on another stack magnifies this HOME card by that stack's scale (1440 × 900: the room print's 1.78, the MacBook's 2.06) —
+       HOME's canvas showed that much upscaled, its edge a 3 px blur. NEAR (site.html: nearSync() → near()): null, every stack at HOME ·
+       'zoom', the camera on its way there from HOME — OPEN's canvas shows (drawn ahead: minified, never upscaled) · k, that page landed
+       and nothing moving — HOME's canvas re-drawn at k × HOME's px, 1 : 1 again (re-allocated at rest only: the stall note above), and
+       kept through the next camera move or the zoom out; HOME's px again once every stack is HOME */
+    let NEAR = null;
+    const resOpen = () => G.dpr, resHome = () => G.dpr * (typeof NEAR === 'number' ? NEAR : 1) / Math.max(1, G.S);
     function need(){                                                     // OPEN's box for now (and the next step, when this one rests)
       if(mode === 'home') return 'pill';
       switch(phase){
@@ -688,8 +696,9 @@
       G.sx = sw / G.shW; G.sy = shh / G.shH;
     }
     function shows(){                                                    // which shape canvas is seen: a compositor-only swap
-      OPENC.el.style.opacity = mode === 'open' ? '1' : '.002';
-      HOMEC.el.style.opacity = mode === 'open' ? '.002' : '1';
+      const open = mode === 'open' || (NEAR === 'zoom' && !(HOMEC.res > G.dpr / Math.max(1, G.S) * 1.001));   // a neighbour's zoom from HOME: OPEN's (NEAR)
+      OPENC.el.style.opacity = open ? '1' : '.002';
+      HOMEC.el.style.opacity = open ? '.002' : '1';
     }
     function shadow(pts, C){
       const n = pts.length, sp = SH.spread;
@@ -843,10 +852,17 @@
         combFade(0, 200);
         cur = 1; phase = 'reset'; queued = false; dirty = true;
       },
-      home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },
+      home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },   // (HOME's canvas at NEAR's px: a camera move away lands on a neighbour)
+      near(v){                                                           // site.html's nearSync(): the page's camera on another stack (NEAR)
+        if(v === NEAR) return;
+        NEAR = v;
+        if(mode === 'open' || !base) return;                             // the pill's own page: its canvases are the sequence's (home() takes NEAR up)
+        if(v !== 'zoom' && setBox(HOMEC, 'pill', resHome())) paint(HOMEC, outline(pose()), camAt(CAM.u));   // landed / HOME: re-allocated → its pill again
+        shows();
+      },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
                genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null, comb: +CF.a.toFixed(4),
-               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
+               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, near: NEAR, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
     };
     return api;
   }

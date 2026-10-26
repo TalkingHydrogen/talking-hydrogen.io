@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=f29653a."+Date.now().toString(36)+location.hash)</script>
+<head><script>if(!/[?&]v=/.test(location.search))location.replace(location.pathname+(location.search?location.search+"&":"?")+"v=0e16603."+Date.now().toString(36)+location.hash)</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">   <!-- viewport-fit: the phone's notch bands are the viewer's (mobile.js); a no-op on a desktop -->
 <meta name="format-detection" content="telephone=no">   <!-- SAFARI GUARDS (2026-10-15): no tel: links out of the captions' numbers (the only value WebKit parses); a no-op on a desktop -->
@@ -711,9 +711,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=f29653a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=0e16603"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=f29653a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=0e16603"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -4232,6 +4232,7 @@ function step(dt, now) {
   untuckStep();
   if (TURN) TURN.step(dt);                                                 // site: TURN
   if (SCENE?.step) SCENE.step(dt);                                         // site 2026-10-21: the PILL SHOWCASE — its springs and camera in the page's frame (the neighbours' slide out with it)
+  nearSync();                                                              // site 2026-10-26: … and its px as another stack's neighbour
   render();
   if (measure) {
     if (measure.settle == null && (1 - p.value) * measure.px < 1) measure.settle = now - measure.t0;
@@ -4255,7 +4256,17 @@ function step(dt, now) {
 function idle(now) {
   // (not while another pile is open: a peeking pile's cards are mostly off screen, and Safari would paint the swap as they slide back in — measured 2026-09-28: +50–100 ms on the close after a CAMERA move)
   if (homeDue && state === 'home' && !primed && !activeStack) { homeDue = false; perfMark('home swap ' + cfg.name); shadeLayers(false); setLayout('home'); }   // PERF (enterHome()): nothing is moving now
+  nearSync();                                                              // site 2026-10-26: the PILL SHOWCASE's neighbour px (its note) — the loop's stop is the rest it waits for
   render(); if (timing.t0 && timing.done == null) timing.done = now - timing.t0; }   // the loop stopped: the last render at the end values
+/* site 2026-10-26 — the PILL SHOWCASE as a NEIGHBOUR (owner: "the pill in this one looks low rez in zoomed in preview … on the left"):
+   the CAMERA on another stack magnifies this HOME card by that stack's scale (the room print's 1.78 at 1440 × 900), and its HOME canvas
+   showed that much upscaled. The scene is told (pillshow.js NEAR): 'zoom' while that camera moves, its scale once that page has landed
+   with nothing moving (no camera move, no NUDGE) — HOME's canvas re-drawn there 1 : 1, at rest — and null with every stack at HOME */
+function nearSync() {
+  if (!SCENE?.near) return;
+  const a = activeStack;
+  SCENE.near(!a || a === self ? null : a.state === 'open' && !RP.move && !RP.nPh ? (CAMERA ? a.zoom.S : 1) : 'zoom');
+}
 
 const wr = {};                              // last written inline values of this stack's item / hover nodes (a write only when the value changes)
 const put = (el, k, prop, v) => { if (wr[k] !== v) { wr[k] = v; el.style[prop] = v; } };
