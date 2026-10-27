@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=eb57bd3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=1438d8a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=eb57bd3"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=1438d8a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1815,22 +1815,11 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    hover (the teaser) or a click (the turn) takes over from where it is; a hover that comes BEFORE it (the pointer sits in a band after
    the click) does not cancel it but defers it — it stays due and plays `delay` after the teaser has eased back to rest; a turn ends
    this landing's hint (they turned it: the next landing hints again). Was: never again once turned this visit.
-   PINNED since 2026-10-27 (TURN_PIN, below): a hinge after the fingers' nudge, not the take's drift.
    Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
 const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .55, delay: 800, up: 1, hold: .2, down: 1.1,
                     rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
   const d = parseFloat(pageQuery.get('turnhintat')); if (Number.isFinite(d)) TURN_HINT.delay = clamp(d, 0, 5000); }
-/* site 2026-10-27, PINNED (owner: "I want the left edge to be locked, that it's not moving … there's a image sitting on the desk, and you
-   lift it with your right hand … the first when you reach to it, you'll push the image to the left … then you pick it up, put your
-   fingers under it … and then you flip it"; before: "Currenly it slides to the right the whole thing" — the take's start drifts the print
-   right, ~11 css px at the hint's 2.2°, ~16 at the teaser's 4°). The TEASER and the ZOOM-IN HINT play the take's start as a HINGE
-   (flip-render pose's `pin`): the far edge stays on the table, the near one rises as high as the take lifts it. First the fingers'
-   NUDGE: the print slides `push` print widths away from the hand, done by take time `pushAt` s (the take's lift is still under .01 W
-   there: the nudge reads first, the lift after). A click — the turn — hands the pose back to the take over `out` s (smootherstep): it
-   merges into the recorded flip; at rest it re-pins. ?turnpin=0 off (the take as recorded) · ?turnpush=W its nudge (print widths) */
-const TURN_PIN = { on: pageQuery.get('turnpin') !== '0', push: .01, pushAt: .07, out: .45 };
-{ const v = parseFloat(pageQuery.get('turnpush')); if (Number.isFinite(v)) TURN_PIN.push = clamp(v, 0, .1); }
 function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base, json }; Bpx: the open card's device px
   const V = {}, vids = [], poster = host.querySelector('img');   // the clips by name: { name, el, fps, pose, last }; the card's image (the closed pose — the phone: the rest pose)
   const kind = /apple/i.test(navigator.vendor) ? 'hevc' : 'vp9';            // WebKit: HEVC with alpha; the rest: VP9 with alpha
@@ -2790,7 +2779,7 @@ function makeTurn(FR, take, tuning) {
                         back: Object.assign({ sizes: sizesOf(c) }, cfg.turn.back), floorCrisp: cfg.turn.floorCrisp, floorSharp: cfg.turn.floorSharp, floorSoft: cfg.turn.floorSoft, floorWide: cfg.turn.floorWide, W, H });
   for (const im of S.images) keepImg(im, wrap);                            // PERF: KEEPALIVE — the back and the lifted shadows too
   const T = { S, take, k, card: c, playing: false, t: 0, from: 'front', side: take.side, dirty: true,
-              hint: { t: 0, v: 0, target: 0, side: 0, want: 0 }, tHint: 0, pin: 1, pinR: 1 };   // pin: TURN_PIN's hinge weight (pinR its ramp: to 0 while a turn plays, back to 1 at rest)
+              hint: { t: 0, v: 0, target: 0, side: 0, want: 0 }, tHint: 0 };
   FR.smoothTake(take, k); T.tHint = FR.hintTime(take, k.hint);
   T.resize = () => { S.resize(c.w, c.h); T.dirty = true; };
   /* the CLOSE (closeNow → T.home): the FRONT is the print's rest (designer 2026-09-30: "when I zoom the single image out with
@@ -2858,11 +2847,6 @@ function makeTurn(FR, take, tuning) {
     kick();
   };
   T.step = dt => {
-    const pinTo = T.playing ? 0 : 1;                                                 // site 2026-10-27: TURN_PIN — a turn hands the hinge back to the take; at rest it re-pins
-    if (T.pinR !== pinTo) {
-      const d = dt / 1000 / TURN_PIN.out; T.pinR = pinTo ? Math.min(1, T.pinR + d) : Math.max(0, T.pinR - d); const x = T.pinR;
-      T.pin = x * x * x * (x * (6 * x - 15) + 10); if (T.playing || T.hint.t > 0) T.dirty = true;
-    }
     if (T.playing) {
       T.t += dt / 1000 * k.speed; T.dirty = true;
       if (T.t >= take.dur) {
@@ -2895,9 +2879,8 @@ function makeTurn(FR, take, tuning) {
   };
   T.draw = () => {
     if (!T.dirty) return; T.dirty = false;
-    const h = T.hint, teased = !T.playing && h.t > 0 && h.side, t = T.playing ? T.t : teased ? Math.max(0, h.t) : 0;
-    const x = Math.min(1, t / TURN_PIN.pushAt), push = TURN_PIN.push * x * x * x * (x * (6 * x - 15) + 10);   // TURN_PIN: the fingers' nudge, then the lift
-    S.draw(S.pose(take, t, k, { side: teased ? h.side : T.side, from: T.from, pin: TURN_PIN.on ? T.pin : 0, push }), k, take);
+    const h = T.hint, teased = !T.playing && h.t > 0 && h.side;
+    S.draw(S.pose(take, T.playing ? T.t : teased ? Math.max(0, h.t) : 0, k, { side: teased ? h.side : T.side, from: T.from }), k, take);
   };
   return T;
 }

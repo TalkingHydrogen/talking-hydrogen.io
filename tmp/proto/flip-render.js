@@ -23,9 +23,7 @@
      scene.resize(widthPx)
      scene.draw(state)                           state = pose(take, t, knobs, flip) or FlipRender.REST
      pose(take, t, knobs, {side, from})          → {R, P, face} : take time t (s), side ±1 (+1: the right / top edge lifts
-                                                   first), from 'front' | 'back' (which face is up before this flip),
-                                                   pin 0…1 (the hinge: the edge that stays down holds its place), push (its
-                                                   nudge away from the lifted edge, print widths)
+                                                   first), from 'front' | 'back' (which face is up before this flip)
      KNOBS                                       defaults (lens, lift, travel, thick, light, shade, sheen …)
 */
 (function (root) {
@@ -88,13 +86,6 @@
     const q = [k0 * a[0] + k1 * bb[0], k0 * a[1] + k1 * bb[1], k0 * a[2] + k1 * bb[2], k0 * a[3] + k1 * bb[3]];
     const n = Math.hypot(q[0], q[1], q[2], q[3]);
     return [q[0] / n, q[1] / n, q[2] / n, q[3] / n];
-  }
-  function matq(R) {                                   // a rotation matrix → its quaternion (Shepperd: from the largest diagonal term)
-    const t = R[0] + R[4] + R[8];
-    if (t > 0) { const s = Math.sqrt(t + 1) * 2; return [s / 4, (R[7] - R[5]) / s, (R[2] - R[6]) / s, (R[3] - R[1]) / s]; }
-    if (R[0] > R[4] && R[0] > R[8]) { const s = Math.sqrt(1 + R[0] - R[4] - R[8]) * 2; return [(R[7] - R[5]) / s, s / 4, (R[1] + R[3]) / s, (R[2] + R[6]) / s]; }
-    if (R[4] > R[8]) { const s = Math.sqrt(1 + R[4] - R[0] - R[8]) * 2; return [(R[2] - R[6]) / s, (R[1] + R[3]) / s, s / 4, (R[5] + R[7]) / s]; }
-    const s = Math.sqrt(1 + R[8] - R[0] - R[4]) * 2; return [(R[3] - R[1]) / s, (R[2] + R[6]) / s, (R[5] + R[7]) / s, s / 4];
   }
   function mmul(A, B) {
     const C = new Array(9);
@@ -323,21 +314,6 @@
     const need = Math.max(0, -lo + th / 2 * (Math.abs(R[8]) - 1));
     const e = .004;
     P[2] = Math.max(0, smax(P[2], need, e) - e / 2) * k.clear;       // `clear` = LIFT %: the whole rise (100 % = it just clears the table)
-    if (flip.pin > 0) {                                    // site 2026-10-27, the PIN (owner: "the left corner is locked, and only right one being lifted up")
-      // flip.pin 0…1 → the HINGE: the edge that stays down holds its place on the table and only the lifted edge rises, as high
-      // as the take lifts it here (the same rise; no drift, lean or rock). Between: slerp · lerp toward it. flip.push (print
-      // widths): the whole print slid away from the lifted edge first — the fingers' nudge as they reach under it.
-      const sd = flip.side || 1, L = take.axis === 'x' ? aspect : 1;
-      const Rw = flip.from === 'back' ? mmul(R, mT(take.E)) : R;   // the world motion (the lifted edge in world terms)
-      const ze = (take.axis === 'x' ? Rw[7] * sd * aspect / 2 : Rw[6] * sd / 2) + P[2];
-      const sn = Math.min(1, Math.max(0, ze) / L), c = Math.sqrt(1 - sn * sn), h = L / 2;
-      let Rh = take.axis === 'x' ? [1, 0, 0, 0, c, -sd * sn, 0, sd * sn, c] : [c, 0, -sd * sn, 0, 1, 0, sd * sn, 0, c];
-      const pu = flip.push || 0, Ph = take.axis === 'x' ? [0, -sd * (h * (1 - c) + pu), h * sn] : [-sd * (h * (1 - c) + pu), 0, h * sn];
-      if (flip.from === 'back') Rh = mmul(Rh, take.E);
-      const w = Math.min(1, flip.pin);
-      if (w >= 1) { R = Rh; for (let i = 0; i < 3; i++) P[i] = Ph[i]; }
-      else { R = qmat(slerp(matq(R), matq(Rh), w)); for (let i = 0; i < 3; i++) P[i] += (Ph[i] - P[i]) * w; }
-    }
     return { R, P, u: s.u, face: (flip.from === 'back') ? 'back' : 'front', rest: false, done: false };
   }
 
