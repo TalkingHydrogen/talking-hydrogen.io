@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=37c54bc"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=280150a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=37c54bc"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=280150a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1803,7 +1803,10 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    (every feed image on a phone), then the desktop's 800 ms, then its clip, fetched with the three others. Now its lid.json + the pop
    clip load at BOOT (open / rev / landr at the page's load, the pop's end or the first touch: a tap before they're in waits at the rest
    for its metadata, to()), and the pop
-   fires `popDelay` ms from boot (checked every 100 ms, seen twice), as soon as its clip is entered. ?hintat=MS sets it too. */
+   fires `popDelay` ms from boot (checked every 100 ms, seen twice), as soon as its clip is entered. ?hintat=MS sets it too.
+   2026-10-27 (owner: "when it overshoots, then it for some reason waits. There is a pause between it when it retracts. It just must be
+   one continuous thing"): the pop clip is ONE swing now (lidvideo.py: no hold at the top), and its file is fetched WHOLE (a blob) before
+   it is entered — on a phone a preload may stop at the metadata, and the pop then played what it had and stalled near its top. */
 LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 200;
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
@@ -1844,6 +1847,9 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
      and the lid lifts from 0 to the rest on the hint clip, stopped at its top). Goals as the desktop's: 'closed' and 'crack' are both
      the rest there. Before (2026-10-14, VR3-3) the feed's lid rested fully OPEN on the fwd clip; the owner never saw it move on a real
      iPhone. A desktop: unchanged.
+     2026-10-27 (owner: "when it retracts, it stutters a bit almost at the end"): the close was rev, then a SWAP to landr at its start
+     pose (a pause + a seek, ~.35 s before the end); now it is ONE clip, shut (lidvideo.py: rev down to landr's start, then landr's
+     brake onto the rest) — entered at the pose nearest the lid's, as rev was. A lid.json without it: rev + landr as before.
      iOS: a preload="auto" clip may stop at its metadata (Low Data Mode, cellular, power), it may defer some of many media elements, and
      a muted play() outside a gesture is refused in Low Power Mode. So on a phone a clip is entered once ITS metadata is in (okK: the
      swap's seek fetches the frame; no move waits for every clip), the hint needs only the lift clip, and a refused play() is retried
@@ -1862,7 +1868,9 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
     el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
     el.preload = 'auto'; el.style.opacity = '0';
-    el.src = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
+    const url = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
+    if (name === 'pop' && LID_POP) fetch(url).then(r => r.ok ? r.blob() : Promise.reject()).then(b => { el.src = URL.createObjectURL(b); }, () => { el.src = url; });   // the POP's clip WHOLE before it can start (LID_POP's note): a phone's preload stops early, and the pop then stalled at its top
+    else el.src = url;
     el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
     if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
     el.dataset.clip = name;                                                // (?dbg=1's readout)
@@ -1873,7 +1881,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     if (loaded) return; loaded = true;
     fetch(L.base + L.json).then(r => r.json()).then(j => {
       J = j; const ws = j.w.slice().sort((a, b) => a - b); wPick = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
-      const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', 'rev', 'landr'] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift)
+      const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', ...(j.clips.shut ? ['shut'] : ['rev', 'landr'])] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift; the close: shut, or rev + landr)
       if (!PH && LID_HINT.on && j.clips.hint) names.push('hint');          // site 2026-10-07: the load-time HINT's clip (LID_HINT)
       const later = LID_POP && names[0] === 'pop' ? names.splice(1) : [];   // LID_POP: the pop now, the others after the page's load (its note)
       for (const name of names) add(name);
@@ -1897,9 +1905,10 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   const endOf = K => K.pose[K.last], dirOf = K => Math.sign(K.pose[K.last] - K.pose[0]);
   function entry(K, s) { let best = 0, d = Infinity; for (let i = 0; i <= K.last; i++) { const e = Math.abs(K.pose[i] - s); if (e < d) { d = e; best = i; } } return best; }
   function show(K) {                        // the incoming clip and the outgoing one (or the poster) in one frame: never two translucent layers
-    const old = vis; if (old === K) return;
+    if (vis === K) return;
     K.el.style.opacity = '1'; vis = K;
-    if (old) old.el.style.opacity = '0'; else poster.style.visibility = 'hidden';
+    for (const o of vids) if (o !== K && o.el.style.opacity !== '0') o.el.style.opacity = '0';   // 2026-10-27: EVERY other layer, not only the last one shown
+    poster.style.visibility = 'hidden';     // (the owner's phone showed the closed lid under the open one: the closed pose left on screen)
   }
   const arm = () => { if (stopAt && !raf) raf = requestAnimationFrame(tick); };
   function tick() {                         // only a stop short of the clip's end needs watching (rev caught by the hover)
@@ -1932,7 +1941,8 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     if (!ready() || !cur) return;
     const Cc = C(), s = poseNow(), t = g === 'open' ? J.n - 1 : g === 'crack' ? Cc : R(), playing = !cur.el.paused;
     if (Math.abs(t - s) < .5 && !(playing && endOf(cur) === t)) { if (playing) cur.el.pause(); stopAt = null; return; }   // there (a clip landing on it plays on)
-    const dir = t > s ? 1 : -1, land = dir < 0 && t === Cc;                         // land: closing onto the catch pose — rev, then the land clip from its start pose
+    const SH = PH ? V.shut : null;                                                 // the phone's close, one clip (its note)
+    const dir = t > s ? 1 : -1, land = dir < 0 && t === Cc && !SH;                  // land: closing onto the catch pose — rev, then the land clip from its start pose
     const Ls = PH ? J.landr : J.land, LK = PH ? V.landr : V.land, toLand = { s: Ls, dir, then: PH ? 'landr' : 'land' };
     if (playing && dirOf(cur) === dir && (dir > 0 ? endOf(cur) >= t : endOf(cur) <= t)) {   // already heading there: keep it
       if (land && cur === V.rev) { if (s > Ls) { stopAt = toLand; arm(); } else if (okK(LK)) { stopAt = null; swap(LK, s, my); } return; }
@@ -1940,7 +1950,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     }
     const popUp = dir > 0 && t > Cc && s < Cc - 1 && !!V.pop && !okK(V.fwd);       // LID_POP: opened from under the rest before fwd is in (the phone loads it at the film) — the pop up to the rest, then the open clip
     const K = dir > 0 ? (t <= Cc ? (PH ? V.pop || V.hint : V.crack) : s >= Cc - 1 ? V.open : popUp ? V.pop : V.fwd)   // up to the catch pose: the crack clip — the phone (from under the rest: shut at load, after the film): the pop (it ends at the rest), or the hint clip stopped at its top = the rest
-                      : (!PH && s <= Cc + .5 ? V.uncrack : land && s <= Ls + .5 ? LK : V.rev);
+                      : SH || (!PH && s <= Cc + .5 ? V.uncrack : land && s <= Ls + .5 ? LK : V.rev);
     if (!okK(K)) return;                                                           // (the phone) not entered yet: its loadedmetadata re-runs to(goal)
     if (popUp && cur === K && playing) { stopAt = { s: Cc - 1, dir, then: 'open' }; arm(); return; }   // the pop already rising: on to the open from where it is
     stopAt = popUp ? { s: Cc - 1, dir, then: 'open' } : endOf(K) === t ? null : land && K === V.rev ? toLand : { s: t, dir };
@@ -1961,7 +1971,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   function unlock() {                       // the phone (its note): inside a touchend — every paused clip played + paused at once
     if (!J || freed) return;
     for (const K of vids) {
-      if (!K.el.paused) continue;
+      if (!K.el.paused || K.el.ended) continue;   // 2026-10-27: an ENDED clip has played (it needs no unlock), and play() on it starts it over: the pop, on screen at the rest, went to its frame 0 — SHUT — at the first touch
       const pr = K.el.play(); K.el.pause();
       if (pr && pr.then) pr.then(() => { freed = true; }, e => { if (!e || e.name !== 'NotAllowedError') freed = true; });   // an AbortError (the pause) = allowed
     }
