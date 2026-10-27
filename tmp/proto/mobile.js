@@ -513,9 +513,10 @@
   function stackCfg(wrap, cfg) {
     const c = Object.assign({}, cfg);
     if (c.openDx) c.openDx = 0;                                          // the polaroids' optical shift is a side-band nicety: centred on a phone
-    if (c.openB && !c.film) c.openB = clipB;                             // the clips (and the still trailer): the phone's box (spec 7: capped at the width)
+    if (c.phoneB) c.openB = c.phoneB;                                    // 2026-10-27: its own phone box (the PILL SHOWCASE)
+    else if (c.openB && !c.film) c.openB = clipB;                        // the clips (and the still trailer): the phone's box (spec 7: capped at the width)
     if (OPEN_EXT[c.name]) c.openB = (W, H) => extB(c.name, W, H);        // a fan: its whole picture within the margins
-    else if (!c.film) { const ar = aspectOf(c); if (ar > 1) c.openB = wideB(c.openB || ((W, H) => phoneB(W, H)), ar); }   // a wide item, landscape: its own rectangle (fix D2)
+    else if (!c.film && c.name !== 'pillshow') { const ar = aspectOf(c); if (ar > 1) c.openB = wideB(c.openB || ((W, H) => phoneB(W, H)), ar); }   // a wide item, landscape: its own rectangle (fix D2) — not the PILL SHOWCASE: its 3.2 : 1 card is a hit frame, the panel it grows into needs the clips' box
     if (c.images && c.images.some(m => m.scale > 1))                    // the digital 136 card (1.25 B) would be wider than the screen
       c.images = c.images.map(m => m.scale > 1 ? Object.assign({}, m, { scale: 1 }) : m);
     if (c.name === 'macbook' && wrap) wrap.dataset.size = String(P.mac);
@@ -563,6 +564,7 @@
   /* layoutSize(): the open item's vertical offset from the viewer's centre (and its caption's top). Portrait: the item + its caption
      (its own, or its group's: the same text beside every member) as one block, CAP_BELOW.k of the free height above it; landscape: centred. */
   function seat(G, eff, cfg, capEl, groupCap) {
+    if (cfg.seatY > 0) return LAY && LAY.por ? cfg.seatY * G.H - (eff.top + eff.height / 2) : cfg.openDy ? cfg.openDy(G.W, G.H, G.B) : 0;   // 2026-10-27: an item seated on the screen's own grid (the PILL SHOWCASE: its centre at seatY × H in portrait; landscape: its desktop seat)
     const x = OPEN_EXT[cfg.name] || NOEXT, up = x.t * G.B, dn = x.b * G.B;
     if (!LAY || !LAY.por) return (up - dn) / 2;                          // landscape: the whole picture centred on the height
     const H = G.H, cap = capEl || groupCap || null;

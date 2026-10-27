@@ -498,8 +498,8 @@
        A stack of one whose card is the pill's own box (an invisible 3.2 : 1 frame); a click zooms it to the photos' open size, then
        every click on the open page plays the next step: the pill grows into the owner's reference panel → the camera zooms into its
        corner → back out and grow-on-lift's close into the bubble → grow-on-lift's open into the pill → the page zooms out on its own.
-       PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23 (brew's, the MacBook's). Desktop only
-       (?pill=1 on a phone) -->
+       PILLSHOW in BOOT; data-size .7 (the pill .7 × the row height wide at HOME); data-age 23 (brew's, the MacBook's). On the phone
+       too since 2026-10-27 (PILLSHOW's PHONE note; ?pill=0 = none) -->
   <div class="wrap" id="pillshow" data-size=".7" data-age="23"><div class="box">
     <div class="item"><div class="hover"><div class="cards"></div></div></div>   <!-- its one .card (the invisible frame + the scene): PILLSHOW in BOOT -->
   </div></div>
@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=a893a4e"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=eb57bd3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=a893a4e"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=eb57bd3"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -3164,7 +3164,7 @@ function layoutMeasure() {
   G.openBot = gr.bottom - vr.top + G.dy;                   // FEED: the open box's bottom (viewport px)   // MOBILE: + the phone's seat (G.dy, layoutSize(); 0 on a desktop) — > 0 here: the viewer box ends below the content bottom (no y ≤ 0 clamp)
   targets();
   arrange();                                               // the slot poses, the card sizes, clips and shadows depend on B, K and S
-  if (SCENE?.layout) SCENE.layout({ W: G.W, H: G.H, B: G.B, S: G.S, dpr: devicePixelRatio || 1 });   // site 2026-10-21: the PILL SHOWCASE's canvases and cameras (its open framing is the page's)
+  if (SCENE?.layout) SCENE.layout({ W: G.W, H: G.H, B: G.B, S: G.S, dpr: devicePixelRatio || 1, top: PG.phone ? G.eff.top : undefined });   // site 2026-10-21: the PILL SHOWCASE's canvases and cameras (its open framing is the page's)
   if (CAPG && capEl) capMeasure();                         // site 2026-10-09: the CAPTION GROUP's band (capDx())
   render();
 }
@@ -6562,8 +6562,9 @@ if (window.__mobile?.on) TOUCH = (() => {
     const pr = a.playKey(false) && a.playBtn?.getBoundingClientRect(), ps = 4;                // the play disc FIRST, by its rect (not elementFromPoint: a neighbour's
     if (pr && pr.width && x >= pr.left - ps && x <= pr.right + ps && y >= pr.top - ps && y <= pr.bottom + ps) { a.playKey(true); return; }   // sliver, z-index 100, lies over its right half on a phone — fix D1 2026-10-13); ps: the :active .92 press scale
     if (el?.closest?.('.play') && a.playKey(true)) return;                                  // the play disc
-    const nz = nzAt(x, y, a);
+    const nz = a.sceneOut > 0 ? null : nzAt(x, y, a);                                      // (2026-10-27: the PILL SHOWCASE's corner — its neighbours slid out, their bands are its)
     if (nz) { const b = nbOf(+nz.dataset.side); if (b && b.state === 'home' && !b.blocked()) moveTo(b); return; }
+    if (a.sceneTap()) { mem('act'); return; }                                               // 2026-10-27: the PILL SHOWCASE — a tap anywhere is its next step (the desktop's click)
     const z = a.zoneAt(x, y);
     if (z === null) a.collapse();
     else if (z) { a.flip(z); mem('act'); }
@@ -6844,15 +6845,20 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
 /* site 2026-10-21 — THE PILL SHOWCASE (the markup's #pillshow note; proto/pillshow.js): a SCENE on an invisible card the pill's own
    3.2 : 1 box (a 32 × 10 transparent PNG, inline: nothing to fetch, no srcset), no paper / radius / shadow knobs, straight, floating
    in the middle of its row box (rest.up 0). Its open box is the photos' (pageB: the pill B wide), seated PillShow.dy × B above the
-   centre so the panel it grows into is centred. The scene's camera moves run SLOW × the page's iOS 7 timing (?pillslow=). Desktop
-   only (a phone: ?pill=1). */
-const PILL_ON = !!window.PillShow && (!window.__mobile?.on || pageQuery.get('pill') === '1');
+   centre so the panel it grows into is centred. The scene's camera moves run SLOW × the page's iOS 7 timing (?pillslow=).
+   PHONE (owner 2026-10-27: "port the pill animation and everything the pill is doing to the phone version … it fills the certain ratio
+   of the phone … if you split the screen in three … it'll be on the first one from the top"): in portrait the pill is .72 of the
+   screen's width (phoneB; ?pillw=) — the photos' .9 put its comb's caps off both edges — and sits on the camera grid's upper line: its
+   centre at seatY × the screen's height (mobile.js seat(); ?pillseat=), the panel growing down from it; the scene frames from that seat
+   (SCENE.layout's top); a tap is the next step, as a click (openTap()). Landscape: the clips' box and the desktop's seat. ?pill=0: none. */
+const PILL_ON = !!window.PillShow && pageQuery.get('pill') !== '0';
 if (PILL_ON) {
-  const slow = parseFloat(pageQuery.get('pillslow'));
+  const slow = parseFloat(pageQuery.get('pillslow')), pw = parseFloat(pageQuery.get('pillw')) || .72;
   stacks.push(makeStack($('pillshow'), { name: 'pillshow', idp: 'ps-', images: [{ id: 'pillshow', src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAKCAYAAADVTVykAAAAEklEQVR42mNgGAWjYBSMgpEOAAUKAAEVKR6qAAAAAElFTkSuQmCC', w: 2560, h: 800 }], deck: [0],
                                          knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: 0 },
                                          scene: cv => (window.__pillScene = window.PillShow.create(cv, { slow: slow > 0 ? slow : 3.5, inMs: ZOOM.ease.inMs, outMs: ZOOM.ease.outMs, bez: ZOOM.ease.bez })),   // __pillScene: debug (its debug())
-                                         openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B }));
+                                         openB: (W, H) => pageB(W, H), openDy: (W, H, B) => -window.PillShow.dy * B, seatY: parseFloat(pageQuery.get('pillseat')) || 1 / 3,
+                                         phoneB: (W, H) => H >= W ? pw * W : window.__mobile.clipB(W, H) }));
 } else $('pillshow').remove();
 /* site: the POLAROIDS (the markup's comment): the NEO print in front, the whiteboard trees behind — exactly the cards (the
    brew/polaroid scan renders, 2400 × 2918 webp, not downsized since 2026-10-17: brew/polaroid card.py --full). FULL (owner 2026-10-17:
