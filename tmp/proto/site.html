@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=1438d8a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=44bf7d4"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=1438d8a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=44bf7d4"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1799,6 +1799,12 @@ const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'
    touch or a scroll no longer calls it off (the feed is scrolled to reach it) — and it plays once. Reduced motion / ?lidhint=0: the
    old rest poster, no move. ?lidpop=0: the 10-16 lift. */
 const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && pageQuery.get('lidpop') !== '0';
+/* 2026-10-27 (owner, after the pop shipped: "the only problem is that it lifts now with a big delay"): the pop waited for the PAGE's load
+   (every feed image on a phone), then the desktop's 800 ms, then its clip, fetched with the three others. Now its lid.json + the pop
+   clip load at BOOT (open / rev / landr at the page's load, the pop's end or the first touch: a tap before they're in waits at the rest
+   for its metadata, to()), and the pop
+   fires `popDelay` ms from boot (checked every 100 ms, seen twice), as soon as its clip is entered. ?hintat=MS sets it too. */
+LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 200;
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
    time it has landed in OPEN — a zoom in from HOME or a camera move's arrival from another open pile (owner 2026-10-10: "lift up
@@ -1810,13 +1816,16 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    smooth and gentle"; before: .85 × = 3.4°, "make the lift a bit more subtle", and at first 1.6 × = 6.4°, as the lid's hint rose 1.6 × its
    hover crack). The take LIFTS before it turns, so the lift is front-loaded — measured on the composites (the print's edge drift · its
    top's rise, device px): 6.4° 51 · 15, 3.4° 32 · 9, 2.2° ~24 · 7, 1.4° ~16 · 4.5.
+   `reach` × the take time it plays to (owner 2026-10-27: "let it just lift 5% more on the suggestive lift"): hintTime snaps to the
+   take's samples (the next one up is +14 % lift), so the top is set in take time — 1.0208 × = +5 % rise (lifted edge .0416 → .0437 W,
+   the print's centre +5.2 %, its drift +3.9 %).
    Up 1 s · hold .2 s · down 1.1 s, SMOOTHERSTEP each way (zero speed AND acceleration at every turn of it: no jolt where it sets off,
    tops out or lands; was the lid hint's .65 · .15 · .6 s smoothstep). Not on its back, not mid-turn. ONE hint per landing: a band's
    hover (the teaser) or a click (the turn) takes over from where it is; a hover that comes BEFORE it (the pointer sits in a band after
    the click) does not cancel it but defers it — it stays due and plays `delay` after the teaser has eased back to rest; a turn ends
    this landing's hint (they turned it: the next landing hints again). Was: never again once turned this visit.
    Reduced motion: never. ?turnhint=0 off · ?turnhint=DEG its turn · ?turnhintat=MS its delay */
-const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .55, delay: 800, up: 1, hold: .2, down: 1.1,
+const TURN_HINT = { on: pageQuery.get('turnhint') !== '0' && !pageQuery.has('film'), deg: null, scale: .55, reach: 1.0208, delay: 800, up: 1, hold: .2, down: 1.1,
                     rm: matchMedia('(prefers-reduced-motion: reduce)') };
 { const v = parseFloat(pageQuery.get('turnhint')); if (Number.isFinite(v) && v > 0) TURN_HINT.deg = clamp(v, .5, 45);
   const d = parseFloat(pageQuery.get('turnhintat')); if (Number.isFinite(d)) TURN_HINT.delay = clamp(d, 0, 5000); }
@@ -1866,7 +1875,13 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
       J = j; const ws = j.w.slice().sort((a, b) => a - b); wPick = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
       const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', 'rev', 'landr'] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift)
       if (!PH && LID_HINT.on && j.clips.hint) names.push('hint');          // site 2026-10-07: the load-time HINT's clip (LID_HINT)
+      const later = LID_POP && names[0] === 'pop' ? names.splice(1) : [];   // LID_POP: the pop now, the others after the page's load (its note)
       for (const name of names) add(name);
+      if (later.length) {                   // … at the page's load, the pop's end or the first touch, whichever comes first
+        let on = false; const go = () => { if (on) return; on = true; for (const name of later) add(name); if (ready()) to(goal); };
+        if (document.readyState === 'complete') go();
+        else { addEventListener('load', go, { once: true }); addEventListener('touchstart', go, { once: true, capture: true, passive: true }); V.pop.el.addEventListener('ended', go, { once: true }); }
+      }
       HK()?.el.addEventListener('ended', () => { if (cur === HK() && goal === 'hint') { goal = 'closed'; perfMark('lid hint end'); } });   // the HINT lands at the rest
       cur = PH ? HK() : V.fwd;              // at rest: the poster = fwd's frame 0 (closed) — the phone: the pop's frame 0 (closed; LID_POP) or the lift's (the rest)
       if (held && !V.pop) held = false;     // (a lid.json without the pop: the lift's rest)
@@ -2820,7 +2835,7 @@ function makeTurn(FR, take, tuning) {
     if (!T.autoDue || state !== 'open' || T.playing || T.from !== 'front') return;
     const h = T.hint; if (h.want || h.t > 0 || h.target > 0 || h.v !== 0) return;
     T.autoDue = false;
-    T.auto = { t0: performance.now(), tH: FR.hintTime(take, TURN_HINT.deg ?? TURN_HINT.scale * k.hint), side: take.side };
+    T.auto = { t0: performance.now(), tH: FR.hintTime(take, TURN_HINT.deg ?? TURN_HINT.scale * k.hint) * TURN_HINT.reach, side: take.side };
     perfMark('turn hint'); T.dirty = true; kick();
   };
   T.takeAuto = () => {                                                      // a RUNNING hint, off from where it is: the teaser's spring takes it on (back to rest, or to a hover's target)
@@ -4210,22 +4225,22 @@ function lidSync() {
 /* site 2026-10-07: the lid's load-time HINT (LID_HINT) — armed at BOOT; called off for good by the visitor's first press / wheel / key
    / touch, or when its moment finds the page elsewhere (away from HOME, the pointer on the laptop, the laptop off screen).
    LID_POP (the phone, 2026-10-27): the pop is the lid's way to its rest, so nothing calls it off but the lid itself moving (a click
-   opened it: hint() false) — it waits, re-checked every 200 ms, until the laptop is SEEN (its machine band, the card's lower .3, wholly
+   opened it: hint() false) — it waits, re-checked every 100 ms from boot, until the laptop is SEEN (its machine band, the card's lower .3, wholly
    on screen at HOME, two checks running, so a fling past it doesn't fire it) and its clip can play; then once. */
 function armLidHint() {
   const evs = LID_POP ? [] : ['pointerdown', 'wheel', 'keydown', 'touchstart'];
   let t = 0, t0 = 0, done = false, seenN = 0;
   const stop = () => { done = true; clearTimeout(t); for (const e of evs) removeEventListener(e, stop, true); document.removeEventListener('visibilitychange', seen); };
-  function seen() { if (done || document.hidden) return; t0 = performance.now(); clearTimeout(t); t = setTimeout(go, LID_HINT.delay); }   // the load, or a hidden tab coming into view
+  function seen() { if (done || document.hidden) return; t0 = performance.now(); clearTimeout(t); t = setTimeout(go, LID_POP ? LID_HINT.popDelay : LID_HINT.delay); }   // the load, or a hidden tab coming into view
   function go() {
     if (done || document.hidden) return;
     const r = cardsEl.getBoundingClientRect(), seenW = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
     if (LID_POP) {
       const on = !blocked() && state === 'home' && !activeStack && !film?.owns && seenW >= r.width / 2 && r.top + .7 * r.height >= 0 && r.bottom <= innerHeight;
       seenN = on ? seenN + 1 : 0;
-      if (seenN < 2) { t = setTimeout(go, 200); return; }
+      if (seenN < 2) { t = setTimeout(go, 100); return; }
       const ok = lid.hint();
-      if (ok === null) { t = setTimeout(go, 100); return; }                                  // its clip still loading (no give-up: the lid is shut till it pops)
+      if (ok === null) { t = setTimeout(go, 50); return; }                                  // its clip still loading (no give-up: the lid is shut till it pops)
       return stop();
     }
     if (LID_HINT.rm.matches || blocked() || state !== 'home' || activeStack || hover.target !== 0 || film?.owns ||
@@ -4236,7 +4251,7 @@ function armLidHint() {
   }
   for (const e of evs) addEventListener(e, stop, { capture: true, passive: true });
   document.addEventListener('visibilitychange', seen);
-  if (document.readyState === 'complete') seen(); else addEventListener('load', seen, { once: true });
+  if (document.readyState === 'complete' || LID_POP) seen(); else addEventListener('load', seen, { once: true });   // (LID_POP: from boot)
 }
 
 /* ============================================================
@@ -4490,7 +4505,7 @@ function openNow() {
 }
 applyConfigs();
 syncHomeSlots();
-if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete') ld(); else addEventListener('load', ld, { once: true }); }   // site: the lid's clips after the page (the poster is the card's image)
+if (lid) { const ld = () => setTimeout(lid.load, 0); if (document.readyState === 'complete' || LID_POP) ld(); else addEventListener('load', ld, { once: true }); }   // (LID_POP: at once — the pop's clip first, LID_POP's note)   // site: the lid's clips after the page (the poster is the card's image)
 if (lid && LID_HINT.on) { if (STG) STG.then(armLidHint); else armLidHint(); }   // site 2026-10-07: … and its HINT once they can play (LID_HINT) — the STAGE: after the ENTRY's landing and the name (the desk was below the screen; the entry's swipe would have called it off)
 resetOrder();
 for (const c of cards) if (knobs.deck.includes(c.j)) loadCard(c, 'high');   // PERF: SOURCES — the deck cards now (after G / order exist), the rest lazily (loadTucked())
