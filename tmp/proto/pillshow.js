@@ -382,6 +382,10 @@
        camera's moves, the genie, grow-on-lift's open, and the page's own zoom out at the end (endMs) — one dilation, so nothing changes
        but the pace. ?pilltime= (1.43 = 70% speed). A leave stays on real time: its morph keeps step with the page's standard close */
     const TIME = opt.time > 0 ? opt.time : (parseFloat((/[?&]pilltime=([\d.]+)/.exec(location.search) || [])[1]) || 1.3);
+    /* PHONE (owner 2026-10-27, iPhone 13 mini: "the comb looks too dense … you cant even see these hairs"): W / 320 is 1.2 css px on a
+       375 pt screen — the .7 px hairs merge into a sheet. opt.combGap: the hairs' least spacing, css px (site.html: 3.5 on a phone ≈ the
+       desktop's 4.5 px at 1440, seen from a phone's distance; ?pillgap=) · HIT_PAD: a tap within this many css px of the shape is on it */
+    const GAP_MIN = opt.combGap > 0 ? opt.combGap : 0, HIT_PAD = 12;
     const ctx = cv.getContext('2d');
     const sh = document.createElement('canvas'), shx = sh.getContext('2d');
     sh.className = 'scene-sh'; sh.setAttribute('aria-hidden', 'true');
@@ -750,7 +754,7 @@
       else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a);   // the corner's: the panel at rest
     }
     function drawComb(c, K, u, alpha){                                   // u: canvas px (= device px where it shows) per world px
-      const cssW = u / G.dpr, gap = G.W / 320, n = K.pts.length;
+      const cssW = u / G.dpr, gap = Math.max(G.W / 320, GAP_MIN), n = K.pts.length;   // GAP_MIN: a phone's floor (PHONE)
       const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
       c.globalAlpha = alpha; c.lineCap = 'butt';
       c.beginPath();
@@ -871,6 +875,18 @@
         if(mode === 'open' || !base) return;                             // the pill's own page: its canvases are the sequence's (home() takes NEAR up)
         if(v !== 'zoom' && setBox(HOMEC, 'pill', resHome())) paint(HOMEC, outline(pose()), camAt(CAM.u));   // landed / HOME: re-allocated → its pill again
         shows();
+      },
+      hit(x, y){                                                         // PHONE: is the viewport point (x, y) on the shape as drawn now (+ HIT_PAD)?
+        if(!base) return false;
+        const pts = outline(pose()), C = camAt(CAM.u), wx = (x - C.x) / C.k, wy = (y - C.y) / C.k, d = HIT_PAD / C.k, n = pts.length;
+        let inside = false, near = Infinity;
+        for(let i = 0, j = n - 1; i < n; j = i++){
+          const a = pts[j], b = pts[i];
+          if((b[1] > wy) !== (a[1] > wy) && wx < (a[0] - b[0]) * (wy - b[1]) / (a[1] - b[1]) + b[0]) inside = !inside;
+          const ex = b[0] - a[0], ey = b[1] - a[1], t = clamp(((wx - a[0]) * ex + (wy - a[1]) * ey) / (ex * ex + ey * ey || 1), 0, 1);
+          near = Math.min(near, Math.hypot(a[0] + t * ex - wx, a[1] + t * ey - wy));
+        }
+        return inside || near <= d;
       },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
                genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null, comb: +CF.a.toFixed(4),
