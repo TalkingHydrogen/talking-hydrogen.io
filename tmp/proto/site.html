@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=280150a"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=a9ffe53"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=280150a"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=a9ffe53"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1793,8 +1793,8 @@ const LID_HINT = { on: pageQuery.get('lidhint') !== '0' && !pageQuery.has('film'
 /* site 2026-10-27 — the PHONE's POP (owner: "on the MacBook … it's supposed to open as it is on the web … a closed MacBook will be too
    thin looking, too small looking, and too unclickable looking … it must open up wider and then retract to be like narrower. So from
    fully closed, overshoot with opening and then retract to not that so much open one"): a phone's page loads with the lid SHUT (the
-   closed poster, as the desktop), and its load-time hint is the POP clip (lidvideo.py: 0 → LIFT 22 → REST 16 — up .8 s, .12 s at the
-   top, down .6 s), which leaves the lid at its rest. Before (2026-10-16) the lid loaded already at the rest and the hint was the LIFT
+   closed poster, as the desktop), and its load-time hint is the POP clip (lidvideo.py: 0 → REST 16, one slow move — the late note
+   below), which leaves the lid at its rest. Before (2026-10-16) the lid loaded already at the rest and the hint was the LIFT
    (16 → 22 → 16): it never read as an opening. The phone's pop waits for the laptop to be SEEN (half of it on screen, at HOME) — a
    touch or a scroll no longer calls it off (the feed is scrolled to reach it) — and it plays once. Reduced motion / ?lidhint=0: the
    old rest poster, no move. ?lidpop=0: the 10-16 lift. */
@@ -1804,10 +1804,15 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    clip load at BOOT (open / rev / landr at the page's load, the pop's end or the first touch: a tap before they're in waits at the rest
    for its metadata, to()), and the pop
    fires `popDelay` ms from boot (checked every 100 ms, seen twice), as soon as its clip is entered. ?hintat=MS sets it too.
-   2026-10-27 (owner: "when it overshoots, then it for some reason waits. There is a pause between it when it retracts. It just must be
-   one continuous thing"): the pop clip is ONE swing now (lidvideo.py: no hold at the top), and its file is fetched WHOLE (a blob) before
-   it is entered — on a phone a preload may stop at the metadata, and the pop then played what it had and stalled near its top. */
+   2026-10-27 late (owner: "Don't do back and forth on the animation. It's just do like a nice slow interpolation to a open position. And
+   no overshoot. and make it slower than it is now, maybe twice as slow"): the pop is 0 → REST in 2.6 s, a half sine by the lid top's
+   rise (was 0 → 22 → 16 in 1.3 s; before that with a .12 s hold at the top: "when it overshoots … it waits"). Its clip should be
+   buffered through before it starts (a phone's preload may stop at the metadata, and a pop started then stalls mid-way): hint()
+   waits up to LID_HINT.buffer ms past its metadata for that, then plays what it has. (That evening the clip was fetched whole as a
+   blob instead; dropped while the owner's phone ran the page at ~15 fps — not shown to be the cause, but nothing else was phone-only.)
+   A tap during the pop opens at once: fwd is one of the phone's later clips now (popUp rides the pop only until it is in). */
 LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 200;
+LID_HINT.buffer = 2500;
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
    time it has landed in OPEN — a zoom in from HOME or a camera move's arrival from another open pile (owner 2026-10-10: "lift up
@@ -1868,9 +1873,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
     el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
     el.preload = 'auto'; el.style.opacity = '0';
-    const url = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
-    if (name === 'pop' && LID_POP) fetch(url).then(r => r.ok ? r.blob() : Promise.reject()).then(b => { el.src = URL.createObjectURL(b); }, () => { el.src = url; });   // the POP's clip WHOLE before it can start (LID_POP's note): a phone's preload stops early, and the pop then stalled at its top
-    else el.src = url;
+    el.src = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
     el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
     if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
     el.dataset.clip = name;                                                // (?dbg=1's readout)
@@ -1881,7 +1884,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     if (loaded) return; loaded = true;
     fetch(L.base + L.json).then(r => r.json()).then(j => {
       J = j; const ws = j.w.slice().sort((a, b) => a - b); wPick = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
-      const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', ...(j.clips.shut ? ['shut'] : ['rev', 'landr'])] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift; the close: shut, or rev + landr)
+      const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', ...(j.clips.shut ? ['shut'] : ['rev', 'landr']), ...(LID_POP && j.clips.pop ? ['fwd'] : [])] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift; the close: shut, or rev + landr; LID_POP: fwd, a tap mid-pop)
       if (!PH && LID_HINT.on && j.clips.hint) names.push('hint');          // site 2026-10-07: the load-time HINT's clip (LID_HINT)
       const later = LID_POP && names[0] === 'pop' ? names.splice(1) : [];   // LID_POP: the pop now, the others after the page's load (its note)
       for (const name of names) add(name);
@@ -1948,7 +1951,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
       if (land && cur === V.rev) { if (s > Ls) { stopAt = toLand; arm(); } else if (okK(LK)) { stopAt = null; swap(LK, s, my); } return; }
       stopAt = endOf(cur) === t ? null : { s: t, dir }; arm(); return;
     }
-    const popUp = dir > 0 && t > Cc && s < Cc - 1 && !!V.pop && !okK(V.fwd);       // LID_POP: opened from under the rest before fwd is in (the phone loads it at the film) — the pop up to the rest, then the open clip
+    const popUp = dir > 0 && t > Cc && s < Cc - 1 && !!V.pop && !okK(V.fwd);       // LID_POP: opened from under the rest before fwd is in (a later clip: LID_POP's note) — the pop up to the rest, then the open clip
     const K = dir > 0 ? (t <= Cc ? (PH ? V.pop || V.hint : V.crack) : s >= Cc - 1 ? V.open : popUp ? V.pop : V.fwd)   // up to the catch pose: the crack clip — the phone (from under the rest: shut at load, after the film): the pop (it ends at the rest), or the hint clip stopped at its top = the rest
                       : SH || (!PH && s <= Cc + .5 ? V.uncrack : land && s <= Ls + .5 ? LK : V.rev);
     if (!okK(K)) return;                                                           // (the phone) not entered yet: its loadedmetadata re-runs to(goal)
@@ -1960,8 +1963,9 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     const K = HK();
     if (!J || !cur || !ready()) return null;
     if (!K) return false;
-    const b = K.el.buffered;
-    if (PH ? !okK(K) : K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play)
+    const b = K.el.buffered, through = K.el.readyState >= 4 || (b.length && b.end(b.length - 1) >= K.el.duration - .05);
+    if (PH && okK(K) && !K.t1) K.t1 = performance.now();                                 // (the phone: its metadata in)
+    if (PH ? !okK(K) || (LID_POP && !through && performance.now() - K.t1 < LID_HINT.buffer) : !through) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play — LID_POP's pop waits LID_HINT.buffer for it, then plays)
     if (goal !== 'closed' || !cur.el.paused || Math.abs(poseNow() - H0()) > .5) return false;
     goal = 'hint'; perfMark('lid → hint'); stopAt = null; held = false;
     clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends at the rest
