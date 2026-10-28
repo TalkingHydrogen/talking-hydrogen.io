@@ -575,11 +575,15 @@
     /* ---- the CAMERA: u 0 = the open framing, 1 = the corner; tweened on the iOS 7 curve ---- */
     /* PHONE (owner 2026-10-27: "port the pill animation and everything the pill is doing to the phone version … it fills the certain
        ratio of the phone. Instead of the laptop"): on a portrait screen the 16:9 frame's centre crop put the corner point on the screen's
-       right edge, its comb cut off — so the corner is composed on the phone's own frame: the corner point at (.74, .25) of the screen
-       (≈ the pill's top line at its seat: the zoom runs along it), the radius .32 W — the comb whole: its tail (≈ 2 r of the edges)
-       starts .1 W in from the left, its reach (≈ .3 r) ends .16 W short of the right. ?pillcorner=x,y,r (shares of W, H, W) */
+       right edge, its comb cut off — so the corner is composed on the phone's own frame. 2026-10-28 (owner: "zoom in on the panel so
+       the bottom corner is not even visible … its all about that one corner showcase"): the zoom is solved from the panel's comb
+       (panelComb(), measured: its envelope reaches CB_R = 10.8 world px past the top and right edges; down the right edge the bottom
+       corner's comb starts at CB_Y = 118.3) — the comb's top .08 H under the screen's top, its right .08 W in from the right edge, the
+       bottom corner's comb .02 H past the bottom: kc = .94 H / 129.1 (Z ≈ 4.3 on a 13 mini). The top corner's tail runs off the left
+       where its hairs are shortest (a 13 mini: the last 14 of its 79 world px). ?pillcorner=top,right,below (shares of H, W, H) */
     const CORNER_Q = ((/[?&]pillcorner=([\d.,]+)/.exec(location.search) || [])[1] || '').split(',');
-    const CORNER_P = [.74, .25, .32].map((d, i) => +CORNER_Q[i] > 0 ? +CORNER_Q[i] : d);
+    const CORNER_P = [.08, .08, .02].map((d, i) => +CORNER_Q[i] >= 0 && CORNER_Q[i] !== '' ? +CORNER_Q[i] : d);
+    const CB_R = 10.8, CB_Y = 118.3;
     const CAM = { active: false, u: 0, u0: 0, u1: 0, t: 0, T: 1 };
     function camTo(u1, ms){ Object.assign(CAM, { active: true, u0: CAM.u, u1, t: 0, T: Math.max(1, ms) }); }
     function camStep(ms){
@@ -591,9 +595,9 @@
     function cams(){
       const { W, H, B } = G, k0 = B / PILL.w;
       base = { k: k0, x: W / 2, y: G.top != null ? G.top : H / 2 - PANEL.h * k0 / 2 };   // the panel centred on the screen, every shape on its top line (a phone: the card's own seat, G.top — PHONE)
-      if(H > W){                                                         // PHONE, portrait: the corner shot recomposed for the tall screen
-        const kc = CORNER_P[2] * W / PANEL.r;
-        corner = { k: kc, x: CORNER_P[0] * W - kc * PANEL.w / 2, y: CORNER_P[1] * H };
+      if(H > W){                                                         // PHONE, portrait: the one corner, the bottom one past the screen
+        const [mT, mR, mB] = CORNER_P, kc = (1 + mB - mT) * H / (CB_Y + CB_R);
+        corner = { k: kc, x: (1 - mR) * W - CB_R * kc - kc * PANEL.w / 2, y: mT * H + CB_R * kc };
       } else {
       const F = Math.max(W / 1920, H / 1080), fx = (W - 1920 * F) / 2, fy = (H - 1080 * F) / 2;   // the corner shot's 16:9 frame, covering
       const kc = 351 * F / PANEL.r;                                      // its corner radius: 70.2 × 2.5 × 2 = 351 frame px
