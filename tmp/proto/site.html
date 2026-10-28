@@ -712,9 +712,27 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=8d9af16"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script>/* 2026-10-28 — the phone lid's FIRST FILE early (owner: "it still takes time before the lid opens. are we hitting the safari limitation here"):
+   live, the lid waited on a chain — the page's script at .93 s, THEN lid.json (.55 s on the owner's network, for 2 KB), THEN the pop
+   clip — moving at 1.67 s. Here lid.json is fetched beside mobile.js (mobile.js's own phone test), and makeLid's load() takes it.
+   And (owner, the same hour: "make that lid opening vid to be the first to load on page load") the POP clip's <video> is made here, its
+   file requested before mobile.js and every feed image; makeLid's add('pop') adopts it (the same URL: the phone's 1280 — a 1920 pick
+   makes its own). Only when LID_POP will be on (its conditions, as in the engine). */
+(function () { try { const Q = new URLSearchParams(location.search), f = Q.get('mobile'), mm = q => matchMedia(q).matches;
+  if (!(f === '1' || (f !== '0' && mm('(pointer: coarse)') && !mm('(hover: hover)') && Math.min(screen.width, screen.height) <= 540))) return;
+  if (Q.get('lidhint') !== '0' && !Q.has('film') && Q.get('lidpop') !== '0' && !mm('(prefers-reduced-motion: reduce)')) {
+    const v = document.createElement('video');
+    v.muted = v.defaultMuted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', ''); v.preload = 'auto';
+    v.src = '../assets/macbook/lid-pop-1280.' + (/apple/i.test(navigator.vendor) ? 'mp4' : 'webm');   // (makeLid's kind)
+    v.style.cssText = 'position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+    document.documentElement.appendChild(v);   // in the document: WebKit loads a detached <video> only once it is attached (measured: at the card's boot)
+    window.__lidPop = v;
+  }
+  window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
+} catch (e) {} })();</script>
+<script src="mobile.js?v=336e523"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=8d9af16"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=336e523"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1812,7 +1830,7 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    buffers a clip before its play, so it always waited it all: owner, "the opening is again triggering like 3s after page load"; that
    evening before, the clip was fetched whole as a blob — dropped while the owner's phone ran the page at ~15 fps, not shown to be the
    cause.) A tap during the pop opens at once: fwd is one of the phone's later clips (popUp rides the pop only until it is in). */
-LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 200;
+LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 0;   // (2026-10-28: was 200 — "it still takes time before the lid opens")
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
    time it has landed in OPEN — a zoom in from HOME or a camera move's arrival from another open pile (owner 2026-10-10: "lift up
@@ -1869,11 +1887,12 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   const HK = () => PH ? V.pop || V.lift : V.hint;                                        // the load-time hint's clip (LID_POP: the pop)
   const H0 = () => LID_POP ? 0 : R();                                                    // … and the pose it starts from
   function add(name) {                      // one clip's element (DOM order = stacking: a later clip on top)
-    const c = J.clips[name], el = document.createElement('video');
+    const c = J.clips[name], url = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick), pre = name === 'pop' && window.__lidPop;
+    const own = !!pre && pre.src === new URL(url, location.href).href, el = own ? pre : document.createElement('video');   // the POP: the head's, loading since the page's first line (its script before mobile.js)
     el.className = 'lid'; el.muted = el.defaultMuted = true; el.playsInline = true; el.disablePictureInPicture = true;
     el.setAttribute('playsinline', ''); el.setAttribute('muted', ''); el.setAttribute('aria-hidden', 'true');
-    el.preload = 'auto'; el.style.opacity = '0';
-    el.src = L.base + J.src[kind].replace('{clip}', name).replace('{w}', wPick);
+    el.preload = 'auto'; el.style.cssText = 'opacity: 0';   // (the head's: its parking style off)
+    if (!own) el.src = url;
     el.addEventListener('loadeddata', () => { if (ready()) to(goal); });   // a goal set before the clips could play
     if (PH) el.addEventListener('loadedmetadata', () => { if (ready()) to(goal); });   // the phone: metadata is enough (RS)
     el.dataset.clip = name;                                                // (?dbg=1's readout)
@@ -1882,7 +1901,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   }
   function load() {                         // the page's load, or the first hover: lid.json, then the clips (preload auto)
     if (loaded) return; loaded = true;
-    fetch(L.base + L.json).then(r => r.json()).then(j => {
+    (PH && window.__lidJ || Promise.reject()).catch(() => fetch(L.base + L.json).then(r => r.json())).then(j => {   // (the phone: fetched in the head — its script before mobile.js)
       J = j; const ws = j.w.slice().sort((a, b) => a - b); wPick = ws.find(w => w >= Bpx * LID.pick) || ws[ws.length - 1];   // the smallest that is ~1:1
       const names = PH ? [LID_POP && j.clips.pop ? 'pop' : 'lift', 'open', ...(j.clips.shut ? ['shut'] : ['rev', 'landr']), ...(LID_POP && j.clips.pop ? ['fwd'] : [])] : ['fwd', 'rev', 'open', 'crack', 'uncrack', 'land'];   // the phone: its note (the hint's clip first: the pop — LID_POP — or the lift; the close: shut, or rev + landr; LID_POP: fwd, a tap mid-pop)
       if (!PH && LID_HINT.on && j.clips.hint) names.push('hint');          // site 2026-10-07: the load-time HINT's clip (LID_HINT)
