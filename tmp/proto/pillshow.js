@@ -384,8 +384,8 @@
     const TIME = opt.time > 0 ? opt.time : (parseFloat((/[?&]pilltime=([\d.]+)/.exec(location.search) || [])[1]) || 1.3);
     /* PHONE (owner 2026-10-27, iPhone 13 mini: "the comb looks too dense … you cant even see these hairs"): W / 320 is 1.2 css px on a
        375 pt screen — the .7 px hairs merge into a sheet. opt.combGap: the hairs' least spacing, css px (site.html: 3.5 on a phone ≈ the
-       desktop's 4.5 px at 1440, seen from a phone's distance; ?pillgap=) · HIT_PAD: a tap within this many css px of the shape is on it */
-    const GAP_MIN = opt.combGap > 0 ? opt.combGap : 0, HIT_PAD = 12;
+       desktop's 4.5 px at 1440, seen from a phone's distance; ?pillgap=) */
+    const GAP_MIN = opt.combGap > 0 ? opt.combGap : 0;
     const ctx = cv.getContext('2d');
     const sh = document.createElement('canvas'), shx = sh.getContext('2d');
     sh.className = 'scene-sh'; sh.setAttribute('aria-hidden', 'true');
@@ -880,17 +880,15 @@
         if(v !== 'zoom' && setBox(HOMEC, 'pill', resHome())) paint(HOMEC, outline(pose()), camAt(CAM.u));   // landed / HOME: re-allocated → its pill again
         shows();
       },
-      hit(x, y){                                                         // PHONE: is the viewport point (x, y) on the shape as drawn now (+ HIT_PAD)?
-        if(!base) return false;
-        const pts = outline(pose()), C = camAt(CAM.u), wx = (x - C.x) / C.k, wy = (y - C.y) / C.k, d = HIT_PAD / C.k, n = pts.length;
-        let inside = false, near = Infinity;
+      hit(x, y){                                                         // PHONE: is the viewport point (x, y) on the black as drawn now? (owner 2026-10-28:
+        if(!base) return false;                                          // "every progression must be tap on the black area only" — no slack: the comb, the shadow, the white are off it)
+        const pts = outline(pose()), C = camAt(CAM.u), wx = (x - C.x) / C.k, wy = (y - C.y) / C.k, n = pts.length;
+        let inside = false;
         for(let i = 0, j = n - 1; i < n; j = i++){
           const a = pts[j], b = pts[i];
           if((b[1] > wy) !== (a[1] > wy) && wx < (a[0] - b[0]) * (wy - b[1]) / (a[1] - b[1]) + b[0]) inside = !inside;
-          const ex = b[0] - a[0], ey = b[1] - a[1], t = clamp(((wx - a[0]) * ex + (wy - a[1]) * ey) / (ex * ex + ey * ey || 1), 0, 1);
-          near = Math.min(near, Math.hypot(a[0] + t * ex - wx, a[1] + t * ey - wy));
         }
-        return inside || near <= d;
+        return inside;
       },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
                genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null, comb: +CF.a.toFixed(4),

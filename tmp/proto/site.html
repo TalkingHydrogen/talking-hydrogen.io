@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=afc08d9"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=ca6cd66"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=afc08d9"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=ca6cd66"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -6865,8 +6865,9 @@ stacks.push(makeStack($('macbook'), { name: 'macbook', idp: 'mb-', images: MACBO
    of the phone … if you split the screen in three … it'll be on the first one from the top"): in portrait the pill is .72 of the
    screen's width (phoneB; ?pillw=) — the photos' .9 put its comb's caps off both edges — and sits on the camera grid's upper line: its
    centre at seatY × the screen's height (mobile.js seat(); ?pillseat=), the panel growing down from it; the scene frames from that seat
-   (SCENE.layout's top). Unlike the desktop's click anywhere, a tap must land ON the shape to play the next step (owner 2026-10-27: "you
-   have to tap tap tap on the thing itself, not anywhere"; openTap() → sceneHit()); a tap off it is the white's (the close). The comb's
+   (SCENE.layout's top). Unlike the desktop's click anywhere, a tap must land ON the black shape to play the next step (owner 2026-10-27:
+   "you have to tap tap tap on the thing itself, not anywhere"; 2026-10-28: "every progression must be tap on the black area only" — no
+   slack; openTap() → sceneHit()); a tap off it is the white's (the close). The comb's
    hairs at least 3.5 css px apart (combGap; ?pillgap=). Landscape: the clips' box and the desktop's seat. ?pill=0: none. */
 const PILL_ON = !!window.PillShow && pageQuery.get('pill') !== '0';
 if (PILL_ON) {
