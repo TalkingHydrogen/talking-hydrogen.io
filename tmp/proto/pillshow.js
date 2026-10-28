@@ -19,6 +19,11 @@
                       and it rests there
      pill   → out     and a click zooms the page out (owner 2026-10-22: "dont zoom out automatically click will zoom it out on the pill
                       with combs"), the comb fading as it goes (onend → site.html: the close at endMs)
+   PHONE (site.html passes these on a phone only, 2026-10-28; owner: "progression like the genie effect must all like that be triggered
+   with tap only … on the final cirlce tap, it must immediately turn on the comb and start animating"): every step is its own tap —
+   the corner → panel zoom out RESTS on the panel and the genie waits for the next tap (opt.stepGenie: 'panelout'); the tap on the circle
+   puts the comb on at once and the open starts the same frame (opt.combNow); the corner shot draws its one corner's comb only
+   (opt.oneCorner: cornerRun()).
    The camera's moves: the site's iOS 7 zoom curve, cubic-bezier(.37, .14, .32, 1), SLOW × slower (owner: "3 times slower, or even 4":
    3.5 — in 540 → 1890 ms, out 450 → 1575 ms), linear in scale about the move's fixed point (Core Animation lerps a scale). While it
    is in the corner the page's neighbours slide out of the frame (out → site.html's filmOut), and back with it.
@@ -347,6 +352,13 @@
   }
   let PANEL_COMB = null;                                                // the panel's comb, off its own generator outline (≈10 ms: warmed)
   function panelComb(){ return PANEL_COMB || (PANEL_COMB = combOf(unifiedOutline2(0, PANEL.h / 2, PANEL.w, PANEL.h, PANEL.r, null, 'G4'))); }
+  function cornerRun(K){                                                // PHONE (oneCorner): the top-right corner's comb alone — the one run of
+    if(K.run) return K.run;                                             // the panel's outline right of its axis, above its middle, with hairs
+    const n = K.pts.length, on = i => { const p = K.pts[i], t = K.tips[i]; return p[0] > 0 && p[1] < PANEL.h / 2 && Math.hypot(t[0] - p[0], t[1] - p[1]) > .02; };
+    let s = 0; while(s < n && !(on(s) && !on((s - 1 + n) % n))) s++;
+    let len = 0; while(len < n && on((s + len) % n)) len++;
+    return (K.run = { s, len });                                        // (measured: 1753 of 10247 points, (128, 80.9) → (47.1, 0))
+  }
 
   /* the 07-26 float shadow (grow-on-lift / genie / combcard.js), world px */
   const SH = { ox: 93, oy: 109, blur: 80, spread: 7, alpha: 0.18, fall: 0.89, layers: 3 };
@@ -386,6 +398,7 @@
        375 pt screen — the .7 px hairs merge into a sheet. opt.combGap: the hairs' least spacing, css px (site.html: 3.5 on a phone ≈ the
        desktop's 4.5 px at 1440, seen from a phone's distance; ?pillgap=) */
     const GAP_MIN = opt.combGap > 0 ? opt.combGap : 0;
+    const ONE_CORNER = !!opt.oneCorner, STEP_GENIE = !!opt.stepGenie, COMB_NOW = !!opt.combNow;   // PHONE: the header's PHONE note
     const ctx = cv.getContext('2d');
     const sh = document.createElement('canvas'), shx = sh.getContext('2d');
     sh.className = 'scene-sh'; sh.setAttribute('aria-hidden', 'true');
@@ -575,15 +588,15 @@
     /* ---- the CAMERA: u 0 = the open framing, 1 = the corner; tweened on the iOS 7 curve ---- */
     /* PHONE (owner 2026-10-27: "port the pill animation and everything the pill is doing to the phone version … it fills the certain
        ratio of the phone. Instead of the laptop"): on a portrait screen the 16:9 frame's centre crop put the corner point on the screen's
-       right edge, its comb cut off — so the corner is composed on the phone's own frame. 2026-10-28 (owner: "zoom in on the panel so
-       the bottom corner is not even visible … its all about that one corner showcase"): the zoom is solved from the panel's comb
-       (panelComb(), measured: its envelope reaches CB_R = 10.8 world px past the top and right edges; down the right edge the bottom
-       corner's comb starts at CB_Y = 118.3) — the comb's top .08 H under the screen's top, its right .08 W in from the right edge, the
-       bottom corner's comb .02 H past the bottom: kc = .94 H / 129.1 (Z ≈ 4.3 on a 13 mini). The top corner's tail runs off the left
-       where its hairs are shortest (a 13 mini: the last 14 of its 79 world px). ?pillcorner=top,right,below (shares of H, W, H) */
+       right edge, its comb cut off — so the corner is composed on the phone's own frame, the zoom solved from the top corner's comb
+       (panelComb(), measured: it starts CB_L = 78.7 world px left of the corner point along the top edge, and its envelope reaches
+       CB_R = 10.8 past the top and right edges): its left end .06 W in, its right .08 W in, its top .08 H under the screen's top —
+       kc = .86 W / 89.5. 2026-10-28 (owner: "zoom in on the panel so the bottom corner is not even visible" → "zoom in on the corner cuts
+       off the left a bit, so just zoom out now just dont turn on the comb on the bottom"): this framing, the whole corner's comb on the
+       screen, and the bottom corner — partly in view on a tall screen — bare (opt.oneCorner). ?pillcorner=left,right,top (W, W, H) */
     const CORNER_Q = ((/[?&]pillcorner=([\d.,]+)/.exec(location.search) || [])[1] || '').split(',');
-    const CORNER_P = [.08, .08, .02].map((d, i) => +CORNER_Q[i] >= 0 && CORNER_Q[i] !== '' ? +CORNER_Q[i] : d);
-    const CB_R = 10.8, CB_Y = 118.3;
+    const CORNER_P = [.06, .08, .08].map((d, i) => +CORNER_Q[i] >= 0 && CORNER_Q[i] !== '' ? +CORNER_Q[i] : d);
+    const CB_L = 78.7, CB_R = 10.8;
     const CAM = { active: false, u: 0, u0: 0, u1: 0, t: 0, T: 1 };
     function camTo(u1, ms){ Object.assign(CAM, { active: true, u0: CAM.u, u1, t: 0, T: Math.max(1, ms) }); }
     function camStep(ms){
@@ -595,8 +608,8 @@
     function cams(){
       const { W, H, B } = G, k0 = B / PILL.w;
       base = { k: k0, x: W / 2, y: G.top != null ? G.top : H / 2 - PANEL.h * k0 / 2 };   // the panel centred on the screen, every shape on its top line (a phone: the card's own seat, G.top — PHONE)
-      if(H > W){                                                         // PHONE, portrait: the one corner, the bottom one past the screen
-        const [mT, mR, mB] = CORNER_P, kc = (1 + mB - mT) * H / (CB_Y + CB_R);
+      if(H > W){                                                         // PHONE, portrait: the top corner's whole comb on the screen
+        const [mL, mR, mT] = CORNER_P, kc = (1 - mL - mR) * W / (CB_L + CB_R);
         corner = { k: kc, x: (1 - mR) * W - CB_R * kc - kc * PANEL.w / 2, y: mT * H + CB_R * kc };
       } else {
       const F = Math.max(W / 1920, H / 1080), fx = (W - 1920 * F) / 2, fy = (H - 1080 * F) / 2;   // the corner shot's 16:9 frame, covering
@@ -699,7 +712,7 @@
       switch(phase){
         case 'pill':    return landed ? 'panel' : 'pill';               // landed: ready for the growth
         case 'expand':  return 'panel';
-        case 'panel':   case 'zoomin': case 'corner': case 'zoomout': return 'full';   // resting as the panel: ready for the corner
+        case 'panel':   case 'zoomin': case 'corner': case 'zoomout': case 'panelout': return 'full';   // resting as the panel: ready for the corner
         case 'closing': return OPENC.box ? OPENC.box.name : 'full';      // straight after the zoom out: no resize while it moves
         case 'circle':  case 'opening': return 'panel';
         default:        return OPENC.box ? OPENC.box.name : 'pill';     // the end's / a leave's zoom out: as it was
@@ -755,21 +768,24 @@
       trace(c, pts); c.fillStyle = '#000'; c.fill();
       if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k, 1);
       else if(liveComb()) drawComb(c, combFor(pts), C.rx * cam.k, CF.a);                     // the circle's and its open: the live outline's
-      else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a);   // the corner's: the panel at rest
+      else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a, ONE_CORNER ? cornerRun(panelComb()) : null);   // the corner's: the panel at rest
     }
-    function drawComb(c, K, u, alpha){                                   // u: canvas px (= device px where it shows) per world px
+    function drawComb(c, K, u, alpha, run){                              // u: canvas px (= device px where it shows) per world px · run: { s, len } — only that run (oneCorner)
       const cssW = u / G.dpr, gap = Math.max(G.W / 320, GAP_MIN), n = K.pts.length;   // GAP_MIN: a phone's floor (PHONE)
       const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
       c.globalAlpha = alpha; c.lineCap = 'butt';
       c.beginPath();
       for(let j = 0; j < nh; j++){
         const i = Math.round(j * n / nh) % n;
+        if(run && (i - run.s + n) % n >= run.len) continue;
         if(Math.abs(K.k[i]) * COMB.scale * cssW < .5) continue;          // under half a px: not a hair (a butt stroke of ~0 length still dots)
         c.moveTo(K.pts[i][0], K.pts[i][1]); c.lineTo(K.tips[i][0], K.tips[i][1]);
       }
       c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair); c.stroke();
       c.lineJoin = 'round';
-      trace(c, K.tips); c.strokeStyle = COMB.env; c.lineWidth = lw(COMB.wEnv); c.stroke();
+      if(run){ c.beginPath(); for(let q = 0; q < run.len; q++){ const t = K.tips[(run.s + q) % n]; if(q) c.lineTo(t[0], t[1]); else c.moveTo(t[0], t[1]); } }   // its envelope open: edge to edge
+      else trace(c, K.tips);
+      c.strokeStyle = COMB.env; c.lineWidth = lw(COMB.wEnv); c.stroke();
       c.globalAlpha = 1;
     }
     let dirty = true;
@@ -797,7 +813,11 @@
       if(phase === 'pill'){ phase = 'expand'; morphTo(PILL, PANEL, EXPAND_S); }
       else if(phase === 'panel'){ phase = 'zoomin'; camTo(1, IN_MS); }
       else if(phase === 'corner'){ phase = 'zoomout'; camTo(0, OUT_MS); combFade(0, COMB_OUT); }
-      else if(phase === 'circle'){ if(FADE_COMB){ phase = 'combing'; combFade(1, COMB_ON); } else startOpen(); }   // the comb on first, then the open
+      else if(phase === 'panelout'){ phase = 'closing'; startGenie(); cur = 0; }   // PHONE (stepGenie): the genie, on its own tap
+      else if(phase === 'circle'){
+        if(FADE_COMB && COMB_NOW){ Object.assign(CF, { a: 1, from: 1, to: 1, t: 0, T: 1 }); startOpen(); }   // PHONE: the comb on at once, the open with it
+        else if(FADE_COMB){ phase = 'combing'; combFade(1, COMB_ON); } else startOpen();   // the comb on first, then the open
+      }
       else if(phase === 'rest' || (phase === 'opening' && tOpen >= END_MS)) finish();   // the pill under its comb: out
       else if(phase === 'expand' || phase === 'zoomin' || phase === 'zoomout' || phase === 'closing' || phase === 'combing' || phase === 'opening') queued = true;
       regrow();
@@ -822,7 +842,7 @@
       if(combStep(sms)) dirty = true;
       if(phase === 'expand' && !MORPH.active){ phase = 'panel'; cur = 2; after(); }
       else if(phase === 'zoomin' && !CAM.active){ phase = 'corner'; after(); }
-      else if(phase === 'zoomout' && !CAM.active){ phase = 'closing'; startGenie(); cur = 0; dirty = true; }
+      else if(phase === 'zoomout' && !CAM.active){ if(STEP_GENIE){ phase = 'panelout'; after(); } else { phase = 'closing'; startGenie(); cur = 0; } dirty = true; }   // PHONE: rests as the panel
       else if(phase === 'closing' && !GENIE.active){ phase = 'circle'; after(); }
       else if(phase === 'combing' && CF.a >= 1) startOpen();             // the comb is on: the open (a click meanwhile stays queued for the out)
       else if(phase === 'opening'){
