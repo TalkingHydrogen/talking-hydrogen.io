@@ -712,9 +712,9 @@
 </div>
 
 <script>if (/[?&]dbg=1/.test(location.search)) document.write('<script src="dbg.js?v=' + Date.now() + '"><\/script>');</script>   <!-- 2026-10-15: ?dbg=1 — the real iPhone's touch readout (dbg.js); nothing otherwise -->
-<script src="mobile.js?v=582ad28"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=cd00c04"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=582ad28"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=cd00c04"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1805,14 +1805,14 @@ const LID_POP = !!window.__mobile?.on && LID_HINT.on && !LID_HINT.rm.matches && 
    for its metadata, to()), and the pop
    fires `popDelay` ms from boot (checked every 100 ms, seen twice), as soon as its clip is entered. ?hintat=MS sets it too.
    2026-10-27 late (owner: "Don't do back and forth on the animation. It's just do like a nice slow interpolation to a open position. And
-   no overshoot. and make it slower than it is now, maybe twice as slow"): the pop is 0 → REST in 2.6 s, a half sine by the lid top's
-   rise (was 0 → 22 → 16 in 1.3 s; before that with a .12 s hold at the top: "when it overshoots … it waits"). Its clip should be
-   buffered through before it starts (a phone's preload may stop at the metadata, and a pop started then stalls mid-way): hint()
-   waits up to LID_HINT.buffer ms past its metadata for that, then plays what it has. (That evening the clip was fetched whole as a
-   blob instead; dropped while the owner's phone ran the page at ~15 fps — not shown to be the cause, but nothing else was phone-only.)
-   A tap during the pop opens at once: fwd is one of the phone's later clips now (popUp rides the pop only until it is in). */
+   no overshoot. and make it slower than it is now, maybe twice as slow"): the pop is 0 → REST, no overshoot (was 0 → 22 → 16 in 1.3 s;
+   before that with a .12 s hold at the top: "when it overshoots … it waits"). 2026-10-28 (owner, of 2.6 s with a half sine: "the
+   opening animation is sluggishly slow"): 1.6 s, CSS `ease` by the lid top's rise — a quick start, a long soft landing.
+   It starts at its clip's metadata, as at boot (44bf7d4). (10-27 late it waited up to 2.5 s to be buffered through — an iPhone never
+   buffers a clip before its play, so it always waited it all: owner, "the opening is again triggering like 3s after page load"; that
+   evening before, the clip was fetched whole as a blob — dropped while the owner's phone ran the page at ~15 fps, not shown to be the
+   cause.) A tap during the pop opens at once: fwd is one of the phone's later clips (popUp rides the pop only until it is in). */
 LID_HINT.popDelay = Number.isFinite(parseFloat(pageQuery.get('hintat'))) ? LID_HINT.delay : 200;
-LID_HINT.buffer = 2500;
 /* site 2026-10-09 — the TURN's ZOOM-IN HINT (owner: "on zoom in to the first pic, you can rotate it, but make that like a macbook it
    affordance suggests that it cae be rotated by gently and subtly lifting and back"): the lid's load-time HINT, on the room print. EVERY
    time it has landed in OPEN — a zoom in from HOME or a camera move's arrival from another open pile (owner 2026-10-10: "lift up
@@ -1963,9 +1963,8 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     const K = HK();
     if (!J || !cur || !ready()) return null;
     if (!K) return false;
-    const b = K.el.buffered, through = K.el.readyState >= 4 || (b.length && b.end(b.length - 1) >= K.el.duration - .05);
-    if (PH && okK(K) && !K.t1) K.t1 = performance.now();                                 // (the phone: its metadata in)
-    if (PH ? !okK(K) || (LID_POP && !through && performance.now() - K.t1 < LID_HINT.buffer) : !through) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play — LID_POP's pop waits LID_HINT.buffer for it, then plays)
+    const b = K.el.buffered;
+    if (PH ? !okK(K) : K.el.readyState < 4 && !(b.length && b.end(b.length - 1) >= K.el.duration - .05)) return null;   // played through without a stall, or not at all (the phone: it may never buffer before a play)
     if (goal !== 'closed' || !cur.el.paused || Math.abs(poseNow() - H0()) > .5) return false;
     goal = 'hint'; perfMark('lid → hint'); stopAt = null; held = false;
     clearTimeout(hintT); hintT = setTimeout(() => { if (goal === 'hint') { goal = 'closed'; to('closed'); } }, (K.last + 1) / K.fps * 1000 + 1500);   // a stalled clip still ends at the rest
