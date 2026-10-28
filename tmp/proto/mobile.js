@@ -191,12 +191,16 @@
      page it is invisible (white on white, no line) and the name is where it was; a scroll down shrinks it with the page (its bottom
      rides the first object's top, 1:1) to the minimal strip, the name scaling to .8 in it — iOS 7 Safari's bar → its domain strip —
      and the hairline comes in once the work passes under. A function of the scroll alone (no direction): a scroll up mid-page leaves
-     the strip as it is, so the name never lies over the work. Inside .hdr: OPEN fades it with the name. Script: the BAR (nbStep()) */
-  .nbar { display: none; }
-  html.phone.feed.nb .nbar { display: block; position: absolute; left: 0; top: 0; width: 100%; height: var(--nb-h0, 0px); background: #fff;
-                             will-change: transform; }
+     the strip as it is, so the name never lies over the work. OPEN keeps it, minimal (owner 2026-10-28: "the space stays there even on
+     zoom … treat the line there as effectively the page cutoff"): the open item, its neighbours' peeks and the pinch-lift lie under it.
+     SAFARI 26+ (research 2026-10-28, WebKit fixedContainerEdges): the status bar's band takes the colour of the fixed element hit at the
+     top centre, 4 px down, ignoring pointer-events — if it is ≥ 90 % wide, > 10 px tall and has an opaque background-color; a layer
+     with none there (the .filmcap, the .shield) ends the search and the page shows under the clock. So .hdr-root IS the sheet (white,
+     full width) and sits over every page layer but the pinch-lift (cut at the line). Safari ≤ 18: theme-color (boot). Script: the BAR */
+  html.phone.feed.nb .hdr-root { background: #fff; z-index: 2147470000; }
   html.phone.feed.nb .nbline { position: absolute; left: 0; right: 0; bottom: 0; height: var(--nb-px, 1px); background: rgba(0, 0, 0, var(--nb-line, .3));
                                opacity: 0; }   /* one device pixel (1 / DPR) */
+  html.phone.feed.nb #lift { clip-path: inset(var(--nb-cut, 0px) 0 0 0); }   /* the pinch-lift lies under the line too */
   html.phone.feed.nb .hdr .name { position: absolute; left: var(--nb-l, 0px); width: var(--nb-w, 100%); top: var(--nb-t, 0px);
                                   transform-origin: 50% 0; will-change: transform; }
   `;
@@ -510,7 +514,7 @@
     FIT = {};
     if (FEED && por) {                                                   // the BAND CAP (its note at FITK), after the caption's CSS above
       if (SAB.W !== W) { SAB.W = W; SAB.b = SA.b; }
-      const band = svh() - SA.t - SAB.b - 2 * P.peek - 2.5 * lineH();   // [peek.top + 1 line, peek.bot − 1.5 lines] of the small viewport (seat())
+      const band = svh() - cutY() - SAB.b - 2 * P.peek - 2.5 * lineH();   // [peek.top + 1 line, peek.bot − 1.5 lines] of the small viewport (seat())
       for (const s of c.stacks) {
         const f = FITK[s.name]; if (!f) continue;
         const cap = s.capEl || (s.capGroup ? c.stacks.find(o => o.capEl && o.capGroup === s.capGroup)?.capEl : null);   // its own, or its group's
@@ -592,7 +596,7 @@
     const H = G.H, cap = capEl || groupCap || null;
     let ch = 0;
     if (cap) { const cc = cols(cap); ch = cc ? cc.offsetHeight + lineH() : 0; }
-    const block = up + eff.height + dn + ch, minTop = SA.t + 16;
+    const block = up + eff.height + dn + ch, minTop = cutY() + 16;
     let top;
     if (FEED) { const pk = peek(), T0 = pk.top + lineH(), T1 = pk.bot - 1.5 * lineH(); top = T0 + Math.max(0, (T1 - T0 - block) * P.k) + up; }   // FEED: the block in the band between the peeks — 1 line under the top one, 1.5 above the bottom one (the caption belongs to its item, never to the next peek), k of its free height
     else top = Math.max(minTop, (H - block) * P.k) + up;               // the eff's top
@@ -611,7 +615,10 @@
   }
 
   /* FEED, OPEN: the neighbours' peek edges (viewport y): the previous object's lowest visible point, the next one's highest */
-  function peek() { const H = innerHeight; return { top: SA.t + P.peek, bot: H - SA.b - P.peek }; }
+  function peek() { const H = innerHeight; return { top: cutY() + P.peek, bot: H - SA.b - P.peek }; }
+  /* the page's top edge for OPEN (viewport y): the BAR's line where it is on (owner 2026-10-28: "treat the line there as effectively the
+     page cutoff"), else the safe area */
+  const cutY = () => NB.on ? NB.cut : SA.t;
   /* FEED, HOME: the column's rhythm — each object's margin so its VISIBLE paper (homeBox(…, vis): the cards, the fans, no shadow; the
      MacBook: the machine with the lid at its load hint's top, so the hint lifts into white) stands gapF name-lines under the one above; each centred on
      the column's axis by its visible bbox (a fan's centre, not its box's); the document ends 4 lines under the sign-off (+ safe-bottom).
@@ -668,26 +675,26 @@
     if (now - NM.t < 160 || (NM.y > 0 && NM.y < NM.reach && Math.abs(Math.min(to, y) - NM.y) >= .3)) NM.raf = requestAnimationFrame(nmStep);
     else NM.f = 0;
   }
-  /* ---------- FEED: the BAR (2026-10-28; its CSS: the .nbar rules) ----------
+  /* ---------- FEED: the BAR (2026-10-28; its CSS: the html.nb rules) ----------
      The geometry, from the top edge of the layout viewport (0 = where Safari's band ends; under the status bar where the page reaches it,
      env(safe-area-inset-top) = SA.t, so the sheet starts at 0 either way): at rest the sheet reaches half-way down the gap between the
      name's line and the first object (h0), minimal it is SA.t + nbh (h1). The first D = h0 − h1 pt of scroll shrink it 1:1 (its bottom
      rides the column), the name going from its place (SA.t + ptop, 18 px) to the strip's centre at nbs; past D the hairline comes in
      over 8 pt. Read once a frame from scrollY in [0, max] (Safari's rubber band moves nothing); every write rounded to device pixels so
      the hairline lands on one row of them. */
-  const NB = { on: false, el: null, sh: null, ln: null, nm: null, D: 0, t0: 0, t1: 0, h0: 0, px: 1, raf: 0, b: 0, w: '' };
+  const NB = { on: false, el: null, ln: null, nm: null, D: 0, t0: 0, t1: 0, h0: 0, cut: 0, px: 1, raf: 0, b: 0, w: '', pp: 0 };
   function nbLaid(el, W, top, nameH, l, w) {
     const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
-    if (!NB.sh) {
+    if (!NB.ln) {
       const hdr = el.querySelector('.hdr'); if (!hdr) return;
-      NB.sh = document.createElement('div'); NB.sh.className = 'nbar'; NB.sh.setAttribute('aria-hidden', 'true');
-      NB.ln = document.createElement('div'); NB.ln.className = 'nbline'; NB.sh.appendChild(NB.ln);
-      hdr.insertBefore(NB.sh, hdr.firstChild); NB.nm = hdr.querySelector('.name');
+      NB.ln = document.createElement('div'); NB.ln.className = 'nbline'; NB.ln.setAttribute('aria-hidden', 'true');
+      hdr.appendChild(NB.ln); NB.nm = hdr.querySelector('.name');
     }
     const h0 = px(top + nameH + P.gapName * nameH / 2), h1 = px(Math.min(h0, SA.t + P.nbH));
-    NB.el = el; NB.D = h0 - h1; NB.h0 = h0; NB.px = 1 / dpr;
+    NB.el = el; NB.D = h0 - h1; NB.h0 = h0; NB.cut = h1; NB.px = 1 / dpr;
+    root.style.setProperty('--nb-cut', h1 + 'px');                      // (#lift: the pinch-lift is cut there too)
     NB.t0 = top; NB.t1 = SA.t + (P.nbH - P.nbS * nameH) / 2;
-    el.style.cssText = `left:0px;top:0px;width:${W}px;height:${h0}px;--nb-h0:${h0}px;--nb-px:${NB.px}px;--nb-line:${P.nbLine};` +
+    el.style.cssText = `left:0px;top:0px;width:${W}px;height:${h0}px;--nb-px:${NB.px}px;--nb-line:${P.nbLine};` +
                        `--nb-l:${l}px;--nb-w:${w}px;--nb-t:${top}px`;
     nmLaid(el, 0);                                                      // (the cssText dropped any translate; the retract stays off)
     if (!NB.on) { NB.on = true; root.classList.add('nb'); }
@@ -696,7 +703,7 @@
   function nbOff() {
     NB.on = false; root.classList.remove('nb');
     if (NB.nm) NB.nm.style.transform = '';
-    if (NB.sh) NB.sh.style.transform = '';
+    if (NB.el) NB.el.style.transform = '';
     if (NB.ln) NB.ln.style.opacity = '';
     NB.w = ''; NB.b = 0;
   }
@@ -705,13 +712,21 @@
     if (!NB.on) return;
     const max = Math.max(0, document.documentElement.scrollHeight - innerHeight), y = Math.min(max, Math.max(0, scrollY));
     const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
-    const d = px(Math.min(NB.D, y)), p = NB.D > 0 ? d / NB.D : 1, o = Math.min(1, Math.max(0, (y - NB.D) / 8));
+    const pp = NB.pp, d = px(Math.max(Math.min(NB.D, y), pp * NB.D)), p = NB.D > 0 ? d / NB.D : 1;   // OPEN (pp, site.html's pageP): the minimal strip
+    const o = Math.max(pp, Math.min(1, Math.max(0, (y - NB.D) / 8)));
     const k = `${d}|${o.toFixed(3)}`;
     if (k === NB.w) return;
     NB.w = k; NB.b = NB.h0 - d;
-    NB.sh.style.transform = d ? `translate3d(0, ${-d}px, 0)` : '';
-    NB.nm.style.transform = p ? `translate3d(0, ${((NB.t1 - NB.t0) * p).toFixed(3)}px, 0) scale(${(1 - (1 - P.nbS) * p).toFixed(4)})` : '';
+    NB.el.style.transform = d ? `translate3d(0, ${-d}px, 0)` : '';     // the sheet (.hdr-root) up by d, the name back down by d + its own move
+    NB.nm.style.transform = p ? `translate3d(0, ${(d + (NB.t1 - NB.t0) * p).toFixed(3)}px, 0) scale(${(1 - (1 - P.nbS) * p).toFixed(4)})` : '';
     NB.ln.style.opacity = o ? o.toFixed(3) : '';
+  }
+  function nbOpen(v) {                                                  // site.html, per frame: the page's open progress (0 HOME … 1 OPEN)
+    v = Math.min(1, Math.max(0, v)); if (Math.abs(v - NB.pp) < 1e-4) return;
+    NB.pp = v; if (NB.on && !NB.raf) NB.raf = requestAnimationFrame(nbStep);
+  }
+  if (FEED_OK && P.nbar && !document.querySelector('meta[name="theme-color"]')) {   // Safari 15–18: its band in the strip's white (26+: the strip itself)
+    const m = document.createElement('meta'); m.name = 'theme-color'; m.content = '#ffffff'; document.head.appendChild(m);
   }
   if (FEED_OK) {
     if (P.nmNeg && !P.nbar) root.classList.add('nm-neg');               // at boot only (a class on <html>) — the BAR's name is plain ink on its white
@@ -928,7 +943,8 @@
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
                       vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
                       get nm() { return { ...NM, el: undefined }; },   // FEED: the NAME's retract (debug)
-                      barB: () => NB.on ? NB.b : 0,                     // FEED: the BAR's bottom edge now, viewport px (site.html's paperAt(): no tap on the work under it)
+                      barB: () => NB.on ? NB.b : 0,                     // FEED: the BAR's bottom edge now, viewport px (site.html's paperAt() / openTap(): no tap on the work under it)
+                      get bar() { return NB.on; }, barOpen: nbOpen,     // FEED: the BAR is on (site.html keeps the name there in OPEN) · its open progress
                       get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's feedLag() caps the lag by it)
                       onZoom: fn => zoomCbs.push(fn) };
 })();
