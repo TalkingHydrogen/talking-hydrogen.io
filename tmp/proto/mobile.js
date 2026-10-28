@@ -94,6 +94,10 @@
     pageMs: num('fpage', 420),     // FEED, OPEN: a page snap's duration, ms (iOS-7 bezier; UIPageViewController ≈ 350, TikTok ≈ 300)
     nmHide: Q.get('nmhide') !== '0',   // FEED: the name retracts on a scroll down (the NAME below) · ?nmhide=0: pinned
     nmNeg: Q.get('nmneg') !== '0',     // FEED: the name in NEGATIVE (difference over the work) · ?nmneg=0: plain ink
+    nbar: Q.get('nbar') !== '0',       // FEED: the name's white STRIP under Safari's band (the BAR below) · ?nbar=0: the 10-18 retract + negative
+    nbH: num('nbh', 28),               // FEED, the BAR: its minimal height below the top edge, pt (the name's line centred in it)
+    nbS: num('nbs', .8),               // FEED, the BAR: the name's scale in the minimal strip (18 → 14.4 px)
+    nbLine: num('nbline', .3),         // FEED, the BAR: the hairline's black alpha (UINavigationBar's shadow: black .3)
     home: Q.get('phome') || 'box', // HOME portrait — 'box': the desktop's content box (the name, the desktop's interval .69 × the row, the row), centred: the
                                    // approved page's proportions · 'top': the name at the top margin, the row's baseline at ?pbase (.66 H)
   };
@@ -181,6 +185,20 @@
   html.phone.feed.nm-neg .hdr-root { mix-blend-mode: difference; }
   html.phone.feed.nm-neg .hdr .name { color: #E2E2E0; }
   html.phone.feed .hdr .name { position: relative; text-align: center; margin-left: 0; }   /* owner 2026-10-16: "center viktor dune on the top of the page" — the feed's name line centred (the desktop's .2em = the laptop's left edge: not here) */
+  /* the BAR (owner 2026-10-28: "when up, then it just overlays it over whatever underneath … the retractable underbar … introduced in
+     ios7 … adding some space under that cutoff in white, and put the viktor dune there"): a white sheet from the top edge (Safari's own
+     band ends there; under the status bar too wherever the page reaches it: env(safe-area-inset-top)) to a hairline. At the top of the
+     page it is invisible (white on white, no line) and the name is where it was; a scroll down shrinks it with the page (its bottom
+     rides the first object's top, 1:1) to the minimal strip, the name scaling to .8 in it — iOS 7 Safari's bar → its domain strip —
+     and the hairline comes in once the work passes under. A function of the scroll alone (no direction): a scroll up mid-page leaves
+     the strip as it is, so the name never lies over the work. Inside .hdr: OPEN fades it with the name. Script: the BAR (nbStep()) */
+  .nbar { display: none; }
+  html.phone.feed.nb .nbar { display: block; position: absolute; left: 0; top: 0; width: 100%; height: var(--nb-h0, 0px); background: #fff;
+                             will-change: transform; }
+  html.phone.feed.nb .nbline { position: absolute; left: 0; right: 0; bottom: 0; height: var(--nb-px, 1px); background: rgba(0, 0, 0, var(--nb-line, .3));
+                               opacity: 0; }   /* one device pixel (1 / DPR) */
+  html.phone.feed.nb .hdr .name { position: absolute; left: var(--nb-l, 0px); width: var(--nb-w, 100%); top: var(--nb-t, 0px);
+                                  transform-origin: 50% 0; will-change: transform; }
   `;
   /* STAGE (landscape-first; its block below): the document is a tall invisible page under a FIXED stage (the viewer), so the visitor's
      first upward swipe is a real document scroll — the only thing that makes Safari collapse its bars — while nothing on screen scrolls.
@@ -475,11 +493,15 @@
     nmLaid(c.hdrRoot, 0);                                                 // (the cssText dropped the NAME's translate)
     if (FEED && por) {
       const nameH = 1.2 * 1.03 * em;
+      if (P.nbar) nbLaid(c.hdrRoot, W, top, nameH, contentLeft, contentW); // the BAR: the name in its white strip (it never retracts)
+      else {
       c.hdrRoot.style.cssText = `left:${contentLeft}px;top:${top}px;width:${contentW}px;height:${nameH}px`;
       nmLaid(c.hdrRoot, P.nmHide ? top + nameH + 1 : 0);                  // the NAME: its reach = off the top edge (the safe area, its margin, its line)
+      }
       c.row.style.top = (top + nameH + P.gapName * nameH) + 'px'; c.row.style.height = ''; c.row.style.width = W + 'px';
       c.row.style.paddingLeft = c.row.style.paddingRight = '0px'; c.row.style.columnGap = '0px';
     } else {
+    if (NB.on) nbOff();                                                   // a rotation out of the feed: the BAR goes (the row's name is the desktop's)
     c.row.style.top = (base - TH) + 'px'; c.row.style.height = TH + 'px';
     c.row.style.paddingLeft = contentLeft + 'px'; c.row.style.paddingRight = mg.r + 'px';
     c.row.style.columnGap = (por ? P.gap : Math.max(P.gap, .07 * W)) + 'px';
@@ -646,9 +668,57 @@
     if (now - NM.t < 160 || (NM.y > 0 && NM.y < NM.reach && Math.abs(Math.min(to, y) - NM.y) >= .3)) NM.raf = requestAnimationFrame(nmStep);
     else NM.f = 0;
   }
+  /* ---------- FEED: the BAR (2026-10-28; its CSS: the .nbar rules) ----------
+     The geometry, from the top edge of the layout viewport (0 = where Safari's band ends; under the status bar where the page reaches it,
+     env(safe-area-inset-top) = SA.t, so the sheet starts at 0 either way): at rest the sheet reaches half-way down the gap between the
+     name's line and the first object (h0), minimal it is SA.t + nbh (h1). The first D = h0 − h1 pt of scroll shrink it 1:1 (its bottom
+     rides the column), the name going from its place (SA.t + ptop, 18 px) to the strip's centre at nbs; past D the hairline comes in
+     over 8 pt. Read once a frame from scrollY in [0, max] (Safari's rubber band moves nothing); every write rounded to device pixels so
+     the hairline lands on one row of them. */
+  const NB = { on: false, el: null, sh: null, ln: null, nm: null, D: 0, t0: 0, t1: 0, h0: 0, px: 1, raf: 0, b: 0, w: '' };
+  function nbLaid(el, W, top, nameH, l, w) {
+    const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
+    if (!NB.sh) {
+      const hdr = el.querySelector('.hdr'); if (!hdr) return;
+      NB.sh = document.createElement('div'); NB.sh.className = 'nbar'; NB.sh.setAttribute('aria-hidden', 'true');
+      NB.ln = document.createElement('div'); NB.ln.className = 'nbline'; NB.sh.appendChild(NB.ln);
+      hdr.insertBefore(NB.sh, hdr.firstChild); NB.nm = hdr.querySelector('.name');
+    }
+    const h0 = px(top + nameH + P.gapName * nameH / 2), h1 = px(Math.min(h0, SA.t + P.nbH));
+    NB.el = el; NB.D = h0 - h1; NB.h0 = h0; NB.px = 1 / dpr;
+    NB.t0 = top; NB.t1 = SA.t + (P.nbH - P.nbS * nameH) / 2;
+    el.style.cssText = `left:0px;top:0px;width:${W}px;height:${h0}px;--nb-h0:${h0}px;--nb-px:${NB.px}px;--nb-line:${P.nbLine};` +
+                       `--nb-l:${l}px;--nb-w:${w}px;--nb-t:${top}px`;
+    nmLaid(el, 0);                                                      // (the cssText dropped any translate; the retract stays off)
+    if (!NB.on) { NB.on = true; root.classList.add('nb'); }
+    NB.w = ''; nbStep();
+  }
+  function nbOff() {
+    NB.on = false; root.classList.remove('nb');
+    if (NB.nm) NB.nm.style.transform = '';
+    if (NB.sh) NB.sh.style.transform = '';
+    if (NB.ln) NB.ln.style.opacity = '';
+    NB.w = ''; NB.b = 0;
+  }
+  function nbStep() {
+    NB.raf = 0;
+    if (!NB.on) return;
+    const max = Math.max(0, document.documentElement.scrollHeight - innerHeight), y = Math.min(max, Math.max(0, scrollY));
+    const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
+    const d = px(Math.min(NB.D, y)), p = NB.D > 0 ? d / NB.D : 1, o = Math.min(1, Math.max(0, (y - NB.D) / 8));
+    const k = `${d}|${o.toFixed(3)}`;
+    if (k === NB.w) return;
+    NB.w = k; NB.b = NB.h0 - d;
+    NB.sh.style.transform = d ? `translate3d(0, ${-d}px, 0)` : '';
+    NB.nm.style.transform = p ? `translate3d(0, ${((NB.t1 - NB.t0) * p).toFixed(3)}px, 0) scale(${(1 - (1 - P.nbS) * p).toFixed(4)})` : '';
+    NB.ln.style.opacity = o ? o.toFixed(3) : '';
+  }
   if (FEED_OK) {
-    if (P.nmNeg) root.classList.add('nm-neg');                          // at boot only (a class on <html>)
-    addEventListener('scroll', () => { if (!NM.raf) NM.raf = requestAnimationFrame(nmStep); }, { passive: true });
+    if (P.nmNeg && !P.nbar) root.classList.add('nm-neg');               // at boot only (a class on <html>) — the BAR's name is plain ink on its white
+    addEventListener('scroll', () => {
+      if (NB.on) { if (!NB.raf) NB.raf = requestAnimationFrame(nbStep); }
+      else if (!NM.raf) NM.raf = requestAnimationFrame(nmStep);
+    }, { passive: true });
   }
   /* ---------- the STAGE (landscape-first, 2026-10-15): the rotate prompt, the ENTRY, Safari's bars ----------
      The mechanism is the one proven on the owner's iPhone (iOS 18.3.1; resp notes landscape-fullscreen.md, lab v4): a fixed stage over
@@ -858,6 +928,7 @@
   window.__mobile = { on: true, get feed() { return FEED; }, mode, P, page, stackCfg, seat, playAt, phoneB, clipB, column, uncolumn, peek,
                       vh: () => innerHeight, svh, safe: () => SA, lineH, get layout() { return LAY; }, stage, guard,
                       get nm() { return { ...NM, el: undefined }; },   // FEED: the NAME's retract (debug)
+                      barB: () => NB.on ? NB.b : 0,                     // FEED: the BAR's bottom edge now, viewport px (site.html's paperAt(): no tap on the work under it)
                       get feedGap() { return LAY ? P.gapF * 1.2 * 1.03 * LAY.em : 0; },   // FEED: the gap between two papers, px (column(): site.html's feedLag() caps the lag by it)
                       onZoom: fn => zoomCbs.push(fn) };
 })();
