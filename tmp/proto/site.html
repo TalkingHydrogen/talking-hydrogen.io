@@ -730,9 +730,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=793521d"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=76fe9f7"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=793521d"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=76fe9f7"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1948,6 +1948,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     K.el.playbackRate = K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1;
     K.el.play().catch(e => { if (e && e.name === 'NotAllowedError') refused = true; });   // the phone: Low Power Mode (unlock())
     arm();
+    if (PH) kick();                         // the phone: the page's loop follows the lid (the LID DROP)
   }
   function swap(K, s, my) {                 // K from its frame nearest pose s, shown once it holds it (seeked + a frame)
     perfMark('lid → ' + goal + ' (' + K.name + ')');
@@ -2023,6 +2024,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     });
   }
   return { to, load, more, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
+           get rest() { return J ? R() : 0; }, get moving() { return !!cur && !cur.el.paused; },   // (the LID DROP: rowWrite())
            get shut() { return !cur || (cur.el.paused && Math.abs(poseNow() - (held ? 0 : R())) < .5); },   // shut: at the rest and still (lidSync()'s close tail)
            get eta() {                      // s until the lid is fully open (its opening clip's last frame) — null unless it is on its way there (capFadeIn())
              if (goal !== 'open' || !cur || cur.el.paused || dirOf(cur) <= 0 || endOf(cur) !== J.n - 1) return null;
@@ -4816,7 +4818,7 @@ let last = 0, rafId = 0;
    integrate the whole stall at once: 0 → 30–40 % of the zoom in one frame) */
 let startGuard = 0;
 const blocked = () => stacks.some(s => s.blocked());       // a debug freeze / pin (the primary's URL) holds the loop, as before
-const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive() || nudgeRun() || (!!TOUCH && TOUCH.busy());   // TOUCH (phone): its drag offset springing / decaying   // the NEIGHBOUR NUDGE moving (not while it holds)
+const anyActive = () => pageSprings.some(s => !s.isDone) || stacks.some(s => s.active()) || rowActive() || nudgeRun() || (!!TOUCH && TOUCH.busy()) || (RP.ld > 0 && !!lidSt()?.lid?.moving);   // TOUCH (phone): its drag offset springing / decaying   // the NEIGHBOUR NUDGE moving (not while it holds)
 /* FRAME RECORDER (debug, 2026-09-27; designer: "still lags a bit … find what exactly causes it"): every frame of the loop — its
    interval (raw, before maxFrameDt / startGuard), the loop's own script time, and the named steps (perfMark) that ran since
    the frame before — in a ring of PERF.N frames. A slow frame's interval minus its script time is Safari's own work (style,
@@ -4888,7 +4890,7 @@ function renderPage() {
   }
   if (RP.part && RP.part !== activeStack && RP.part.progress === 0) RP.part = null;        // site: PARTING, until the close's p is exactly home
   if (RP.move && RP.move.to.progress === 1 && RP.move.from.progress === 0) { RP.move = null; RP.nvFrom = 0; if (TOUCH) requestAnimationFrame(TOUCH.land); }   // site: a CAMERA move is over when both piles are exactly at their ends (the NUDGE it carried is gone) — FEED (VR3-2): a tap kept from its tail acts now
-  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV()) + (TOUCH ? TOUCH.key() : '');   // RP.nv: the NUDGE, once a frame; TOUCH (phone): its drag offset
+  const ck = (RP.part ? RP.part.progress : 0) + '|' + (RP.move ? RP.move.from.progress : '') + '|' + (RP.part ? RP.part.filmOut || 0 : 0) + '|' + (RP.nv = nudgeV()) + '|' + (RP.ld = lidDrop()) + (TOUCH ? TOUCH.key() : '');   // RP.nv: the NUDGE, once a frame; RP.ld: the LID DROP; TOUCH (phone): its drag offset
   if (ck !== RP.pv) rowWrite();                                                            // … the other row elements ride the zoom (the CAMERA / PARTING)
   for (const t of tiles) { const th = t.h.value.toFixed(4); if (t._h !== th) { t._h = th; t.style.setProperty('--h', th); } }   // site: the row elements' hover
   pput(backdrop, 'bd', 'opacity', String(v));
@@ -5361,8 +5363,31 @@ function nudgeV() {
 }
 const nudgeDir = (d, e) => { const j = RP.els.indexOf(e); return !d || j === d.i ? 0 : (j < d.i ? 1 : -1) * (isFeed() ? .5 * window.__mobile.P.peek : NB.nudge * NB.rest * PG.KV); };   // the whole side, inward (FEED: + ½ peek, 16 pt, on y)
 const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
+/* site 2026-10-28 — the phone's LID DROP (owner: "the current lid close animation + the zoom out do not cooperate specifically on this
+   one. The lid which is not closed yet hits the top and becomes obscured by the viktor dune panel and then it closes … zoom out animation
+   untouched, and overlap the lid close animation with some smart cheap tracking where the lid is … Imagine if we would just play the lid
+   animation it would slowly pull the rest of the page up, by shrinking the macbook"). The zoom out lands the laptop in ~.45 s, its lid
+   closes in 1.2 s: at HOME it stood up to ~85 pt over its rest top, under the name's strip (the MacBook is the feed's first object). Now
+   the MacBook and every row element below it ride down by the lid top's reach over its rest (LID_RISE: lidvideo.py's table of the lid
+   top's rise by pose, of the frame's 2220 rows) × (1 − the MacBook's p): nothing in OPEN, all of it at HOME — so the lid's top keeps to
+   its rest line while it closes, and the page comes up with it, the laptop "shrinking". The zoom out itself is untouched (rowWrite()
+   adds the drop in home px, under the camera's scale). The page's loop runs while it is on and the lid moves (makeLid's play() kicks
+   it). Not during the load hint (?lidpop=0's lift rises over the rest). ?liddrop=0: off. */
+const LID_DROP = pageQuery.get('liddrop') !== '0';
+const LID_RISE = [0, 15, 84, 217, 407, 637, 891, 1151, 1395, 1608, 1779, 1904, 1984, 2028, 2049, 2057, 2059];   // poses 0, 5 … 80 (flat after)
+const lidRise = s => { const i = clamp(s / 5, 0, LID_RISE.length - 1), a = Math.floor(i), b = Math.min(a + 1, LID_RISE.length - 1); return mix(LID_RISE[a], LID_RISE[b], i - a) / 2220; };
+let lidStack = null;
+const lidSt = () => lidStack || (lidStack = stacks.find(q => q.lid) || null);
+function lidDrop() {                        // home px, 0.1 px steps
+  const st = LID_DROP && isFeed() ? lidSt() : null, L = st?.lid;
+  if (!L || L.goal === 'hint') return 0;
+  const sP = L.pose, R = L.rest; if (sP <= R + .05) return 0;
+  const v = st.homeBox(false, false, true), vis = MACBOOK[0].vis;                           // the card's height at HOME: its visible part ÷ the vis span
+  return Math.round((1 - st.progress) * (lidRise(sP) - lidRise(R)) * (v.b - v.t) / (vis[3] - vis[1]) * 10) / 10;
+}
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
+  const ld = RP.ld || 0, eL0 = ld ? RP.els.find(q => q.st && q.st.lid) : null;            // the LID DROP (above): the MacBook's element
   if (sl !== RP.sl) { RP.sl = sl; scroller.scrollLeft = sl; }
   const m = RP.move, pa = RP.part ? RP.part.progress : 0, fo = RP.part ? RP.part.filmOut || 0 : 0;   // fo: site FILM — the neighbours' slide out
   RP.pv = pa + '|' + (m ? m.from.progress : '') + '|' + fo + '|' + (RP.nv || 0) + (TOUCH ? TOUCH.key() : '');
@@ -5374,6 +5399,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
   const sa = isFeed() ? window.__mobile.safe() : null, wcap = sa ? W - 2 * window.__mobile.P.m - sa.l - sa.r : 0;   // FEED: the widest a neighbour's paper may be (V1-1)
   const held = !!RP.hAim && RP.hAim.out && !!RP.part && RP.part.progress >= .5;          // site 2026-10-09: HOME AIM — the name held at its old place (homeAim())
   const [pcx, pcy] = TOUCH && !isFeed() ? TOUCH.pinAt() : [0, 0];                         // PHONE, the row (landscape): a pinned caption stays where the finger's drag left it (capPinT)
+  const dropOf = e => eL0 && (e === eL0 || e.cy > eL0.cy) ? ld : 0;                         // the LID DROP: the MacBook and below
   for (const e of RP.els) {
     const lo = cap > 0 ? cap * Math.tanh(e.o / cap) : e.o, t0 = sl - RP.S + (fvL ? 0 : lo), xh = e.cx - sl + t0;   // lo: its lag spring's offset — on x in the row, on y in the FEED (feedLag())
     const eL = (e.eL ?? e.w) + PARK_PX, eR = (e.eR ?? e.w) + PARK_PX;
@@ -5387,7 +5413,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
               + (m ? (1 - u) * (RP.nvFrom || 0) * nudgeDir(RP.dFrom, e) : pa * nudgeOf(RP.dPart, e))   // + the NUDGE, inward (a move: only the leaving framing's, fading)
               + (fo && RP.dPart && st !== RP.part ? Math.sign(RP.els.indexOf(e) - RP.dPart.i) * fo * FILM.push * (isFeed() ? H : W) : 0);   // site: FILM — out of the film's way (FEED: up / down)
       rt = m ? mix(tiltOf(RP.dFrom, e), tiltOf(RP.dPart, e), u) : pa * tiltOf(RP.dPart, e);
-      const fv = isFeed(), yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * (yh + (fv ? lo : 0)) + C.y + (fv ? d : 0);   // FEED: the peek shift and the lag on y              // its centre on screen
+      const fv = isFeed(), yh = RP.rowTop + e.cy, X = C.k * xh + C.x + (fv ? 0 : d), Y = C.k * (yh + (fv ? lo + dropOf(e) : 0)) + C.y + (fv ? d : 0);   // FEED: the peek shift and the lag on y              // its centre on screen
       let kk = C.k, vx = xh - t0, vy = yh;                                                    // … its slot scale, its drawn centre before the slot (its layout centre at p = 0)
       if (ps > 0) { const M = frameOf(st, ps); kk = C.k / M.k; vx = M.k * (xh - t0) + M.x; vy = M.k * yh + M.y; }
       park = up && !mover && ps === 0 && homeOn && (X - eL * C.k > W || X + eR * C.k < 0 || Y + (e.top - yh) * C.k > H || Y + (e.bot - yh) * C.k < 0);
@@ -5414,7 +5440,7 @@ function rowWrite() {                       // scrollLeft = S inside the range; 
       const other = up && e.el !== RP.part.wrap, x = xh + pv * (e.awayX || 0);
       park = other && homeOn && (x - eL > W || x + eR < 0);                                   // home on screen, its way off screen
       const w = park ? 0 : pv;
-      tx = t0 + w * (e.awayX || 0); ty = w * (e.awayY || 0) + (fvL ? lo : 0); z = park ? -2 : 0;
+      tx = t0 + w * (e.awayX || 0); ty = w * (e.awayY || 0) + (fvL ? lo + dropOf(e) : 0); z = park ? -2 : 0;
     }
     const v = Math.abs(tx) < .005 && Math.abs(ty) < .005 && !z ? ''
             : `${tx.toFixed(2)}px ${Math.abs(ty) < .005 ? '0' : ty.toFixed(2) + 'px'}${z ? ' ' + z + 'px' : ''}`;
