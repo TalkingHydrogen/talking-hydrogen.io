@@ -730,9 +730,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=336e523"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=793521d"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=336e523"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=793521d"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5183,9 +5183,9 @@ function ageMeasure() {                     // rowMeasure(): each aged element's
   if (isFeed()) {                            // FEED: y — the anchor = the column's start line (the first object's visible top at scroll 0, a line under the name); the gaps between VISIBLE papers
     const els = RP.els, vt = e => e.st ? e.yb + e.st.homeBox(false, false, true).t : e.yb - e.el.offsetHeight;   // (the MacBook's vis = the lift's reach, as the column's slot: 2026-10-16)
     const vb = e => e.st ? e.yb + e.st.homeBox(false, false, true).b : e.yb, A = els.length ? vt(els[0]) : 0, M = Math.max(0, document.documentElement.scrollHeight - innerHeight);
-    AGE.th = []; AGE.ages = [];
+    AGE.th = []; AGE.ages = []; AGE.at = [];
     for (let j = 0; j < els.length; j++) { const v = els[j].el.dataset.age; if (!v) continue; const p = els[j - 1];
-      AGE.th.push(AGE.th.length ? (vb(p) + vt(els[j])) / 2 - A : -Infinity); AGE.ages.push(v); }
+      AGE.th.push(AGE.th.length ? (vb(p) + vt(els[j])) / 2 - A : -Infinity); AGE.ages.push(v); AGE.at.push(j); }   // (AGE.at: its place in RP.els — OPEN's age, ageSync())
     for (let k = AGE.th.length - 1, cap = M - AGE.hyst - 1; k > 0; k--) { AGE.th[k] = Math.min(AGE.th[k], cap); cap = AGE.th[k] - 1; }
     return;
   }
@@ -5204,7 +5204,9 @@ function ageSync() {                        // rowWrite(): the number of the ele
   if (!n || !AGE.el) return;
   const first = AGE.i < 0;
   let i = clamp(AGE.i, 0, n - 1);
-  if (first) while (i + 1 < n && S >= th[i + 1]) i++;                                   // the first: where it is, no roll
+  const oj = isFeed() && activeStack && AGE.at ? RP.els.findIndex(e => e.st === activeStack) : -1;   // FEED, away from HOME: the open work's own age (owner 2026-10-28: "the age doesnt update now in zoom" — the BAR keeps the name there; the frozen scroll never moves while the camera pages)
+  if (oj >= 0) { i = 0; for (let k = 0; k < n; k++) if (AGE.at[k] <= oj) i = k; }          // (an element with no data-age: the one above it, as in the column)
+  else if (first) while (i + 1 < n && S >= th[i + 1]) i++;                              // the first: where it is, no roll
   else { while (i + 1 < n && S >= th[i + 1] + h) i++; while (i > 0 && S < th[i] - h) i--; }
   AGE.i = i;
   if (AGE.ages[i] !== AGE.val) ageSet(AGE.ages[i], !first);
