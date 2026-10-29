@@ -274,6 +274,14 @@
   .film { position: absolute; left: 0; top: 0; width: 3840px; height: 2160px; display: block; object-fit: fill; transform-origin: 0 0;
           translate: 0 0 -.875px; visibility: hidden; opacity: 0; pointer-events: none; will-change: transform, opacity; }
   .film.up { translate: 0 0 .5px; }
+  /* site 2026-10-29 (owner, iPhone: "and on the macbook video too, two lines top and bottom"): a portrait phone LETTERBOXES the film
+     (FILM.fit: its sides run off the screen), so its frame's top and bottom edges sit on the page — two lines wherever its ground is
+     not the page's #FCFCFC to the level (the grey scenes: 224 / 232 vs 252; the phone's own video colour on the white ones). The
+     edges FEATHER into the page: --film-feather of the frame's height, faded out top and bottom (none at the laptop: its open pose
+     sits mid-frame on ground). Phone feed only — a desktop / landscape frame covers the viewport. ?filmfeather=N (%, 0 = hard) */
+  html.phone.feed .film { --ff: var(--film-feather, 5%);
+          -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--ff), #000 calc(100% - var(--ff)), transparent);
+          mask-image: linear-gradient(to bottom, transparent, #000 var(--ff), #000 calc(100% - var(--ff)), transparent); }
   /* its play button's stand-in over the film (the button itself is in the card's plane, under the film): the same disc, a row
      node above everything in the row, placed and faded with it (filmWrite(), songWrite()) */
   .play.proxy { left: 0; top: 0; translate: 0 0 .7px; transform-origin: 0 0; transition: none; pointer-events: none; }
@@ -734,9 +742,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=1691120"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=93aa0a9"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=1691120"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=93aa0a9"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5905,6 +5913,7 @@ const filmCursor = {
   },
 };
 const filmGuard = () => stacks.find(s => s.film?.guards)?.film;
+(v => { if (Number.isFinite(v)) document.documentElement.style.setProperty('--film-feather', clamp(v, 0, 25) + '%'); })(parseFloat(pageQuery.get('filmfeather')));   // site 2026-10-29: the phone film's FEATHER (the .film CSS note)
 if (pageQuery.get('film') === 'auto') addEventListener('load', () => setTimeout(async () => {   // debug: open the MACBOOK and start its film muted (any browser, no gesture); ?filmat=SEC seeks there
   const s = stacks.find(k => k.film); if (!s) return;
   s.expand(); while (s.state !== 'open') await new Promise(r => setTimeout(r, 50));
