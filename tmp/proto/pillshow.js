@@ -348,7 +348,34 @@
       const len = k[i] * COMB.scale;
       tips[i] = [ pts[i][0] + o*ty*len, pts[i][1] - o*tx*len ];
     }
-    return { pts, tips, k, P: P0 };
+    let i9 = n >> 1, d9 = Infinity;                                     // the 9 o'clock nose: pts[0]'s mirror (every shape is centred on x = 0)
+    for(let i = n >> 2; i < n - (n >> 2); i++){ const d = (pts[i][0] + pts[0][0])**2 + (pts[i][1] - pts[0][1])**2; if(d < d9){ d9 = d; i9 = i; } }
+    const pa = pts[i9 - 1], pb = pts[i9 + 1], ex = pb[0] - pa[0], ey = pb[1] - pa[1];   // to a fraction of a sample: projected on its neighbours' chord
+    const f9 = clamp(((-pts[0][0] - pa[0])*ex + (pts[0][1] - pa[1])*ey) / (ex*ex + ey*ey || 1), 0, 1) * 2 - 1;
+    return { pts, tips, k, P: P0, s9: (i9 + f9) * P0 / n };
+  }
+  /* THE COMB'S HAIRS, ANCHORED (owner 2026-10-29: "when the pill does animate with a comb … when it's settling animation it just
+     jitters the hairs and they update, it needs to be smoothened up a bit the whole thing"). The hairs were n_h = round(P / gap) shares
+     of the perimeter from the 3 o'clock nose, re-counted every frame: each time the growing (or ringing) perimeter tipped n_h by one,
+     every hair re-spread (hair j by j / n_h of a gap: the far ones by up to half a gap — measured on the circle → pill open at 1440,
+     the bases' frame-to-frame second difference .2 px ↔ 2.2 px on alternate frames, tips to 8 px), and the camera's last 10% into the
+     corner re-spread them as its scale grew. Now a hair is a fixed distance g along the outline from its NOSE (3 and 9 o'clock: the cap's
+     middle, high κ), so it rides the shape like a painted mark; the outline's growth enters at the SEAMS (12 and 6 o'clock — the pill's
+     and the panel's flats, where a hair is ~0 long): the two last hairs there part as the side grows and a seam hair fades in between
+     them as their gap opens past g (two hairs on one spot in one stroke are one hair: no blink as they part). g is the gap at the step's
+     RESTING camera (the corner's while the camera goes to or from it), snapped so the circle's quarter is J + ½ hairs (its comb even all
+     round, as the stills). A hair under ~½ px fades by its length (¼ → ¾ px) instead of popping at ½ px: the bulge's ~1 px hairs along
+     the flats blinked on and off with the lift's ring. Measured (60 Hz, hairs followed by their place on the shape, jitter = |Δ⁴ tip| / √70):
+     the open's p95 1.83 → .027 css px at 1440, 1.20 → .012 on a 15 Pro; the settle's 1.56 → .014; the corner's last 10% in: hairs
+     slid .56 px a frame (p95 2.2) → 0; the stills as before. What is left is the shape's own (the lift's target step, the cap's flat being
+     born). ?combsmooth=0: the old re-count (A/B) */
+  const COMB_SMOOTH = !/[?&]combsmooth=0(&|$)/.test(location.search);
+  let CIRCLE_Q = 0;                                                     // the circle's quarter, world px (its generator outline: the 1 : 1 squircle)
+  function circleQ(){
+    if(CIRCLE_Q) return CIRCLE_Q;
+    const o = unifiedOutline2(0, 0, CIRCLE.w, CIRCLE.h, CIRCLE.r, null, 'G4');
+    for(let i = 0; i < o.length; i++){ const a = o[i], b = o[(i + 1) % o.length]; CIRCLE_Q += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+    return (CIRCLE_Q /= 4);
   }
   let PANEL_COMB = null;                                                // the panel's comb, off its own generator outline (≈10 ms: warmed)
   function panelComb(){ return PANEL_COMB || (PANEL_COMB = combOf(unifiedOutline2(0, PANEL.h / 2, PANEL.w, PANEL.h, PANEL.r, null, 'G4'))); }
@@ -766,14 +793,41 @@
       c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, C.el.width, C.el.height);
       c.setTransform(C.rx * cam.k, 0, 0, C.ry * cam.k, C.rx * (cam.x - b.x), C.ry * (cam.y - b.y));
       trace(c, pts); c.fillStyle = '#000'; c.fill();
-      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k, 1);
-      else if(liveComb()) drawComb(c, combFor(pts), C.rx * cam.k, CF.a);                     // the circle's and its open: the live outline's
-      else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a, ONE_CORNER ? cornerRun(panelComb()) : null);   // the corner's: the panel at rest
+      const us = C.rx * camAt(CAM.active ? Math.max(CAM.u0, CAM.u1) : CAM.u).k;   // the hairs' spacing: the step's resting camera (a move to or from the corner: the corner's)
+      if(SHOW_COMB) drawComb(c, combFor(pts), C.rx * cam.k, 1, null, us);
+      else if(liveComb()) drawComb(c, combFor(pts), C.rx * cam.k, CF.a, null, us);           // the circle's and its open: the live outline's
+      else if(CF.a > 1e-3 && cur === 2 && !MORPH.active && !GENIE.active && !GROW.active) drawComb(c, panelComb(), C.rx * cam.k, CF.a, ONE_CORNER ? cornerRun(panelComb()) : null, us);   // the corner's: the panel at rest
     }
-    function drawComb(c, K, u, alpha, run){                              // u: canvas px (= device px where it shows) per world px · run: { s, len } — only that run (oneCorner)
+    function drawComb(c, K, u, alpha, run, us){                          // u: canvas px (= device px where it shows) per world px · run: { s, len } — only that run (oneCorner) · us: u at the step's resting camera (the hairs' spacing)
       const cssW = u / G.dpr, gap = Math.max(G.W / 320, GAP_MIN), n = K.pts.length;   // GAP_MIN: a phone's floor (PHONE)
-      const nh = Math.max(8, Math.round(K.P * cssW / gap)), lw = px => px * G.dpr / u;
+      const lw = px => px * G.dpr / u;
       c.globalAlpha = alpha; c.lineCap = 'butt';
+      if(COMB_SMOOTH){                                                   // THE COMB'S HAIRS, ANCHORED (above): by weight, 16 strokes at most
+        const Lc = circleQ(), g0 = gap * G.dpr / (us || u), g = Lc / (Math.max(0, Math.round(Lc / g0 - .5)) + .5), P = K.P, BK = [];
+        const hair = (s, w) => {                                         // the hair at arc length s from the 3 o'clock nose, weight w
+          let f = (s % P + P) % P * n / P; const i = Math.floor(f) % n, j = (i + 1) % n; f -= Math.floor(f);
+          if(run && (i - run.s + n) % n >= run.len) return;
+          const b = Math.round(16 * w * smoothstep((Math.abs(K.k[i] + (K.k[j] - K.k[i]) * f) * COMB.scale * cssW - .25) / .5));   // its length's fade, css px
+          if(b <= 0) return;
+          const p = K.pts[i], q = K.pts[j], t = K.tips[i], v = K.tips[j];
+          (BK[b] || (BK[b] = [])).push(p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, t[0] + (v[0] - t[0]) * f, t[1] + (v[1] - t[1]) * f);
+        };
+        hair(0, 1); hair(K.s9, 1);                                       // the noses
+        for(const [a, L, e] of [[0, K.s9 / 2, K.s9], [K.s9, (P - K.s9) / 2, P]]){   // the top half (3 → 12 ← 9) · the bottom (9 → 6 ← 3)
+          const J = Math.floor(L / g), d = L - J * g;
+          for(let j = 1; j <= J; j++){ hair(a + j * g, 1); hair(e - j * g, 1); }
+          hair(a + L, smoothstep((d - g / 2) / (g / 2)));                // the seam's: in as its gap opens past g
+        }
+        c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair);
+        for(let b = 1; b <= 16; b++){
+          const h = BK[b]; if(!h) continue;
+          c.globalAlpha = alpha * b / 16; c.beginPath();
+          for(let i = 0; i < h.length; i += 4){ c.moveTo(h[i], h[i + 1]); c.lineTo(h[i + 2], h[i + 3]); }
+          c.stroke();
+        }
+        c.globalAlpha = alpha;
+      } else {
+      const nh = Math.max(8, Math.round(K.P * cssW / gap));
       c.beginPath();
       for(let j = 0; j < nh; j++){
         const i = Math.round(j * n / nh) % n;
@@ -782,6 +836,7 @@
         c.moveTo(K.pts[i][0], K.pts[i][1]); c.lineTo(K.tips[i][0], K.tips[i][1]);
       }
       c.strokeStyle = COMB.hair; c.lineWidth = lw(COMB.wHair); c.stroke();
+      }
       c.lineJoin = 'round';
       if(run){ c.beginPath(); for(let q = 0; q < run.len; q++){ const t = K.tips[(run.s + q) % n]; if(q) c.lineTo(t[0], t[1]); else c.moveTo(t[0], t[1]); } }   // its envelope open: edge to edge
       else trace(c, K.tips);

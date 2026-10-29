@@ -742,9 +742,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=7f047d3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=73aabea"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=7f047d3"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=73aabea"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5448,7 +5448,13 @@ const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
    on top"): the presented frame steps, holds and doubles (makeLid's CLOCK note) — the drop reads the clip's CLOCK at the frame's time
    now (lid.at(frameT)), continuous between the clip's frames. And LID_RISE is every pose (lidvideo.py's lid_top measure; flat past 76; was every
    5th, linear: the page's speed broke at each 5th pose, ~every 50 ms), through monotone cubic tangents (Fritsch–Carlson: C1, never
-   past its points); the drop in .01 px (was .1: uneven steps in the slow tail). ?lidlock=: LID_LOCK (0 … 1). */
+   past its points); the drop in .01 px (was .1: uneven steps in the slow tail). ?lidlock=: LID_LOCK (0 … 1).
+   Same day (owner: "in zoomed mode when i scroll down from MacBook it stutters on closure"): a swipe on from the OPEN MacBook (a MOVE
+   to the pill showcase) closed the lid too, and the drop pushed the MacBook AND the arriving pile below it down while the camera
+   framed it — at the release +8 px against the swipe, then ~300 ms held against the page spring, then 160 px of slide as the lid came
+   down (with it off: one 400 ms glide). The drop is the close to HOME's only now: off while another object is away from HOME (the
+   camera's), latched for that close (lidAway) until the lid rests or the MacBook is OPEN again — both where the drop is 0 — so it
+   never cuts in mid-way (a tap HOME from the pill while the lid still closes: no drop, the camera untouched). */
 const LID_LOCK = (v => Number.isFinite(v) ? clamp(v, 0, 1) : .2)(parseFloat(pageQuery.get('lidlock')));
 const LID_OUT = (v => Number.isFinite(v) && v > 0 ? clamp(v, .5, 3) : 1.25)(parseFloat(pageQuery.get('lidout')));
 const LID_DROP = pageQuery.get('liddrop') !== '0';
@@ -5456,12 +5462,13 @@ const LID_RISE = [0, 0, 1.6, 3.8, 8.8, 15.2, 24.1, 35.8, 49, 65.1, 83.6, 104.5, 
 const LID_RISE_M = LID_RISE.map((y, k, Y) => { const a = k ? y - Y[k - 1] : Y[1] - y, b = k < Y.length - 1 ? Y[k + 1] - y : a; return a * b > 0 ? 2 * a * b / (a + b) : 0; });   // its tangents (Fritsch–Carlson)
 const lidRise = s => { const Y = LID_RISE, M = LID_RISE_M, n = Y.length - 1, x = clamp(s, 0, n), i = Math.min(n - 1, Math.floor(x)), u = x - i, u2 = u * u, u3 = u2 * u;
   return ((2 * u3 - 3 * u2 + 1) * Y[i] + (u3 - 2 * u2 + u) * M[i] + (3 * u2 - 2 * u3) * Y[i + 1] + (u3 - u2) * M[i + 1]) / 2220; };
-let lidStack = null;
+let lidStack = null, lidAway = false;
 const lidSt = () => lidStack || (lidStack = stacks.find(q => q.lid) || null);
 function lidDrop() {                        // home px, .01 px steps
   const st = LID_DROP && isFeed() ? lidSt() : null, L = st?.lid;
   if (!L || L.goal === 'hint') return 0;
-  const sP = L.at(frameT), R = L.rest; if (sP <= R + .005) return 0;
+  const sP = L.at(frameT), R = L.rest; if (sP <= R + .005 || st.progress >= 1) { lidAway = false; return 0; }   // at rest or OPEN (the drop 0): the latch re-arms
+  if (lidAway || (lidAway = stacks.some(q => q !== st && q.state !== 'home'))) return 0;   // a MOVE: the camera's on another object (above)
   const v = st.homeBox(false, false, true), vis = MACBOOK[0].vis;                           // the card's height at HOME: its visible part ÷ the vis span
   return Math.round((1 - st.progress) * (lidRise(sP) - lidRise(R)) * (v.b - v.t) / (vis[3] - vis[1]) * 100) / 100;
 }
