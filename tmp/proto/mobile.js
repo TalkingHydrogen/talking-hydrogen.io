@@ -667,13 +667,18 @@
     return top - eff.top;
   }
 
-  /* placePlay(): portrait — the COLOPHON: under the caption's left column, one line below it, its disc on the card's left edge (squared
-     to the object: (B − cw) / 2; ?pfit=page: on the 20 pt margin, the item's box centred, its left edge at (W − B) / 2); ?pcols=old: under the item at its right edge, its disc's top on the caption's first
+  /* placePlay(): portrait — the COLOPHON: the desktop's place, right of the card with the bottoms aligned, the desktop's gap ÷ disc
+     ratio, inside the right margin (?pfit=page: under the caption's left column, one line below it, on the 20 pt margin — the item's box
+     centred, its left edge at (W − B) / 2); ?pcols=old: under the item at its right edge, its disc's top on the caption's first
      line (item px: B square, the card contain-fit centred: (B + cw) / 2 = the card's right edge, (B + ch) / 2 its bottom). Landscape:
      the desktop's place, the 44 pt target. */
   function playAt(B, cw, ch, d, gap, name) {
     const D = 44, inset = 5;                                              // the target and the disc's inset (the .play::before CSS)
-    if (LAY && LAY.por && P.colo && name in C1H) return { d: D, l: P.fitObj ? (B - cw) / 2 - inset : LAY.mg.l - (LAY.W - B) / 2 - inset, t: (B + ch) / 2 + lineH() + C1H[name] + lineH() - inset };
+    if (LAY && LAY.por && P.colo && name in C1H && P.fitObj) {           // the desktop's place (owner 2026-10-29: "play button on the right of the macbook as in the desktop"): right of the card, bottoms aligned,
+      const c = D - 2 * inset, room = LAY.W - LAY.mg.r - c - ((LAY.W - B) / 2 + (B + cw) / 2);   // the desktop's gap ÷ disc (PLAY: 20 ÷ 46), kept inside the right margin (11 pt on a 13 mini)
+      return { d: D, l: (B + cw) / 2 + Math.max(0, Math.min(c * gap / d, room)) - inset, t: (B + ch) / 2 - D + inset };
+    }
+    if (LAY && LAY.por && P.colo && name in C1H) return { d: D, l: LAY.mg.l - (LAY.W - B) / 2 - inset, t: (B + ch) / 2 + lineH() + C1H[name] + lineH() - inset };   // ?pfit=page: under the left column
     if (LAY && LAY.por) return { d: D, l: (B + cw) / 2 - D + inset, t: (B + ch) / 2 + lineH() - inset + 1 };
     return { d: D, l: (B + cw) / 2 + gap - inset, t: (B + ch) / 2 - D + inset };
   }
