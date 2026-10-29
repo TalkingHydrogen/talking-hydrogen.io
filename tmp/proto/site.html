@@ -742,9 +742,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=8a7eaa0"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=adc29ab"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=8a7eaa0"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=adc29ab"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -5353,6 +5353,7 @@ function capWrite(e, park, own = e.st, dx = 0, dy = 0) {   // MOBILE: dy = a gro
   if (Math.abs(dy) > .005) v = (v ? v + ' ' : '') + `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;   // MOBILE (below the item: the member's line)
   else if (Math.abs(dx) > .005) v = (v ? v + ' ' : '') + `translateX(${dx.toFixed(2)}px)`;    // the offset first (in its band), then the ride
   if (own.capEl._tf !== v) { own.capEl._tf = v; own.capEl.style.transform = v; }
+  if (st && PG.capPlace) PG.capPlace(own.capEl, st);   // MOBILE: the COLOPHON's columns on the object it sits under (mobile.js; cached per member + layout)
 }
 /* the NEIGHBOUR PEEK's side shifts of stack s's open framing: the x added to every row element left (L) / right (R) of it, so the
    nearest one's card edge (homeBox(): its cards only, no shadow) stands NB.rest × KV inside the viewport edge */
