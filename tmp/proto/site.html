@@ -730,9 +730,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=5820823"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=6191fb8"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=5820823"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=6191fb8"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -1948,18 +1948,40 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
     K.el.playbackRate = K.name === 'fwd' || K.name === 'open' ? LID.open : K.name === 'rev' ? LID.close : 1;
     K.el.play().catch(e => { if (e && e.name === 'NotAllowedError') refused = true; });   // the phone: Low Power Mode (unlock())
     arm();
-    if (PH) { kick(); shownOf(K); }         // the phone: the page's loop follows the lid (the LID DROP), at its presented frames
+    if (PH) { kick(); shownOf(K); }         // the phone: the page's loop follows the lid (the LID DROP), on the clip's CLOCK
   }
-  function shownOf(K) {                     // the phone: K's PRESENTED frame (K.mt: its media time, once a frame reaches the screen) while it plays
+  /* 2026-10-29 — the phone lid's CLOCK (owner: "the animation is still jittery when it tries to shrink from that top … It must be as
+     smooth as some 120hz displays can get us to. Butter smooth, and somehow baked and better tracked and independant … So maybe some
+     independant interpolation on top"). The LID DROP followed the PRESENTED frame (rVFC's media time): WebKit drops a clip frame every
+     ~9 (measured in emulation: media time 0.15 → 0.1667 → 0.2 → 0.2) and shows some late, and the page copied every hold and double
+     step. Now a playing clip has a CLOCK — media time = K.c + t × rate at page time t (ms, the frame loop's rAF timestamp) — whose
+     offset K.c is locked to the frames it presents: anchored at its first frame after play() (a paused frame never anchors it), then
+     LID_LOCK of the way to each one (the error capped at one frame), re-anchored past 3 frames (a stall, a seek). at(t) reads the
+     clip's own pose table off that clock between its frames (Catmull-Rom, half a frame back: centred on the frame on screen, which
+     holds until the next) — the page moves on every frame of its loop, whatever the display's rate, and the lid's frames fall on it within half a one. */
+  function shownOf(K) {                     // the phone: K's clock (K.c, s) from its presented frames while it plays
     if (K.rv || !K.el.requestVideoFrameCallback) return;
-    const f = (t, m) => { K.mt = m.mediaTime; if (K.el.paused) K.rv = 0; else K.el.requestVideoFrameCallback(f); };
+    const f = (t, m) => {
+      if (K.el.paused) { K.rv = 0; K.c = null; return; }
+      const r = K.el.playbackRate || 1, e = K.c == null ? Infinity : m.mediaTime - (K.c + t * r / 1000);
+      if (Math.abs(e) > 3 / K.fps) K.c = m.mediaTime - t * r / 1000;
+      else K.c += LID_LOCK * clamp(e, -1 / K.fps, 1 / K.fps);
+      K.el.requestVideoFrameCallback(f);
+    };
     K.rv = K.el.requestVideoFrameCallback(f);
+  }
+  function at(t) {                          // the phone: the pose on screen at page time t (ms) — the playing clip's clock (shownOf()), else its frame
+    const K = cur; if (!K) return 0;
+    if (K.el.paused || K.c == null) return K.el.paused || K.f0 == null ? poseNow() : K.pose[K.f0];   // (playing, no frame shown yet: the seek's)
+    const P = K.pose, x = clamp((K.c + t * (K.el.playbackRate || 1) / 1000) * K.fps - .5, 0, K.last), i = Math.min(K.last - 1, Math.floor(x)), u = x - i;
+    const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(K.last, i + 2)];
+    return p1 + .5 * u * (p2 - p0 + u * (2 * p0 - 5 * p1 + 4 * p2 - p3 + u * (3 * (p1 - p2) + p3 - p0)));
   }
   function swap(K, s, my) {                 // K from its frame nearest pose s, shown once it holds it (seeked + a frame)
     perfMark('lid → ' + goal + ' (' + K.name + ')');
-    K.mt = null;                            // (its presented frame: the seek's, until one is shown)
+    K.c = null; K.f0 = entry(K, s);         // (its clock: the seek's frame, until one is shown playing)
     if (!cur.el.paused) cur.el.pause();
-    K.el.currentTime = (entry(K, s) + .25) / K.fps;
+    K.el.currentTime = (K.f0 + .25) / K.fps;
     K.el.addEventListener('seeked', () => requestAnimationFrame(() => { if (my !== seq) return; cur = K; show(K); play(K); }), { once: true });
   }
   function to(g) {
@@ -2031,7 +2053,7 @@ function makeLid(host, L, Bpx) {            // host: the card; L: pic.lid { base
   }
   return { to, load, more, hint, snap, redraw, V, get goal() { return goal; }, get pose() { return poseNow(); }, get clip() { return cur?.name; },
            get rest() { return J ? R() : 0; }, get moving() { return !!cur && !cur.el.paused; },   // (the LID DROP: rowWrite())
-           get shown() { return !cur ? 0 : cur.mt == null ? poseNow() : cur.pose[Math.min(cur.last, Math.max(0, Math.floor(cur.mt * cur.fps + 1e-4)))]; },   // the pose ON SCREEN (the phone: its presented frame — shownOf())
+           at,                              // the pose on screen at a page time (the phone: the clip's clock — shownOf())
            get shut() { return !cur || (cur.el.paused && Math.abs(poseNow() - (held ? 0 : R())) < .5); },   // shut: at the rest and still (lidSync()'s close tail)
            get eta() {                      // s until the lid is fully open (its opening clip's last frame) — null unless it is on its way there (capFadeIn())
              if (goal !== 'open' || !cur || cur.el.paused || dirOf(cur) <= 0 || endOf(cur) !== J.n - 1) return null;
@@ -4819,7 +4841,7 @@ let naturalT = 0;
 function scheduleLayout() { clearTimeout(naturalT); naturalT = setTimeout(() => layoutAll('natural'), 0); }
 
 /* the frame loop: one loop, every spring and motion of the page and of every stack */
-let last = 0, rafId = 0;
+let last = 0, lastT = 0, frameT = 0, rafId = 0;   // lastT / frameT: the frames' own times (their rAF timestamps: frame())
 /* PERF 2026-09-27: the first frames after a click (expand() / closeNow()) are stepped at most one 60 Hz frame each: whatever the
    click's own DOM work costs Safari then (an audio start, a clip swap), the motion starts late instead of JUMPING (it used to
    integrate the whole stall at once: 0 → 30–40 % of the zoom in one frame) */
@@ -4863,13 +4885,16 @@ window.__perf = {
     return out.join('\n');
   },
 };
-function frame() {
+/* 2026-10-29 (the phone lid's CLOCK, makeLid): the motion steps by the frames' own times — the rAF timestamp, one per display refresh
+   — not by when the callback happens to run (performance.now() there wanders by the frame's script and the lid's rVFC callbacks), so
+   an even refresh is an even step. frameT: the LID DROP's clock reads the frame's time. */
+function frame(ts) {
   perfFrameStart();
-  const now = performance.now(), raw = now - last;
-  let dt = Math.min(ZOOM.maxFrameDt, now - last);
+  const now = performance.now(), raw = now - last, T = ts > 0 ? ts : now;
+  let dt = Math.min(ZOOM.maxFrameDt, Math.max(0, T - lastT));
   if (startGuard > 0) { startGuard--; dt = Math.min(dt, 1000 / 60); }
   if (DIAG) { frames.push(now - last); if (frames.length > 6000) frames.splice(0, 1000); }
-  last = now;
+  last = now; lastT = frameT = T;
   for (const s of pageSprings) s.tick(dt);
   if (TOUCH) TOUCH.step(dt);                // site 2026-10-13: TOUCH (phone) — its drag offset's spring
   for (const s of stacks) s.step(dt, now);
@@ -4879,7 +4904,7 @@ function frame() {
   else { rafId = 0; last = 0; for (const s of stacks) s.idle(now); renderPage(); }
   perfFrame(now, raw, performance.now() - now);
 }
-function kick() { if (!rafId && !blocked()) { last = performance.now(); rafId = requestAnimationFrame(frame); } }
+function kick() { if (!rafId && !blocked()) { last = lastT = performance.now(); rafId = requestAnimationFrame(frame); } }
 function stopLoop() { if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
 
 /* the page's nodes: the header fade / scale, the row elements' hover and PARTING, the backdrop, the
@@ -5384,19 +5409,27 @@ const nudgeOf = (d, e) => RP.nv ? RP.nv * nudgeDir(d, e) : 0;
    the drop read the lid's currentTime each frame — on an iPhone it moves in uneven steps and runs ahead of the frame on screen, so the
    page and the lid's picture slid against each other. It follows the PRESENTED frame now (makeLid's shown: requestVideoFrameCallback's
    media time), so the lid's top holds still while the page rides it. And the two overlap more: the MacBook's own zoom out on a phone is
-   LID_OUT × ZOOM's out time (450 → 560 ms; closeNow()), its close 1.2 → 1.0 s (lidvideo.py's SHUT_S). ?lidout=: that factor. */
+   LID_OUT × ZOOM's out time (450 → 560 ms; closeNow()), its close 1.2 → 1.0 s (lidvideo.py's SHUT_S). ?lidout=: that factor.
+   2026-10-29 (owner: "the animation is still jittery when it tries to shrink from that top … Butter smooth … independant interpolation
+   on top"): the presented frame steps, holds and doubles (makeLid's CLOCK note) — the drop reads the clip's CLOCK at the frame's time
+   now (lid.at(frameT)), continuous between the clip's frames. And LID_RISE is every pose (lidvideo.py's lid_top measure; flat past 76; was every
+   5th, linear: the page's speed broke at each 5th pose, ~every 50 ms), through monotone cubic tangents (Fritsch–Carlson: C1, never
+   past its points); the drop in .01 px (was .1: uneven steps in the slow tail). ?lidlock=: LID_LOCK (0 … 1). */
+const LID_LOCK = (v => Number.isFinite(v) ? clamp(v, 0, 1) : .2)(parseFloat(pageQuery.get('lidlock')));
 const LID_OUT = (v => Number.isFinite(v) && v > 0 ? clamp(v, .5, 3) : 1.25)(parseFloat(pageQuery.get('lidout')));
 const LID_DROP = pageQuery.get('liddrop') !== '0';
-const LID_RISE = [0, 15, 84, 217, 407, 637, 891, 1151, 1395, 1608, 1779, 1904, 1984, 2028, 2049, 2057, 2059];   // poses 0, 5 … 80 (flat after)
-const lidRise = s => { const i = clamp(s / 5, 0, LID_RISE.length - 1), a = Math.floor(i), b = Math.min(a + 1, LID_RISE.length - 1); return mix(LID_RISE[a], LID_RISE[b], i - a) / 2220; };
+const LID_RISE = [0, 0, 1.6, 3.8, 8.8, 15.2, 24.1, 35.8, 49, 65.1, 83.6, 104.5, 128.7, 156, 185.1, 216.9, 251.8, 288.1, 326.3, 366.3, 407.2, 450.5, 495.1, 541.2, 588.2, 636.6, 685.6, 736.7, 787.6, 836.8, 890.7, 942.7, 995.2, 1047.4, 1099.1, 1150.5, 1200.9, 1251.1, 1300, 1348.4, 1395.1, 1440.6, 1484.9, 1527.2, 1568.8, 1608.4, 1646.6, 1682.3, 1716.4, 1748.6, 1779.1, 1808.5, 1834.2, 1859.6, 1882.1, 1904.3, 1922.3, 1940.3, 1956.5, 1971.2, 1984.3, 1995.2, 2006.1, 2014.4, 2022.1, 2028.4, 2034.2, 2039.1, 2042.9, 2046.3, 2049.1, 2051.6, 2053.6, 2055.6, 2056.8, 2057.4, 2058.5];   // poses 0 … 76 (flat after), source rows
+const LID_RISE_M = LID_RISE.map((y, k, Y) => { const a = k ? y - Y[k - 1] : Y[1] - y, b = k < Y.length - 1 ? Y[k + 1] - y : a; return a * b > 0 ? 2 * a * b / (a + b) : 0; });   // its tangents (Fritsch–Carlson)
+const lidRise = s => { const Y = LID_RISE, M = LID_RISE_M, n = Y.length - 1, x = clamp(s, 0, n), i = Math.min(n - 1, Math.floor(x)), u = x - i, u2 = u * u, u3 = u2 * u;
+  return ((2 * u3 - 3 * u2 + 1) * Y[i] + (u3 - 2 * u2 + u) * M[i] + (3 * u2 - 2 * u3) * Y[i + 1] + (u3 - u2) * M[i + 1]) / 2220; };
 let lidStack = null;
 const lidSt = () => lidStack || (lidStack = stacks.find(q => q.lid) || null);
-function lidDrop() {                        // home px, 0.1 px steps
+function lidDrop() {                        // home px, .01 px steps
   const st = LID_DROP && isFeed() ? lidSt() : null, L = st?.lid;
   if (!L || L.goal === 'hint') return 0;
-  const sP = L.shown, R = L.rest; if (sP <= R + .05) return 0;
+  const sP = L.at(frameT), R = L.rest; if (sP <= R + .005) return 0;
   const v = st.homeBox(false, false, true), vis = MACBOOK[0].vis;                           // the card's height at HOME: its visible part ÷ the vis span
-  return Math.round((1 - st.progress) * (lidRise(sP) - lidRise(R)) * (v.b - v.t) / (vis[3] - vis[1]) * 10) / 10;
+  return Math.round((1 - st.progress) * (lidRise(sP) - lidRise(R)) * (v.b - v.t) / (vis[3] - vis[1]) * 100) / 100;
 }
 function rowWrite() {                       // scrollLeft = S inside the range; each element's translate = the rest (the stretch, the sub-pixel, its spring) + its zoom place (the CAMERA / PARTING)
   const sl = Math.round(clamp(RP.S, 0, RP.M));
