@@ -682,7 +682,7 @@
      rides the column), the name going from its place (SA.t + ptop, 18 px) to the strip's centre at nbs; past D the hairline comes in
      over 8 pt. Read once a frame from scrollY in [0, max] (Safari's rubber band moves nothing); every write rounded to device pixels so
      the hairline lands on one row of them. */
-  const NB = { on: false, el: null, ln: null, nm: null, D: 0, t0: 0, t1: 0, h0: 0, cut: 0, px: 1, raf: 0, b: 0, w: '', pp: 0, pf: 0 };
+  const NB = { on: false, el: null, ln: null, nm: null, D: 0, t0: 0, t1: 0, h0: 0, cut: 0, px: 1, raf: 0, b: 0, w: '', pp: 0 };
   function nbLaid(el, W, top, nameH, l, w) {
     const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
     if (!NB.ln) {
@@ -713,10 +713,7 @@
     const max = Math.max(0, document.documentElement.scrollHeight - innerHeight), y = Math.min(max, Math.max(0, scrollY));
     const dpr = devicePixelRatio || 1, px = v => Math.round(v * dpr) / dpr;
     const pp = NB.pp, d = px(Math.max(Math.min(NB.D, y), pp * NB.D)), p = NB.D > 0 ? d / NB.D : 1;   // OPEN (pp, site.html's pageP): the minimal strip
-    /* 2026-10-29 (owner: "when its zoomed in on the mac, the viktor dune has a line there that has no purpose. since there are no elements
-       under it. And do that for the first top element only"): OPEN on the feed's FIRST element (pf: its p) has nothing above it to pass
-       under the strip — no line there; any other open item's line as before, and a camera move off the first one brings it in with its p */
-    const o = Math.max(pp - NB.pf, Math.min(1, Math.max(0, (y - NB.D) / 8)) * (1 - NB.pf));
+    const o = Math.max(pp, Math.min(1, Math.max(0, (y - NB.D) / 8)));
     const k = `${d}|${o.toFixed(3)}`;
     if (k === NB.w) return;
     NB.w = k; NB.b = NB.h0 - d;
@@ -724,9 +721,9 @@
     NB.nm.style.transform = p ? `translate3d(0, ${(d + (NB.t1 - NB.t0) * p).toFixed(3)}px, 0) scale(${(1 - (1 - P.nbS) * p).toFixed(4)})` : '';
     NB.ln.style.opacity = o ? o.toFixed(3) : '';
   }
-  function nbOpen(v, f = 0) {                                           // site.html, per frame: the page's open progress (0 HOME … 1 OPEN) · the first element's own
-    v = Math.min(1, Math.max(0, v)); f = Math.min(v, Math.max(0, f)); if (Math.abs(v - NB.pp) < 1e-4 && Math.abs(f - NB.pf) < 1e-4) return;
-    NB.pp = v; NB.pf = f; if (NB.on && !NB.raf) NB.raf = requestAnimationFrame(nbStep);
+  function nbOpen(v) {                                                  // site.html, per frame: the page's open progress (0 HOME … 1 OPEN)
+    v = Math.min(1, Math.max(0, v)); if (Math.abs(v - NB.pp) < 1e-4) return;
+    NB.pp = v; if (NB.on && !NB.raf) NB.raf = requestAnimationFrame(nbStep);
   }
   if (FEED_OK && P.nbar && !document.querySelector('meta[name="theme-color"]')) {   // Safari 15–18: its band in the strip's white (26+: the strip itself)
     const m = document.createElement('meta'); m.name = 'theme-color'; m.content = '#ffffff'; document.head.appendChild(m);
