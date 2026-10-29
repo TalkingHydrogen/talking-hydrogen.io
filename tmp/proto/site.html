@@ -61,7 +61,7 @@
 <title>viktor dune</title>
 <style>
   html.handoff body { visibility: hidden; }   /* site 2026-10-15: the LINKEDIN → SAFARI HAND-OFF's 1.5 s (its script above; never set outside LinkedIn's in-app browser) */
-  :root { --em: 20px; --viewer-bg: #FCFCFC; --play-gray: #E6E7E8; }   /* --play-gray: the play button's disc */           /* flip.html: the page is #FCFCFC while the viewer is open */
+  :root { --em: 20px; --viewer-bg: #FCFCFC; --play-gray: #E6E7E8; --clip-b: .98824; }   /* --clip-b: the zoom clips' white onto --viewer-bg (the video.clip note) */   /* --play-gray: the play button's disc */           /* flip.html: the page is #FCFCFC while the viewer is open */
   html, body { margin: 0; overscroll-behavior: none; }   /* the page is exactly the viewer (100 vh): the page never scrolls (the row scrolls in .scroller); no history swipe */
   /* PERF 2026-09-28: the root's overflow is hidden FOR GOOD. It used to be toggled by lockPage() / unlockPage() at every transition
      (expand, open, close, home) — a style change on <html> that Safari answers with a full relayout and a compositing-tree walk of
@@ -237,9 +237,13 @@
      The clip's layer and the poster painted under it snap their edges differently (measured in WKWebView: ~.5 device px apart), so the
      poster's own edge pixels showed past the clip's — a dark line wherever the first frame is dark (its top right) — gone once the clip
      covers them (1 card px: 2 device px in OPEN at 2x; the frame is stretched .13 %) */
+  /* site 2026-10-29 (owner, iPhone screenshots of the Dandelion / Triangle Bob / The Dot trailers: "clear video outline showing"): no
+     hairline in the pixels — the film's white is #FFF (255) on the open page's #FCFCFC (252), a brighter box with a crisp edge on every
+     white frame. --clip-b = 252 / 255 brings it onto the page (measured in WKWebView: 255 → 252 ±1). Constant, not per p: over the
+     poster's 255 the dissolve gives p · 252 + (1 − p) · 255 = 255 − 3p, the backdrop's own ramp. ?clipb=1 = the old #FFF */
   .card video.clip { --vo: 1px; position: absolute; left: calc(100% * var(--vl) - var(--vo)); top: calc(100% * var(--vt) - var(--vo));
                      width: calc(100% * var(--vw) + 2 * var(--vo)); height: calc(100% * var(--vh) + 2 * var(--vo));
-                     z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; }
+                     z-index: 3; display: block; object-fit: fill; pointer-events: none; opacity: 0; filter: brightness(var(--clip-b)); }
   /* site 2026-10-09: the LIVE hint (the LIVE note): over the card's image, under the clip — the photo window exactly, clipped (its motion
      zooms ×1.075 inside it); the poster's copy (.live-p) under the motion (.live-v), both filling it. NO overscan (the clip's --vo): the
      copy must sit on the card's image pixel for pixel — with the clip's 1 px it drew a hairline round the card and a .13 % stretch
@@ -730,9 +734,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=24877d1"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=4008db7"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=24877d1"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=4008db7"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -7093,6 +7097,7 @@ stacks.push(makeStack($('inspect'), { name: 'inspect', idp: 'inspect-', images: 
    1920 × 1080 + 49 px paper = the window's fractions of the card), rest −.9° with the prints' hover, data-size 1. Played as the CD's song. */
 const CLIP_PRINT = pageQuery.get('clipprint') === '1';
 const CLIP_ZOOM = (v => Number.isFinite(v) ? clamp(v, .5, 2) : 1.2)(parseFloat(pageQuery.get('clipzoom')));
+(v => { if (Number.isFinite(v)) document.documentElement.style.setProperty('--clip-b', String(clamp(v, .9, 1))); })(parseFloat(pageQuery.get('clipb')));   // site 2026-10-29: the zoom clips' white (the video.clip note); ?clipb=1 = #FFF
 const NEOFILM_CLIP = { base: '../assets/neofilm/', sizes: [1920, 3840], window: CLIP_PRINT ? [49 / 2018, 49 / 1178, 1920 / 2018, 1080 / 1178] : [0, 0, 1, 1],
                        src: { hevc: 'neofilm-{w}-wk.mp4', h264: 'neofilm-{w}.mp4' },   // WebKit's graded HEVC (the CLIP note) · the rest
                        type: { hevc: 'video/mp4; codecs="hvc1.2.4.L153.B0"', h264: 'video/mp4; codecs="avc1.640033"' } };
