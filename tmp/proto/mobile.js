@@ -22,9 +22,11 @@
      DOWN; at .85 it still zooms 1.37×), the room print cut by the right edge: the row continues.
      OPEN: the box B = W − 2·20 (every item the screen's width less the margins; the clips too: no 1.2×); item + caption block centred
      a little above the middle (CAP_BELOW.k of the free height above it); the caption BELOW the item in two columns squared off to the
-     page — left column on the 20 pt margin (where the name and the row start), right column on the centre line — split at the text's
-     longest run of blank lines (the designed "count in lines" gap), 15 px (iOS Subheadline), one line (18 px) under the item; the
-     play disc under the item's right edge, top-aligned with the caption, 34 pt seen, 44 pt hit.
+     page, 15 px (iOS Subheadline), one line (18 px) under the item — the COLOPHON (2026-10-29, the phone caption study): the left
+     column on the 20 pt margin, the right one parked against the right margin (its widest line ends on it); rows shared across — the
+     title | the studio, half a line, the roles | the names (cols()); the play disc under the left column, one line below it, 34 pt seen,
+     44 pt hit. ?pcols=old: v1's columns (the right one on the centre line, split at the text's longest run of blank lines, the disc
+     under the item's right edge). ?pseat=shelf: every landscape piece's caption on one line (seat()).
    LANDSCAPE — HOME: the desktop's composition (side margins ≥ 20 pt + the notch's safe area), the name 15 px, row .48 H, baseline .84 H.
      OPEN: B = .86 H, the caption in the band left of the item (the desktop's side mode, 15 px, kept off the notch), the disc beside the item.
    Every law is continuous in W and H: no cliff at 380 / 300 (the old law's), and the toolbar showing / hiding only re-seats.
@@ -86,6 +88,8 @@
     mac: num('pmac', .85),         // the closed laptop's row box ÷ the row height (data-size, desktop 1.15)
     thLand: .48, baseLand: .84, topLand: .1, bLand: .86,
     capPx: num('pcap', 15),        // the caption type, px (15 = iOS Subheadline)
+    colo: Q.get('pcols') !== 'old',   // portrait: the COLOPHON caption (owner 2026-10-29, the caption study: "Colophon horizontal spacing is good, just do it with the spacing of neo and 1x. so the separaction is still there") · ?pcols=old: v1's columns
+    shelf: Q.get('pseat') === 'shelf',   // FEED, OPEN: the SHELF (the caption study's "one shelf") — the caption's first line where a full-width 16:9 piece with the tallest caption puts it, a taller piece lowers it only as far as it needs · default: each block re-centred
     k: num('pk', .42),             // OPEN portrait: the block's top = this share of the free height (.5 = centred; less = optically up)
     thF: num('fth', .56),          // FEED: the column's row height ÷ W (a print .56 W wide; its zoom to B = W − 40 is ×1.6)
     gapName: num('fname', 1),      // FEED: the name → the first object (the MacBook's card top), name lines
@@ -489,6 +493,11 @@
     root.style.setProperty('--cap-w', W + 'px');
     root.style.setProperty('--cap-l', mg.l + 'px');
     root.style.setProperty('--cap-c1w', Math.max(0, W / 2 - mg.l) + 'px');
+    if (below && P.colo) {                                               // the COLOPHON: the right column parked against the right margin — the widest right-column line of every caption ends on it, so it never moves as you page
+      let w2 = 0; CAPMAX = 0;
+      for (const s of c.stacks) { const cc = s.capEl ? cols(s.capEl) : null; if (cc) { w2 = Math.max(w2, cc.children[1].offsetWidth); CAPMAX = Math.max(CAPMAX, cc.offsetHeight); } }
+      root.style.setProperty('--cap-c1w', Math.max(0, W - mg.r - w2 - mg.l) + 'px');
+    }
     root.style.setProperty('--cap-safe', (por ? 0 : SA.l + 12) + 'px');
     root.style.setProperty('--sign-w', por ? contentW + 'px' : 'none');   // the sign-off wraps to the content box in portrait (fix D3)
     root.style.setProperty('--sign-ws', por ? 'normal' : 'nowrap');
@@ -563,7 +572,15 @@
     const kids = [...src.children].filter(k => !k.classList.contains('cap-ref') && !k.classList.contains('cap-cols'));
     let a = kids, b = [];
     const sp = k => k.classList.contains('cap-sp');
-    if (kids.some(sp)) {                                                 // a TEXT caption: lines and half-line spaces
+    if (kids.some(sp) && P.colo) {                                       // the COLOPHON: the text's groups (its lines between spaces) — the title | the studio, ½ line, the roles | the names
+      const gs = []; let g = [];
+      for (const k of kids) { if (!sp(k)) g.push(k); else if (g.length) { gs.push(g); g = []; } }
+      if (g.length) gs.push(g);
+      const half = kids.find(sp), blank = document.createElement('p'); blank.textContent = '\u00A0';   // no studio (B, the glasses): its place stays empty, the names start beside the roles
+      const join = (x, y) => y && y.length ? [...x, half, ...y] : x;
+      a = join(gs[0] || [], gs[1]);
+      b = gs.length > 3 ? join(gs[2], gs.slice(3).flat()) : gs.length === 3 ? join([blank], gs[2]) : [];
+    } else if (kids.some(sp)) {                                          // a TEXT caption: lines and half-line spaces (?pcols=old)
       let best = -1, len = 0;
       for (let i = 0; i < kids.length; ) {
         if (!sp(kids[i])) { i++; continue; }
@@ -584,6 +601,8 @@
     return cc;
   }
   const LINES = {};                                                      // per stack: its caption's top line (viewport y; capGroupDy())
+  const C1H = {};                                                        // per stack: its caption's left column height (the COLOPHON's disc, playAt())
+  let CAPMAX = 0;                                                        // the tallest caption's columns (the SHELF; page())
   const capLine = name => LINES[name] || 0;
   const lineH = () => P.capPx * 1.2;                                     // one caption line (the .caption's line-height 1.2)
 
@@ -595,10 +614,14 @@
     if (!LAY || !LAY.por) return (up - dn) / 2;                          // landscape: the whole picture centred on the height
     const H = G.H, cap = capEl || groupCap || null;
     let ch = 0;
-    if (cap) { const cc = cols(cap); ch = cc ? cc.offsetHeight + lineH() : 0; }
+    if (cap) { const cc = cols(cap); ch = cc ? cc.offsetHeight + lineH() : 0; C1H[cfg.name] = cc ? cc.children[0].offsetHeight : 0; }
     const block = up + eff.height + dn + ch, minTop = cutY() + 16;
     let top;
-    if (FEED) { const pk = peek(), T0 = pk.top + lineH(), T1 = pk.bot - 1.5 * lineH(); top = T0 + Math.max(0, (T1 - T0 - block) * P.k) + up; }   // FEED: the block in the band between the peeks — 1 line under the top one, 1.5 above the bottom one (the caption belongs to its item, never to the next peek), k of its free height
+    if (FEED && P.shelf && cap) {                                        // the SHELF: the line a full-width 16:9 piece (B · 9 / 16) with the tallest caption gets below; a taller piece lowers it, its top 1 line under the top peek
+      const pk = peek(), T0 = pk.top + lineH(), T1 = pk.bot - 1.5 * lineH(), h = LAY.B * 9 / 16;
+      const L = Math.max(T0 + Math.max(0, (T1 - T0 - (h + lineH() + CAPMAX)) * P.k) + h + lineH(), T0 + up + eff.height + dn + lineH());
+      top = L - lineH() - dn - eff.height;
+    } else if (FEED) { const pk = peek(), T0 = pk.top + lineH(), T1 = pk.bot - 1.5 * lineH(); top = T0 + Math.max(0, (T1 - T0 - block) * P.k) + up; }   // FEED: the block in the band between the peeks — 1 line under the top one, 1.5 above the bottom one (the caption belongs to its item, never to the next peek), k of its free height
     else top = Math.max(minTop, (H - block) * P.k) + up;               // the eff's top
     const line = top + eff.height + dn + lineH();                         // the caption's first line box (viewport y)
     LINES[cfg.name] = line;
@@ -606,10 +629,13 @@
     return top - eff.top;
   }
 
-  /* placePlay(): portrait — under the item at its right edge, its disc's top on the caption's first line (item px: B square, the card
-     contain-fit centred: (B + cw) / 2 = the card's right edge, (B + ch) / 2 its bottom). Landscape: the desktop's place, the 44 pt target. */
-  function playAt(B, cw, ch, d, gap) {
+  /* placePlay(): portrait — the COLOPHON: under the caption's left column, one line below it, its disc on the 20 pt margin (the item's
+     box is centred: its left edge at (W − B) / 2); ?pcols=old: under the item at its right edge, its disc's top on the caption's first
+     line (item px: B square, the card contain-fit centred: (B + cw) / 2 = the card's right edge, (B + ch) / 2 its bottom). Landscape:
+     the desktop's place, the 44 pt target. */
+  function playAt(B, cw, ch, d, gap, name) {
     const D = 44, inset = 5;                                              // the target and the disc's inset (the .play::before CSS)
+    if (LAY && LAY.por && P.colo && name in C1H) return { d: D, l: LAY.mg.l - (LAY.W - B) / 2 - inset, t: (B + ch) / 2 + lineH() + C1H[name] + lineH() - inset };
     if (LAY && LAY.por) return { d: D, l: (B + cw) / 2 - D + inset, t: (B + ch) / 2 + lineH() - inset + 1 };
     return { d: D, l: (B + cw) / 2 + gap - inset, t: (B + ch) / 2 - D + inset };
   }

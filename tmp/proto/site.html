@@ -734,9 +734,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=4008db7"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=e053e26"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=4008db7"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=e053e26"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -3265,7 +3265,7 @@ function placePlay() {
   if (!playBtn || !G.B) return;
   const B = G.B, KV = cfg.openB ? PG.KV * G.stageK : G.KV, pc = IMAGES[SONG >= 0 ? SONG : knobs.deck[0]], r = pc.w / pc.h;   // site: an own open box keeps the page's button
   const d = cfg.playRad ? Math.max(24, 2 * knobs.vradius * (G.S || 1)) : PLAY.d * KV;   // site 2026-10-17: cfg.playRad (EYE 1) — the disc's radius = the card's squircle corner radius in OPEN (vradius × S, clipOf()), so it follows ?rad; floored at a 24 px tap target
-  const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B, ph = PG.playAt ? PG.playAt(B, cw, ch, d, PLAY.gap * KV) : null, sz = { width: (ph ? ph.d : d) + 'px', height: (ph ? ph.d : d) + 'px' };   // MOBILE: ph = the phone's place / 44 pt target (mobile.js)
+  const cw = r >= 1 ? B : B * r, ch = r >= 1 ? B / r : B, ph = PG.playAt ? PG.playAt(B, cw, ch, d, PLAY.gap * KV, cfg.name) : null, sz = { width: (ph ? ph.d : d) + 'px', height: (ph ? ph.d : d) + 'px' };   // MOBILE: ph = the phone's place / 44 pt target (mobile.js)
   Object.assign((playSlot || playBtn).style, sz, { left: (ph ? ph.l : (B + cw) / 2 + PLAY.gap * KV) + 'px', top: (ph ? ph.t : (B + ch) / 2 - d) + 'px' });   // the resting rect, item px
   if (playSlot) Object.assign(playBtn.style, sz, { left: (ph ? ph.l - (B - cw) / 2 : cw + PLAY.gap * KV) + 'px', top: (ph ? ph.t - (B - ch) / 2 : ch - d) + 'px' });            // anchored: the card's own px (MOBILE: ph in card px)
 }
