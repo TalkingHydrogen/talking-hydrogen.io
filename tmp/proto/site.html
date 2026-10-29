@@ -734,9 +734,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=e053e26"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=4f60969"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=e053e26"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=4f60969"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -3411,10 +3411,15 @@ function applyCard(c) {
     c.pathD = squircle(w, h, rad);
     const iw = w - 2 * b, ih = h - 2 * b, irad = Math.max(0, rad - b);
     const imgD = b > 0 ? (irad >= .5 ? squircle(iw, ih, irad) : '') : (rad >= .5 ? c.pathD : '');
-    if (CLIPCARD) {   // site 2026-10-17: CLIPCARD — the one outline on EVERY media layer of the card: the img, the LIVE hint's box and the blend copy (their children are cut by the box), the film (its 1 px overscan off: the same box as the img, the same path). NOT on the card itself: the play button is the card's child, parked outside its box — a card clip swallowed it (owner: "where is the pause and play button"). No paper inset, no shade
+    if (CLIPCARD) {   // site 2026-10-17: CLIPCARD — the one outline on EVERY media layer of the card: the img, the LIVE hint's box and the blend copy (their children are cut by the box), the film (since 2026-10-29 its 1 px overscan back on, its path the concentric one 1 px out — the note below). NOT on the card itself: the play button is the card's child, parked outside its box — a card clip swallowed it (owner: "where is the pause and play button"). No paper inset, no shade
       const cp = rad >= .5 ? `path("${c.pathD}")` : '';
       c.img.style.cssText = cp ? `clip-path:${cp}` : '';
-      for (const L of c.el.querySelectorAll('.live, video.clip')) { L.style.clipPath = cp; if (L.tagName === 'VIDEO') L.style.setProperty('--vo', '0px'); }
+      for (const L of c.el.querySelectorAll('.live')) L.style.clipPath = cp;
+      // site 2026-10-29 (owner: "same of the ar glasses vd" — the clip outline): the film on the img's very path left the poster's
+      // antialiased edge pixel under the film's — a dark 1-device-px ring (measured in WKWebView: 107 with the poster, 239 without).
+      // The film keeps its 1 px overscan (--vo) and its squircle is the concentric one 1 px out (radius + 1): the poster's edge is under it
+      const vp = rad >= .5 ? `path("${squircle(w + 2, h + 2, rad + 1)}")` : '';
+      for (const V of c.el.querySelectorAll('video.clip')) V.style.clipPath = vp;
     } else {
     c.img.style.cssText = (b > 0 ? `margin:${b}px;width:${iw}px;height:${ih}px;` : '') + (imgD ? `clip-path:path("${imgD}")` : '');
     c.el.classList.toggle('print', b > 0);
