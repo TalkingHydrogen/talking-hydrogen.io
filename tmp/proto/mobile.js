@@ -11,7 +11,9 @@
      placePlay()    PG.playAt(...)                                       the disc under the item's right edge, top-aligned with the caption
      hover re-evaluation after a tap (enterHome / enterOpen / setDeck)    gated off for touch (a finger leaves no hover behind)
 
-   WHEN: a phone = a coarse pointer without hover AND a small screen (short side ≤ 540 pt: every iPhone; an iPad mini is 744) —
+   WHEN: a phone = a coarse pointer without hover AND a small screen (short side ≤ 700 pt: every iPhone, and the iPhone Duo UNFOLDED —
+   890 × 626 pt, its inner screen wider than tall (owner 2026-10-29: "there is a new iphone duo … make sure when its open it works on it
+   in landscape"; ≤ 540 gave it the desktop page: no hover, so the lid never lifts); an iPad mini is 744) —
    decided ONCE at load from the screen, so a rotation never swaps the mode (it swaps the composition). ?mobile=1 forces it (a
    desktop WebKit at phone size, a lab), ?mobile=0 keeps the desktop page on a phone.
 
@@ -45,7 +47,7 @@
   const mm = q => { try { return matchMedia(q).matches; } catch (e) { return false; } };
   const force = Q.get('mobile');
   const phone = force === '1' ? true : force === '0' ? false
-              : mm('(pointer: coarse)') && !mm('(hover: hover)') && Math.min(screen.width, screen.height) <= 540;
+              : mm('(pointer: coarse)') && !mm('(hover: hover)') && Math.min(screen.width, screen.height) <= 700;   // (was 540: the iPhone Duo unfolded is 626 — the WHEN note)
   if (!phone) { window.__mobile = { on: false }; return; }
 
   const root = document.documentElement;
