@@ -282,6 +282,19 @@
   html.phone.feed .film { --ff: var(--film-feather, 5%);
           -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--ff), #000 calc(100% - var(--ff)), transparent);
           mask-image: linear-gradient(to bottom, transparent, #000 var(--ff), #000 calc(100% - var(--ff)), transparent); }
+  /* site 2026-10-31: the EDGE GUARD (owner, iPhone, again: "black lines on top and bottom … the lower outline is more faded out than the
+     top one", still not in a screenshot — the feather and the EDGE SNAP did not reach them): two bars of the page's own colour over the
+     letterboxed film's top and bottom edges, in its frame (the film's matrix, filmCtl write()) and just above it (its sibling: −.86 px,
+     .51 while the film is .up), from 72 film px outside the frame to 12 inside (~1.3 css px: the feather has the film at ≤ 11 % there),
+     so whatever the display path draws AT the video's edge is under an opaque layer of the page's colour. Phone feed only; from the
+     film's fade in to its landing / off (filmGuard()). ?filmguard=0 = off */
+  .film-guard { display: none; position: absolute; left: 0; top: 0; width: 3840px; height: 2160px; transform-origin: 0 0; translate: 0 0 -.86px;
+                visibility: hidden; pointer-events: none; will-change: transform; }
+  .film.up + .film-guard { translate: 0 0 .51px; }
+  html.phone.feed .film-guard { display: block; }
+  .film-guard > i { position: absolute; left: -2%; width: 104%; height: 84px; background: var(--viewer-bg); }
+  .film-guard > i:first-child { top: -72px; }
+  .film-guard > i:last-child { bottom: -72px; }
   /* its play button's stand-in over the film (the button itself is in the card's plane, under the film): the same disc, a row
      node above everything in the row, placed and faded with it (filmWrite(), songWrite()) */
   .play.proxy { left: 0; top: 0; translate: 0 0 .7px; transform-origin: 0 0; transition: none; pointer-events: none; }
@@ -742,9 +755,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=73aabea"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=3b87342"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=73aabea"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=3b87342"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -2127,6 +2140,7 @@ const FILM = {
    whole device px: its top moved ≤ ½ device px, its height scaled to a whole count (≤ 1 px in ~730); the laptop moves ≤ ½ px, under
    the crossfade's own −1 … +.7 px. The landing (moving) is left smooth. Phone only; ?filmsnap=0 = off */
 const FILM_SNAP = !!window.__mobile?.on && pageQuery.get('filmsnap') !== '0';
+const FILM_GUARD = !!window.__mobile?.on && pageQuery.get('filmguard') !== '0';   // site 2026-10-31: the EDGE GUARD (the .film-guard CSS note)
 const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * Math.min(W / 16, H / 9));   // css px
 /* site 2026-10-14 (responsive, fix D2 — OPT-IN, the owner's call): ?filmcap=1 caps the open laptop at the lid's largest clip ÷ LID.pick
    device px (1920 / .9 = 2133: the lid's own ~1:1 rule), and the film's frame with it (the weld: the laptop is .566 of the frame). Off by
@@ -2220,6 +2234,7 @@ function clipEl(V) {
   el.className = 'clip'; el.preload = 'none'; el.playsInline = true; el.disablePictureInPicture = true;
   el.setAttribute('playsinline', ''); el.setAttribute('disableremoteplayback', ''); el.setAttribute('aria-hidden', 'true');
   ['vl', 'vt', 'vw', 'vh'].forEach((k, i) => el.style.setProperty('--' + k, V.window[i]));
+  if (V.loop) el.loop = true;               // site 2026-10-31: a LOOP clip (the NEO dance's): its file's end runs into its start (baked), so it never ends
   return el;
 }
 function makeStack(wrap, cfg) {
@@ -3040,6 +3055,9 @@ function filmCtl(F) {
   el.className = 'film'; el.muted = true; el.playsInline = true; el.disablePictureInPicture = true; el.preload = 'none';   // muted until the button (off())
   el.setAttribute('playsinline', ''); el.setAttribute('aria-hidden', 'true'); el.setAttribute('disableremoteplayback', '');
   row.appendChild(el);                                      // in the row's 3D context (the .film CSS), not a row element (RP.els skips it)
+  const guard = FILM_GUARD ? Object.assign(document.createElement('div'), { className: 'film-guard', innerHTML: '<i></i><i></i>' }) : null;
+  if (guard) { guard.setAttribute('aria-hidden', 'true'); el.after(guard); }   // site 2026-10-31: the EDGE GUARD (its CSS note) — the film's next sibling (.film.up + .film-guard), not a row element either
+  const filmGuard = on => { if (guard) guard.style.visibility = on ? 'visible' : 'hidden'; };
   const probe = document.createElement('video');
   const kind = (/apple/i.test(navigator.vendor) ? ['hevc', 'vp9'] : ['vp9', 'hevc']).find(k => probe.canPlayType(FILM.type[k])) || null;   // WebKit: HEVC (its grade, as the lid's); the rest: VP9 + alpha (as the lid's)
   const proxy = playBtn ? Object.assign(document.createElement('div'), { className: 'play proxy', innerHTML: PLAY_SVG }) : null;
@@ -3084,7 +3102,7 @@ function filmCtl(F) {
   }
   function swapIn() {                       // the film fades in over the card (the same picture)
     fs = 'in'; perfMark('film in');
-    el.classList.add('up'); fade.tween(1, FILM.inMs, EASES.sineInOut); kick();
+    el.classList.add('up'); filmGuard(true); fade.tween(1, FILM.inMs, EASES.sineInOut); kick();
   }
   function settle() {                       // faded in: the card hides, the film drops under the row elements — one frame, nothing changes on screen
     fs = 'play'; perfMark('film play');
@@ -3093,7 +3111,7 @@ function filmCtl(F) {
     clearTimeout(wake); wake = setTimeout(kick, Math.max(0, (FILM.land[0] - tau() - .3) * 1000));   // the loop idles until the landing
   }
   function land() {                         // the stack closes on the video's clock
-    fs = 'land'; perfMark('film land');
+    fs = 'land'; perfMark('film land'); filmGuard(false);                            // (the page's colour changes under the zoom out)
     filmCursor.hide(false);                                                           // clicks do nothing from here: the native cursor
     closeNow();
     p.follow(() => pOf(tau()), 0);
@@ -3123,7 +3141,7 @@ function filmCtl(F) {
     if (fs === 'outro') { fs = 'stop'; fade.tween(0, 150, EASES.quadOut); kick(); }
   }
   function off() {
-    fs = 'off'; perfMark('film off'); clearTimeout(wake); filmCursor.hide(true); btnOff = false;
+    fs = 'off'; perfMark('film off'); clearTimeout(wake); filmGuard(false); filmCursor.hide(true); btnOff = false;
     el.pause(); el.muted = true; if (el.currentTime > .001) el.currentTime = 0;   // 2026-10-27 muted: a parked film leaves macOS Now Playing (a ⏯ key can't reach it); play() unmutes
     el.classList.remove('up'); el.style.clipPath = ''; fade.jump(1); proxyOn = false;
     fput('o', 'opacity', '0'); fput('v', 'visibility', armed && state !== 'home' ? 'visible' : 'hidden');
@@ -3165,6 +3183,7 @@ function filmCtl(F) {
                             fput('t', 'transform', M(sy * (Bt - T) / r.height, ty + (T - r.top) / k)); }
       }
     } else { fr.raw = ''; fput('t', 'transform', M(s * SC * ay, ty)); }
+    if (guard && fr.g !== fr.t) { fr.g = fr.t; guard.style.transform = fr.t; }   // the EDGE GUARD: the film's frame
     if (proxy) {                            // the button through the item's map — site 2026-10-08: anchored (playSlot), through its CARD's (the film's own mapping above): it rides the card's pose
       const bs = playBtn.style, L = parseFloat(bs.left) || 0, T = parseFloat(bs.top) || 0, d = parseFloat(bs.width) || 0;   // anchored: card px; else item px
       const v2 = playSlot ? `${d}px|${(Ox + x + s * (pz.X + SC * (L - w / 2))).toFixed(2)}|${(Oy + y + s * (pz.Y + SC * (T - h / 2) - B / 2)).toFixed(2)}|${(s * SC).toFixed(5)}`
@@ -3182,7 +3201,7 @@ function filmCtl(F) {
     get guards() { return fs === 'start' || fs === 'in' || fs === 'play' || fs === 'land' || fs === 'stop'; },   // the page's clicks are the film's
     get busy() { return fs === 'start' || fs === 'in' || fs === 'land' || fs === 'outro' || fs === 'stop' || (fs === 'play' && tau() >= FILM.land[0] - .35); },
     get hideV() { return hide.value; },
-    get proxyOn() { return proxyOn; }, get btnOff() { return btnOff; }, proxy,
+    get proxyOn() { return proxyOn; }, get btnOff() { return btnOff; }, proxy, guard,
   };
 }
 
@@ -5097,7 +5116,7 @@ function rowMeasure(anc = null) {           // layoutAll(): the range, the gap, 
   RP.M = Math.max(0, row.offsetWidth - scroller.clientWidth);
   RP.gap = parseFloat(getComputedStyle(row).columnGap) || 0;
   const had = new Map(RP.els.map(e => [e.el, e]));
-  RP.els = [...row.children].filter(el => el !== cover && !el.classList.contains('caption') && !el.classList.contains('film') && !el.classList.contains('proxy')).map(el => Object.assign(had.get(el) || { el, o: 0, v: 0, t: '' }, { cx: el.offsetLeft + el.offsetWidth / 2, w: el.offsetWidth,
+  RP.els = [...row.children].filter(el => el !== cover && !el.classList.contains('caption') && !el.classList.contains('film') && !el.classList.contains('film-guard') && !el.classList.contains('proxy')).map(el => Object.assign(had.get(el) || { el, o: 0, v: 0, t: '' }, { cx: el.offsetLeft + el.offsetWidth / 2, w: el.offsetWidth,
                                                                                                                                                                    cy: el.offsetTop + el.offsetHeight / 2, yb: el.offsetTop + el.offsetHeight, st: stacks.find(s => s.wrap === el) || null }));   // yb: its bottom, row px; st: its stack
   rowSync();
   if (!activeStack && RP.drive === 'rest') RP.S = RP.sPrev = Math.round(clamp(RP.S, 0, RP.M));
@@ -5602,7 +5621,7 @@ function placeCover() {                     // the viewport, in the row's frame 
   Object.assign(cover.style, { left: RP.sl + 'px', top: -RP.rowTop + 'px' });
   Object.assign(cover.firstElementChild.style, { left: '0px', top: '0px', width: W + 'px', height: H + 'px' });
   for (const st of stacks) if (st.capEl) Object.assign(st.capEl.style, { left: RP.sl + (st.capL ?? PG.sL) + 'px', top: -RP.rowTop + 'px', height: H + 'px' });   // the captions: the viewport, as the cover
-  for (const st of stacks) if (st.film) for (const n of [st.film.el, st.film.proxy]) if (n) Object.assign(n.style, { left: RP.sl + 'px', top: -RP.rowTop + 'px' });   // site: FILM — its matrix (and its button's) in viewport px
+  for (const st of stacks) if (st.film) for (const n of [st.film.el, st.film.guard, st.film.proxy]) if (n) Object.assign(n.style, { left: RP.sl + 'px', top: -RP.rowTop + 'px' });   // site: FILM — its matrix (and its button's) in viewport px
 }
 /* each row element's drawn extent about its centre, and its top / bottom (viewport px) at its home place. A stack's from its slot
    poses (homeBox(true): cards + bleed + floor + shades) + EXT_PAD — 2026-09-28: no DOM reads, because under the CAMERA's scaled
@@ -7152,9 +7171,13 @@ stacks.push(makeStack($('neofilm'), CLIP_PRINT
 /* site 2026-10-11: the NEO DANCE CLIP (the markup's comment): the NEO clip's engine and look as they are — cfg.video (frames 44 … 130 of the
    dance shot with its sound, the NEO's sizes) with blend: true (its first frame is not the poster, the clip's last: the CLIP BLEND in at the
    start and out at the end, as the Friends clip's; ?blend=0 = the plain dissolve) and cfg.live (the whole clip, muted — its last frame IS the
-   poster, so the hint ends on the key photo with no return) */
+   poster, so the hint ends on the key photo with no return)
+   2026-10-31 (owner: "remove the music and loop the video … seamless with like blur in, blur out"): the zoom's film is a SILENT LOOP —
+   no audio track; its last half second dissolves into its first, both blurred mid-way (dancefilm.py's build_loop: the file starts and
+   ends mid-dissolve, the seam under the blur), and loop: true plays it round until the close; the CLIP BLEND's IN as before, its OUT
+   only under the close (a loop has no end) */
 const NEODANCE_CLIP = { base: '../assets/neodance/', sizes: [1920, 3840], window: [0, 0, 1, 1], src: { hevc: 'neodance-{w}-wk.mp4', h264: 'neodance-{w}.mp4' }, type: NEOFILM_CLIP.type,
-                        blend: pageQuery.get('blend') !== '0' };
+                        blend: pageQuery.get('blend') !== '0', loop: true };
 const NEODANCE_LIVE = { base: '../assets/neodance/', sizes: [1280, 1920], src: { hevc: 'neodance-live-{w}-wk.mp4', h264: 'neodance-live-{w}.mp4' }, type: NEOFILM_CLIP.type };
 stacks.push(makeStack($('neodance'), { name: 'neodance', idp: 'nd-', images: [{ id: 'neodance', src: '../assets/neodance/neodance-poster.webp', w: 1920, h: 1080 }], deck: [0],
                                        knobs: { radius: 0, border: 0, shadow: 0, vradius: 0, vborder: 0, vshadow: 0 }, rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: NEODANCE_CLIP, live: NEODANCE_LIVE,
