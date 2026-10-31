@@ -289,12 +289,17 @@
      so whatever the display path draws AT the video's edge is under an opaque layer of the page's colour. Phone feed only; from the
      film's fade in to its outro / off (guardOn()). ?filmguard=0 = off
      Same day (owner: "there are still lines after that … when the laptop zooms out onto its place the lines are still there"): on
-     through the LANDING too, its colour the page's at that p (--gc: 255 − 3p, the cover's / the backdrop's; write()) */
+     through the LANDING too, its colour the page's at that p (--gc: 255 − 3p, the cover's / the backdrop's; write())
+     Same day, late (owner's iPhone screen recording: the page FROZE ~1 s through the landing — the film played on, the page held, then
+     jumped — and Safari reloaded it, "a problem occurred"): the guard was ONE 3840 × 2160 layer painting its two bars — a backing store
+     the size of the film's whole frame: WebKit's GPU process +173 MB while the film plays, +440 MB through the landing (Playwright WebKit,
+     iPhone 13 mini: a 1023 MB peak vs 584 without it). Each bar is its own layer now (will-change: transform) — a plain colour, no
+     backing store: 619 vs 599 MB. NEVER paint a sparse thing into a frame-sized layer */
   .film-guard { display: none; position: absolute; left: 0; top: 0; width: 3840px; height: 2160px; transform-origin: 0 0; translate: 0 0 -.86px;
                 visibility: hidden; pointer-events: none; will-change: transform; }
   .film.up + .film-guard { translate: 0 0 .51px; }
   html.phone.feed .film-guard { display: block; }
-  .film-guard > i { position: absolute; left: -2%; width: 104%; height: 84px; background: var(--gc, var(--viewer-bg)); }
+  .film-guard > i { position: absolute; left: -2%; width: 104%; height: 84px; background: var(--gc, var(--viewer-bg)); will-change: transform; }   /* (each bar its own layer: the late note above) */
   .film-guard > i:first-child { top: -72px; }
   .film-guard > i:last-child { bottom: -72px; }
   /* its play button's stand-in over the film (the button itself is in the card's plane, under the film): the same disc, a row
@@ -757,9 +762,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=86e1398"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=3d6bfe3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=86e1398"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=3d6bfe3"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
