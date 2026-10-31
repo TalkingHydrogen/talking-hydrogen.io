@@ -762,9 +762,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=3d6bfe3"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=8394a31"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=3d6bfe3"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=8394a31"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -7069,7 +7069,6 @@ if (PILL_ON) {
 const POLAROIDS = [
   { id: 'neo',   src: '../assets/neo/neo-card.webp',   w: 2400, h: 2918 },    // the FRONT print since 2026-10-09, inked "Love, 1X" (owner: "remove the first pic of the polaroid stack, and swap it to the head laying pic and put the love, 1x there") — the figure's line: same hand / pen / size / placement, ink layer bit-identical (brew/polaroid ink/neo-love). 2026-09-28 … 10-09 un-inked ("rm love from text from the pic with a head"); the old "with love from 1x" = neo-card-inked-old.webp
   { id: 'trees', src: '../assets/neo/trees-card.webp', w: 2400, h: 2918 },
-  { id: 'hand',  src: '../assets/neo/hand-card.webp',  w: 2400, h: 2918 },    // 2026-10-09 (owner: "try to put an unedited polaroid there of … IMG_2136.HEIC"): NEO's head held in a hand, the photo AS SHOT (P3 → sRGB, look_mix 0, no pre-grade; the site gain on the PAPER only, like the trees) and zoomed out to the photo's full width (owner, same day: "zoomed out till the border limit on the new polaroid" — the widest square, 3024 px, centred where the 10-07 crop was), brew/polaroid out/polaroid-hand-wide.png. It takes the slot of the FIGURE (figure-card.webp, 2025 Neo/L1001549.jpeg inked "Love, 1X" — the front print until the owner's "remove the first pic of the polaroid stack"; the file stays, unreferenced)
   { id: 'dancers', src: '../assets/neo/dancers-card.webp', w: 2400, h: 2918 },  // 2025 Neo/Screenshot 2025-11-04 (the red/blue figure drawing) widened to 1:1, --look polaroid (owner: 'apply some polaroid type filter'; sx70 went mint on the white paper), no inscription
 ];
 const POL_KNOBS = { radius: 0, border: 0, vradius: 0, vborder: 0, shadow: 1, vshadow: 1 };   // square corners; the shadows carry their own alpha (1 = as measured), at home AND in the viewer (owner 2026-09-26: "add a shadow on the fullscreen version of the polaroid too")
@@ -7101,7 +7100,9 @@ const POL_CAPTION = { text: POL_V1.text, lock: POL_V1.text,   // site 2026-10-07
                       lines: ['NEO', 'Head & Body', 'AI Companion', '1X'],
                       credits: ['Bernt Børnich', 'Dar Sleeper', 'Christoph Kohstall', 'Eric Jang', 'Chris Tan', 'Viktor Dune'] };
 /* site 2026-10-01 (owner: "max 3 cards … like you hold an unrolled stack of cards in your hand"): the pile shows 3 (since 2026-10-09
-   NEO, hand, trees — before: figure, NEO, trees; the dancers are the tucked 4th — still a page in OPEN), fanned clockwise about the thumb's point just below the front
+   NEO, hand, trees — before: figure, NEO, trees; the dancers the tucked 4th; since 2026-10-31 NEO, dancers, trees — owner: "Remove the
+   Polaroid of a hand holding a robot head. Just leave the love from one X. And two other Polaroids": the hand print OUT of POLAROIDS
+   (hand-card.webp stays, unreferenced), the dancers in its slot, the pile = those 3 in OPEN too), fanned clockwise about the thumb's point just below the front
    card's bottom edge, a little left of centre (FAN above); the front card stays straight (it is the one OPEN shows) */
 const POL_FAN = { pivot: [-.15, .56], rot: [0, 6, 12], jitter: [[0, 0], [.004, -.006], [-.003, .004]], open: 3 };
 stacks.push(makeStack($('polaroids'), { name: 'polaroids', idp: 'pol-', images: POLAROIDS, deck: [0, 2, 1], fan: POL_FAN, openDx: POL_VAR ? POL_VAR.openDx : POL_V1.openDx, knobs: POL_KNOBS, castOnly: true, floor: POL_FLOOR, contact: POL_CONTACT,
@@ -7271,7 +7272,8 @@ stacks.push(makeStack($('trianglebob'), TB_STILL
       rest: { rot: 0, up: -(1920 / 1080 - 1) / 2 }, video: TB_CLIP,
       openB: (W, H) => pageB(W, H, CLIP_ZOOM), caption: TB_CAPTION }));
 /* site 2026-10-16: EYE 1 (the markup's comment): the NEO dance clip's engine and look as they are — PLAIN knobs, straight (rot 0: no
-   hover turn), cfg.video (the whole video, its sound raised to the site's level by eye1film.py) with blend: true, cfg.live (280 … 360,
+   hover turn), cfg.video (the whole video — SILENT since 2026-10-31, owner: "remove the audio from the AR glasses video": eye1film.py
+   builds it with no audio track, --sound = the old speech raised to the site's level) with blend: true, cfg.live (280 … 360,
    the glasses lowering over the lens to the HUD, muted, its last frame the poster) — on a 9 : 16 card: on the row's baseline as it is (rest.up 0: a portrait card fills its box's
    height), the page's open box (no openB: the card's height = B, the polaroids' open height). One size, the picture's own (608).
    Caption: the owner's text (2026-10-16), on the NEO caption's place (its lock), mid-centred; its owner is the image (EYE1IMG) */
@@ -7285,15 +7287,22 @@ const EYE1_LIVE = { base: '../assets/eye1/', sizes: [608], src: { hevc: 'eye1-li
    the film, one path each — on the img alone the hint's and the film's corners stayed square; not on the card element: its play
    button is a child parked outside the box, a card clip swallowed it). radius = vradius = EYE1_RAD, REST px (× S: the corner scales with the card, HOME to OPEN; see
    clipOf()). ?rad=N sets it AND turns the ARROW TUNER on: ↑ / ↓ ± 1 rest px (⇧ ± .25), each step written into the URL (?rad=N —
-   read the pick off the address bar) and the console; ← / → stay the row's walk. Without ?rad the site shows EYE1_RAD_DEF, no keys.
+   read the pick off the address bar) and the console; ← / → stay the row's walk. Without ?rad: square corners (below), no keys.
    The PLAY / PAUSE button (owner, same day: "make it the same roughly radius as the corners there"): cfg.playRad → placePlay() sizes the
    disc so its radius = the corner's radius in OPEN (2 · vradius · S; was PLAY.d 46 px for every pile), its place as before — right of the
    card's bottom-right corner, its bottom on the card's bottom edge (PLAY.gap); the glyph is 56 % of the disc, it scales with it. */
-const EYE1_RAD_DEF = 12;
-const EYE1_RAD = pageQuery.has('rad') && Number.isFinite(parseFloat(pageQuery.get('rad'))) ? clamp(parseFloat(pageQuery.get('rad')), 0, 60) : EYE1_RAD_DEF;
+/* 2026-10-31 (owner: "Remove the rounded corners from it"): SQUARE corners — the NEO clips' plain card (no clip path, the piles' play
+   disc, PLAY.d); the squircle and its tuner only behind ?rad=N (the A/B; was the default at 12 rest px) */
+const EYE1_SQ = pageQuery.has('rad') && Number.isFinite(parseFloat(pageQuery.get('rad')));
+const EYE1_RAD = EYE1_SQ ? clamp(parseFloat(pageQuery.get('rad')), 0, 60) : 0;
+/* 2026-10-31 PHONE (owner: "on the phone, it's a little bit small looking when you are in a zoom in mode … make it a little bit bigger"):
+   in portrait its open box is EYE1_PB × the page's B (phoneB: the width less the margins, so the 9 : 16 card was 188 × 335 pt on a 13 mini);
+   mobile.js's BAND CAP still holds it so the card + its caption fit between the peeks. ?e1b=N (1 = the old size); landscape as before */
+const EYE1_PB = parseFloat(pageQuery.get('e1b')) || 1.2;
 stacks.push(makeStack($('eye1'), { name: 'eye1', idp: 'e1-', images: [{ id: 'eye1', src: '../assets/eye1/eye1-poster.webp', w: 608, h: 1080 }], deck: [0],
-                                   knobs: { radius: EYE1_RAD, border: 0, shadow: 0, vradius: EYE1_RAD, vborder: 0, vshadow: 0 }, clipCard: true, playRad: true,
-                                   rest: { rot: 0, up: 0 }, video: EYE1_CLIP, live: EYE1_LIVE }));
+                                   knobs: { radius: EYE1_RAD, border: 0, shadow: 0, vradius: EYE1_RAD, vborder: 0, vshadow: 0 }, clipCard: EYE1_SQ, playRad: EYE1_SQ,
+                                   rest: { rot: 0, up: 0 }, video: EYE1_CLIP, live: EYE1_LIVE,
+                                   phoneB: (W, H) => (H >= W ? EYE1_PB : 1) * window.__mobile.phoneB(W, H) }));
 if (KEYS && pageQuery.has('rad')) addEventListener('keydown', e => {   // the ARROW TUNER (above): ↑ / ↓ on the Eye 1 radius, at HOME and in OPEN
   if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target;
