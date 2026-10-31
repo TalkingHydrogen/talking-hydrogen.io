@@ -717,14 +717,39 @@
       const b = boxOf(name);
       if(C.box && C.box.name === b.name && C.box.x === b.x && C.box.y === b.y && C.box.w === b.w && C.box.h === b.h && C.res === res) return false;
       C.box = b; C.res = res;
-      const L = -(G.W / 2 - G.B / 2), T = -base.y;                      // the viewport's corner, seen from the card's px (OPEN: 1 : 1)
-      Object.assign(C.el.style, { left: (L + b.x) + 'px', top: (T + b.y) + 'px', width: b.w + 'px', height: b.h + 'px' });
       let w = Math.max(2, Math.round(b.w * res)), h = Math.max(2, Math.round(b.h * res));
       const cap = 16.7e6;                                                // past ~16.7 MP: Safari's canvas limit — scaled under it
       if(w * h > cap){ const f = Math.sqrt(cap / (w * h)); w = Math.round(w * f); h = Math.round(h * f); }
+      if((C.el.width !== w || C.el.height !== h) && SWAP && C.el.isConnected) fresh(C);   // NO BLANK (below): a new canvas, the old one seen meanwhile
+      const L = -(G.W / 2 - G.B / 2), T = -base.y;                      // the viewport's corner, seen from the card's px (OPEN: 1 : 1)
+      Object.assign(C.el.style, { left: (L + b.x) + 'px', top: (T + b.y) + 'px', width: b.w + 'px', height: b.h + 'px' });
       if(C.el.width !== w || C.el.height !== h){ C.el.width = w; C.el.height = h; }
       C.rx = w / b.w; C.ry = h / b.h;
       return true;
+    }
+    /* 2026-10-31 — NO BLANK (the owner's iPhone screen recording of the film's end: the pill GONE for 5 frames, ~80 ms, as the page
+       landed HOME — nearSync() re-sized HOME's canvas there, k × → HOME's px). A canvas whose backing is re-allocated shows NOTHING on
+       iOS until its new pixels have reached the GPU, and the stall that costs lands in the same frames. So a re-allocation makes a NEW
+       canvas (fresh()): drawn at .002 beside the old one (Safari paints a layer there, not at 0), the old one seen until it is shown three
+       frames later (land()) — at once if the old one is not seen, or if the shape starts to move (step()). And the page asks for one only
+       while nothing on it moves (opt.busy: site.html's camera, film, the MacBook's lid — near() and home() hold it; owed). ?pillswap=0:
+       in place, as before. */
+    const SWAP = !/[?&]pillswap=0(&|$)/.test(location.search);
+    function fresh(C){
+      const n = C.el.cloneNode(false);
+      if(C.old) C.el.remove(); else C.old = C.el;                        // (one still on its way: never seen — dropped)
+      C.old.after(n); n.style.opacity = '.002';
+      C.el = n; C.ctx = n.getContext('2d');
+      if(C.old.style.opacity !== '1') return land(C, n);
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => land(C, n))));
+    }
+    function land(C, n){                                                 // the new canvas seen, the old one gone
+      if(C.el !== n || !C.old) return;
+      n.style.opacity = C.old.style.opacity; C.old.remove(); C.old = null;
+    }
+    function seen(C, on){                                                // its opacity — the old canvas's while a new one is on its way
+      if(C.old){ C.old.style.opacity = on ? '1' : '.002'; if(!on) land(C, C.el); }
+      else C.el.style.opacity = on ? '1' : '.002';
     }
     /* the pill as a NEIGHBOUR (owner 2026-10-26: "the pill in this one looks low rez in zoomed in preview … on the left"): the page's
        camera on another stack magnifies this HOME card by that stack's scale (1440 × 900: the room print's 1.78, the MacBook's 2.06) —
@@ -732,7 +757,8 @@
        'zoom', the camera on its way there from HOME — OPEN's canvas shows (drawn ahead: minified, never upscaled) · k, that page landed
        and nothing moving — HOME's canvas re-drawn at k × HOME's px, 1 : 1 again (re-allocated at rest only: the stall note above), and
        kept through the next camera move or the zoom out; HOME's px again once every stack is HOME */
-    let NEAR = null;
+    let NEAR = null, owed = false;                                       // owed: HOME's canvases to re-size (readyBoth()) once the page is still (NO BLANK)
+    const still = () => !opt.busy || !opt.busy();
     const resOpen = () => G.dpr, resHome = () => G.dpr * (typeof NEAR === 'number' ? NEAR : 1) / Math.max(1, G.S);
     function need(){                                                     // OPEN's box for now (and the next step, when this one rests)
       if(mode === 'home') return 'pill';
@@ -745,7 +771,7 @@
         default:        return OPENC.box ? OPENC.box.name : 'pill';     // the end's / a leave's zoom out: as it was
       }
     }
-    function adopt(){ if(cv.parentNode){ if(!sh.parentNode) cv.parentNode.insertBefore(sh, cv); if(!cvH.parentNode) cv.parentNode.insertBefore(cvH, cv.nextSibling); } }
+    function adopt(){ const o = OPENC.el, h = HOMEC.el; if(o.parentNode){ if(!sh.parentNode) o.parentNode.insertBefore(sh, o); if(!h.parentNode) o.parentNode.insertBefore(h, o.nextSibling); } }
     function placeShadow(){                                              // the shadow canvas: the screen + the tail's room at HOME (¼ px per css px)
       const { W, H, B } = G, k0 = B / PILL.w, L = -(W / 2 - B / 2), T = -base.y;
       G.shW = Math.max(W, W / 2 + (PILL.w / 2 + 340) * k0);             // the shadow's tail at HOME: ≈ 300 world px right / below the pill
@@ -755,10 +781,10 @@
       if(sh.width !== sw || sh.height !== shh){ sh.width = sw; sh.height = shh; }
       G.sx = sw / G.shW; G.sy = shh / G.shH;
     }
+    const openSeen = () => mode === 'open' || (NEAR === 'zoom' && !(HOMEC.res > G.dpr / Math.max(1, G.S) * 1.001));   // a neighbour's zoom from HOME: OPEN's (NEAR)
     function shows(){                                                    // which shape canvas is seen: a compositor-only swap
-      const open = mode === 'open' || (NEAR === 'zoom' && !(HOMEC.res > G.dpr / Math.max(1, G.S) * 1.001));   // a neighbour's zoom from HOME: OPEN's (NEAR)
-      OPENC.el.style.opacity = open ? '1' : '.002';
-      HOMEC.el.style.opacity = open ? '.002' : '1';
+      const open = openSeen();
+      seen(OPENC, open); seen(HOMEC, !open);
     }
     function shadow(pts, C){
       const n = pts.length, sp = SH.spread;
@@ -858,7 +884,7 @@
     function readyBoth(){                                                // HOME: both canvases hold the pill (OPEN's for the next zoom)
       setBox(HOMEC, 'pill', resHome()); setBox(OPENC, 'pill', resOpen());
       const pts = outline(pose()), C = camAt(CAM.u);
-      paint(HOMEC, pts, C); paint(OPENC, pts, C); shadow(pts, C); dirty = false;
+      paint(HOMEC, pts, C); paint(OPENC, pts, C); shadow(pts, C); dirty = false; owed = false;
     }
 
     /* ---- the sequence ---- */
@@ -947,13 +973,25 @@
         combFade(0, 200);
         cur = 1; phase = 'reset'; queued = false; dirty = true;
       },
-      home(){ snapHome(); mode = 'home'; if(base) readyBoth(); shows(); },   // (HOME's canvas at NEAR's px: a camera move away lands on a neighbour)
-      near(v){                                                           // site.html's nearSync(): the page's camera on another stack (NEAR)
-        if(v === NEAR) return;
-        NEAR = v;
-        if(mode === 'open' || !base) return;                             // the pill's own page: its canvases are the sequence's (home() takes NEAR up)
-        if(v !== 'zoom' && setBox(HOMEC, 'pill', resHome())) paint(HOMEC, outline(pose()), camAt(CAM.u));   // landed / HOME: re-allocated → its pill again
+      home(){                                                            // (HOME's canvas at NEAR's px: a camera move away lands on a neighbour)
+        snapHome(); mode = 'home';
+        if(base && still()) readyBoth();
+        else if(base){                                                   // NO BLANK: the page still moving (a move away lands on another stack) — the pill
+          owed = true; const pts = outline(pose()), C = camAt(CAM.u);    // drawn into the canvases as they are, re-sized once it is still (near())
+          paint(HOMEC, pts, C); if(openSeen()) paint(OPENC, pts, C); shadow(pts, C); dirty = false;
+        }
         shows();
+      },
+      near(v){                                                           // site.html's nearSync(): the page's camera on another stack (NEAR) — true: held, ask again
+        const hold = !still();                                           // NO BLANK: no re-allocation while the page moves
+        if(v !== 'zoom' && hold) return true;
+        if(v === NEAR && !(owed && !hold)) return owed;
+        NEAR = v;
+        if(mode === 'open' || !base) return false;                       // the pill's own page: its canvases are the sequence's (home() takes NEAR up)
+        if(owed && !hold) readyBoth();                                   // a move's arrival elsewhere, now still: both re-sized (HOME's at NEAR's px)
+        else if(v !== 'zoom' && setBox(HOMEC, 'pill', resHome())) paint(HOMEC, outline(pose()), camAt(CAM.u));   // landed / HOME: re-allocated → its pill again
+        shows();
+        return owed;
       },
       hit(x, y){                                                         // PHONE: is the viewport point (x, y) on the black as drawn now? (owner 2026-10-28:
         if(!base) return false;                                          // "every progression must be tap on the black area only" — no slack: the comb, the shadow, the white are off it)
@@ -967,7 +1005,7 @@
       },
       debug(){ const P = pose(); return { phase, cur, cam: +CAM.u.toFixed(4), morph: MORPH.active ? +MORPH.p.toFixed(4) : null, grow: GROW.active,
                genie: GENIE.active ? +(GENIE.t / GENIE.dur).toFixed(4) : null, comb: +CF.a.toFixed(4),
-               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, near: NEAR, box: OPENC.box && OPENC.box.name, canvas: [cv.width, cv.height], home: [cvH.width, cvH.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
+               pose: { w: +P.w.toFixed(3), h: +P.h.toFixed(3), r: +P.r.toFixed(3), m: P.m == null ? null : +P.m.toFixed(5) }, moving: MORPH.active || GROW.active || CAM.active || GENIE.active, mode, near: NEAR, box: OPENC.box && OPENC.box.name, canvas: [OPENC.el.width, OPENC.el.height], home: [HOMEC.el.width, HOMEC.el.height], shadow: [sh.width, sh.height] }; },   // window.__pillScene (site.html's BOOT)
     };
     return api;
   }
