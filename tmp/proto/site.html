@@ -300,8 +300,16 @@
   .film.up + .film-guard { translate: 0 0 .51px; }
   html.phone.feed .film-guard { display: block; }
   .film-guard > i { position: absolute; left: -2%; width: 104%; height: 84px; background: var(--gc, var(--viewer-bg)); will-change: transform; }   /* (each bar its own layer: the late note above) */
-  .film-guard > i:first-child { top: -72px; }
-  .film-guard > i:last-child { bottom: -72px; }
+  .film-guard > i.t { top: -72px; }
+  .film-guard > i.b { bottom: -72px; }
+  .film-guard > i.l, .film-guard > i.r { display: none; }
+  /* Same day, later (owner, ?filmdbg=red: "gone with red, but at the very end bars turn off and the lines still there … like 1 px
+     tall"; ?filmdbg=hide: gone — the lines are the VIDEO's own edges, drawn on the phone's display path, never in a screenshot): the
+     OUTRO clips the film to the card's box, so ITS edges are the film's edges there — the guard stays on and frames that box (.clip:
+     four bars, guardOn()'s box, film px), 72 outside → 12 inside each edge, until off(); the clip 12 film px wider than the card on
+     every side (outro()), so the bars cover the film's own ground only — at the card's edge they cut the shut laptop's tip (26 levels) */
+  .film-guard.clip > i { bottom: auto; }
+  .film-guard.clip > i.l, .film-guard.clip > i.r { display: block; width: 84px; }
   /* site 2026-10-31: the LINES PROBE (FILM_DBG) — red: the guard's bars red (are they drawn on the phone, where are the lines against
      them) · hide: the film's picture off, its sound on (are the lines the video's at all) */
   .film-guard.dbg > i { background: #f00; }
@@ -766,9 +774,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=9fdfe7e"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=5ec1e07"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=9fdfe7e"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=5ec1e07"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -3072,10 +3080,20 @@ function filmCtl(F) {
   el.className = 'film'; el.muted = true; el.playsInline = true; el.disablePictureInPicture = true; el.preload = 'none';   // muted until the button (off())
   el.setAttribute('playsinline', ''); el.setAttribute('aria-hidden', 'true'); el.setAttribute('disableremoteplayback', '');
   row.appendChild(el);                                      // in the row's 3D context (the .film CSS), not a row element (RP.els skips it)
-  const guard = FILM_GUARD ? Object.assign(document.createElement('div'), { className: 'film-guard', innerHTML: '<i></i><i></i>' }) : null;
+  const guard = FILM_GUARD ? Object.assign(document.createElement('div'), { className: 'film-guard', innerHTML: '<i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i>' }) : null;
   if (guard) { guard.setAttribute('aria-hidden', 'true'); el.after(guard); }   // site 2026-10-31: the EDGE GUARD (its CSS note) — the film's next sibling (.film.up + .film-guard), not a row element either
   if (FILM_DBG === 'red' && guard) guard.classList.add('dbg'); else if (FILM_DBG === 'hide') el.classList.add('dbg-hide');   // the LINES PROBE (FILM_DBG)
-  const guardOn = on => { if (guard) guard.style.visibility = on ? 'visible' : 'hidden'; };
+  const guardOn = (on, box) => {            // box: [L, T, R, B] film px — the OUTRO's clip (the .film-guard CSS note), else the frame's edges
+    if (!guard) return;
+    guard.style.visibility = on ? 'visible' : 'hidden'; guard.classList.toggle('clip', !!box);
+    const [t, b, l, r] = guard.children, O = 72, I = 12, px = v => v.toFixed(1) + 'px';
+    if (!box) { for (const i of guard.children) i.removeAttribute('style'); return; }
+    const [L, T, R, B] = box;
+    Object.assign(t.style, { left: px(L - O), top: px(T - O), width: px(R - L + 2 * O) });
+    Object.assign(b.style, { left: px(L - O), top: px(B - I), width: px(R - L + 2 * O) });
+    Object.assign(l.style, { left: px(L - O), top: px(T - O), height: px(B - T + 2 * O) });
+    Object.assign(r.style, { left: px(R - I), top: px(T - O), height: px(B - T + 2 * O) });
+  };
   const probe = document.createElement('video');
   const kind = (/apple/i.test(navigator.vendor) ? ['hevc', 'vp9'] : ['vp9', 'hevc']).find(k => probe.canPlayType(FILM.type[k])) || null;   // WebKit: HEVC (its grade, as the lid's); the rest: VP9 + alpha (as the lid's)
   const proxy = playBtn ? Object.assign(document.createElement('div'), { className: 'play proxy', innerHTML: PLAY_SVG }) : null;
@@ -3135,10 +3153,12 @@ function filmCtl(F) {
     p.follow(() => pOf(tau()), 0);
   }
   function outro() {                        // HOME: the film over the card, clipped to its box; the card (shut) under it — the same slab
-    fs = 'outro'; perfMark('film outro'); guardOn(false);                          // (clipped to the card: its frame's edges are gone)
+    fs = 'outro'; perfMark('film outro');
     const c = cards[0], k0 = c.w / g.W, E = g.end;
-    const L = E.tx, T = E.ty + E.s * g.row0, R = E.tx + E.s * g.W, Bt = E.ty + E.s * (g.row0 + c.h / k0);   // the card's box in film px
+    const X = guard ? 12 : 0;                                                         // the guard's 12 inside px: the clip that much wider, so they cover only the film's own ground
+    const L = E.tx - X, T = E.ty + E.s * g.row0 - X, R = E.tx + E.s * g.W + X, Bt = E.ty + E.s * (g.row0 + c.h / k0) + X;   // the card's box in film px (+ X)
     el.style.clipPath = `inset(${T.toFixed(1)}px ${(g.W - R).toFixed(1)}px ${(g.H - Bt).toFixed(1)}px ${L.toFixed(1)}px)`;
+    guardOn(true, [L, T, R, Bt]);                                                     // the clip's edges are the film's now: the guard frames them (its CSS note)
     el.classList.add('up');
     lid?.snap(); cardEl().style.visibility = '';
     hide.jump(0);
