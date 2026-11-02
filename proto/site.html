@@ -153,6 +153,7 @@
   .row { position: absolute; left: 0; display: flex; align-items: flex-end; box-sizing: border-box; width: max-content; column-gap: 10.4em;
          transform-style: preserve-3d; }   /* PERF 2026-09-27: a 3D context — the OPEN cover and the parked elements are ordered by DEPTH (translate z), never by z-index (the .cover note) */   /* site: 13em × .8 (owner 2026-09-26: "reduce the space between the things a bit", with the row at uiScale .8) */
   .wrap { position: relative; z-index: 20; flex: none; will-change: transform; }
+  html:not(.feed) #pillshow { margin-left: -1.04em; }   /* site 2026-11-02 (owner, a desktop screenshot of laptop → pill → room print: "make them look equal by eye, so shrink the laptop distance to pill by 10%"): the shut laptop is a thin line low on the floor and the pill's shadow spreads into its right gap, so the row's equal 10.4em read unequal — the laptop → pill gap 10 % less (9.36em). The phone's column (html.feed) keeps its own spacing */
   /* site 2026-09-30: the SIGN-OFF at the row's end (owner: "add this text in the same style and scale to the end of the row … a love
      letter to the people I worked with and things we made along"): the room print's back line, continued — the same setting
      (brew/flipcap/printback.py: SF Width 85 / Medium / .18 em tracking, caps, the print's ink = its paper × .83 → #D4D4D4 on the
@@ -789,9 +790,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=82b5547"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=6e553b2"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=82b5547"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=6e553b2"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
