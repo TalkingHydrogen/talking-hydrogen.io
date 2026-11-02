@@ -789,9 +789,9 @@
   }
   window.__lidJ = fetch('../assets/macbook/lid.json').then(r => r.ok ? r.json() : Promise.reject());
 } catch (e) {} })();</script>
-<script src="mobile.js?v=2070a2e"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
+<script src="mobile.js?v=82b5547"></script>   <!-- site 2026-10-13: PHONE MODE (mobile.js: registers window.__mobile; the engine asks it through the hooks marked MOBILE; off on a desktop) -->
 <script>if (/[?&]comb=1/.test(location.search)) document.write('<script src="combcard.js"><\/script>');</script>   <!-- site 2026-10-17: the comb cards draw themselves (CombCard, cfg.scene) · 2026-10-20: loaded with ?comb=1 only (COMB_ON) -->
-<script src="pillshow.js?v=2070a2e"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
+<script src="pillshow.js?v=82b5547"></script>   <!-- site 2026-10-21: THE PILL SHOWCASE (PillShow, cfg.scene: the markup's #pillshow note) -->
 <script>
 /* Prototype part 4: the three owner-approved prototypes as ONE page — vanilla JS, no libraries, no build step.
  *   HOME   proto/stack.html   the header + the hover-reactive stack (deck [5,7,0], front 5) — spec/02-hover-stack.md
@@ -2182,7 +2182,7 @@ const FILM_SNAP = !!window.__mobile?.on && pageQuery.get('filmsnap') !== '0';
 const FILM_GUARD = !!window.__mobile?.on && pageQuery.get('filmguard') !== '0';   // site 2026-10-31: the EDGE GUARD (the .film-guard CSS note)
 const FILM_FMASK = pageQuery.get('filmmask') === '1';   // site 2026-10-31: the old FEATHER MASK (the .film CSS note: a ~200 ms stall at every MacBook zoom) — debug only
 const FILM_GI = Math.max(0, parseFloat(pageQuery.get('filmgi')) || 12);   // site 2026-11-02: the EDGE GUARD's reach INTO the frame, film px (owner: "lines still there" with the feather gone) — the probe: do the lines follow the bars' inner edge
-const FILM_FX = window.__mobile?.on ? parseFloat(pageQuery.get('filmfx')) : NaN;   // site 2026-11-02: the LINES PROBE, 2 (owner: the guard's bars 5× deeper, ?filmgi=60 — "still lines"): ?filmfx=N = filter: brightness(N) on the phone's film — a colour filter takes a playing video off the display's own path (its own plane, never in a screenshot) onto the compositor's, as the zoom clips' brightness (video.clip) — are the lines that path's
+const FILM_FX = window.__mobile?.on ? parseFloat(pageQuery.get('filmfx') ?? '.999') : NaN;   // site 2026-11-02: the LINES FIX — filter: brightness(.999) on the phone's film (an invisible change of colour). The lines were the playing video's own edges, drawn on the display's own path (its own plane: never in a screenshot, never under an opaque layer — the guard's bars 5× deeper, ?filmgi=60: "still lines"); a colour filter puts the video on the compositor's path, as the zoom clips' brightness (video.clip) — owner, iPhone, ?filmfx=.999: "Yes lines are gone there". ?filmfx=N = brightness(N), 0 = none (the lines back)
 const FILM_FTR = FILM_GUARD && !FILM_FMASK && parseFloat(pageQuery.get('filmfeather')) > 0;   // site 2026-11-02: the guard's FEATHER bars (.ft / .fb) only on ?filmfeather=N — none by default (the .film CSS note)
 const FILM_DBG = window.__mobile?.on ? pageQuery.get('filmdbg') : null;   // site 2026-10-31: the LINES PROBE (owner: still lines, "not visible on screenshot and in your emulator"): ?filmdbg=red · hide (its CSS note)
 const filmFrameW = (W, H) => 16 * Math.min(Math.max(W / 16, H / 9), FILM.fit * Math.min(W / 16, H / 9));   // css px
@@ -3100,7 +3100,7 @@ function filmCtl(F) {
   el.setAttribute('playsinline', ''); el.setAttribute('aria-hidden', 'true'); el.setAttribute('disableremoteplayback', '');
   row.appendChild(el);                                      // in the row's 3D context (the .film CSS), not a row element (RP.els skips it)
   const guard = FILM_GUARD ? Object.assign(document.createElement('div'), { className: 'film-guard', innerHTML: '<i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i>' + (FILM_FTR ? '<i class="ft"></i><i class="fb"></i>' : '') }) : null;
-  if (FILM_FX > 0) el.style.filter = `brightness(${FILM_FX})`;   // site 2026-11-02: the LINES PROBE, 2 (FILM_FX)
+  if (FILM_FX > 0) el.style.filter = `brightness(${FILM_FX})`;   // site 2026-11-02: the LINES FIX (FILM_FX)
   if (FILM_FMASK) el.classList.add('fmask');   // site 2026-10-31: the FEATHER as the old mask (FILM_FMASK)
   if (guard) { guard.setAttribute('aria-hidden', 'true'); guard.style.setProperty('--gi', FILM_GI + 'px'); el.after(guard); }   // site 2026-10-31: the EDGE GUARD (its CSS note) — the film's next sibling (.film.up + .film-guard), not a row element either
   if (FILM_DBG === 'red' && guard) guard.classList.add('dbg'); else if (FILM_DBG === 'hide') el.classList.add('dbg-hide');   // the LINES PROBE (FILM_DBG)
