@@ -1,0 +1,19 @@
+{
+  "../assets/photo/trees-print.webp": {"file": "../assets/zoom/photo/trees-print-zoom.webp", "w": 3212, "h": 1989, "bytes": 47614},
+  "../assets/neo/neo-card.webp": {"file": "../assets/zoom/neo/neo-card-zoom.webp", "w": 2100, "h": 2553, "bytes": 724408},
+  "../assets/neo/trees-card.webp": {"file": "../assets/zoom/neo/trees-card-zoom.webp", "w": 2100, "h": 2553, "bytes": 386480},
+  "../assets/neo/hand-card.webp": {"file": "../assets/zoom/neo/hand-card-zoom.webp", "w": 2100, "h": 2553, "bytes": 565318},
+  "../assets/neo/dancers-card.webp": {"file": "../assets/zoom/neo/dancers-card-zoom.webp", "w": 2100, "h": 2553, "bytes": 458340},
+  "../assets/digital/untitled-108.png": {"file": "../assets/zoom/digital/untitled-108-zoom.webp", "w": 3200, "h": 3200, "bytes": 901056},
+  "../assets/digital/untitled-84.png": {"file": "../assets/zoom/digital/untitled-84-zoom.webp", "w": 2075, "h": 2785, "bytes": 515886},
+  "../assets/digital/untitled-69.png": {"file": "../assets/zoom/digital/untitled-69-zoom.webp", "w": 3050, "h": 3200, "bytes": 634620},
+  "../assets/digital/untitled-115-copy.png": {"file": "../assets/zoom/digital/untitled-115-copy-zoom.webp", "w": 1701, "h": 2551, "bytes": 970544},
+  "../assets/drawings/painting-17.jpg": {"file": "../assets/zoom/drawings/painting-17-zoom.webp", "w": 3200, "h": 2291, "bytes": 1255954},
+  "../assets/drawings/drawing-04.jpg": {"file": "../assets/zoom/drawings/drawing-04-zoom.webp", "w": 2154, "h": 3200, "bytes": 2153260},
+  "../assets/drawings/painting-16.jpg": {"file": "../assets/zoom/drawings/painting-16-zoom.webp", "w": 3200, "h": 2288, "bytes": 1286264},
+  "../assets/drawings/drawing-05.jpg": {"file": "../assets/zoom/drawings/drawing-05-zoom.webp", "w": 2138, "h": 3200, "bytes": 2056472},
+  "../assets/drawings/drawing-01.jpg": {"file": "../assets/zoom/drawings/drawing-01-zoom.webp", "w": 3200, "h": 2136, "bytes": 1294220},
+  "../assets/drawings/drawing-06.jpg": {"file": "../assets/zoom/drawings/drawing-06-zoom.webp", "w": 2142, "h": 3200, "bytes": 2468190},
+  "../assets/drawings/drawing-09.jpg": {"file": "../assets/zoom/drawings/drawing-09-zoom.webp", "w": 3200, "h": 2131, "bytes": 2143356},
+  "../assets/drawings/painting-18.jpg": {"file": "../assets/zoom/drawings/painting-18-zoom.webp", "w": 3200, "h": 2258, "bytes": 1724326}
+}

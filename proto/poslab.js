@@ -35,7 +35,7 @@ let capEl = pol.capEl;                                        // let: the SWAP p
    shouldnt be changable"): every stack with a caption, in row order — ↑ ↓ (or 1 2 3) open the next one; its text types the same way. The
    place is the site's LOCK (the .caption.lock CSS): the type's corner stays where the reference text puts it, so nothing here moves it. */
 const CAPS = [...document.querySelectorAll('#row > .wrap')].map(w => (window.__stacks || []).find(s => s.wrap === w && s.capEl)).filter(Boolean);
-const CAP_NAME = { polaroids: 'Polaroids', macbook: 'MacBook', dandelion: 'CD' };
+const CAP_NAME = { polaroids: 'Polaroids', macbook: 'MacBook', dandelion: 'CD', trianglebob: 'Triangle Bob', thedot: 'The Dot', friends: 'Dandelion' };
 const blockOf = st => st.capEl.querySelector('.cap-live') || st.capEl.firstElementChild;   // the type: the lines (a locked caption's live lines)
 const VAR = new URLSearchParams(location.search).get('var');
 const BARE = new URLSearchParams(location.search).has('swap');   // the SWAP page: no UI but the text and the arrows
@@ -535,7 +535,8 @@ function start() {
   SITE.a = parseFloat(sp('::before').flexGrow) || 0; SITE.b = parseFloat(sp('::after').flexGrow) || 0;
   SITE.ba = (parseFloat(sp('::before').flexBasis) || 0) / fs; SITE.bb = (parseFloat(sp('::after').flexBasis) || 0) / fs;
   DEF = siteDefaults();
-  if (BARE) { bareLoad(); pol = CAPS.find(st => st.name === pileName) || pol; capEl = pol.capEl; S = bareState(); }
+  if (BARE) { bareLoad(); const qc = new URLSearchParams(location.search).get('cap'); if (CAPS.some(st => st.name === qc)) pileName = qc;   // ?cap=NAME: open that caption (2026-10-13: &cap=trianglebob)
+              pol = CAPS.find(st => st.name === pileName) || pol; capEl = pol.capEl; S = bareState(); }
   else S = { ...DEF, ...(load() || {}) };
   lastSnap = JSON.stringify(S);
   root.classList.add('pl'); if (BARE) { root.classList.add('pl-bare'); whenOpen(() => flashTag(`${capName()} · ↑ ↓ caption · ← → tone · click the text to type`, 2600)); }

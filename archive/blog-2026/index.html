@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>viktor dune</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* Prevent body scroll, we handle it in views */
+        }
+
+        body {
+            background-color: #ffffff;
+            color: #8e8e93; 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* HEADER */
+        .header {
+            position: fixed;
+            top: 60px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .header-content {
+            position: relative;
+            pointer-events: auto;
+            color: #8e8e93;
+            font-size: 16px;
+            letter-spacing: -0.011em;
+            transition: opacity 0.3s ease;
+        }
+
+        .ghost {
+            visibility: hidden;
+        }
+
+        /* HOME / LIST VIEW */
+        #home-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.4s ease;
+            z-index: 5;
+        }
+
+        .blog-list {
+            width: 500px;
+            text-align: center;
+        }
+
+        .blog-link {
+            display: block; /* Stack links vertically */
+            width: fit-content; /* Size to content for proper animation */
+            margin: 0 auto 20px auto; /* Center horizontally */
+            color: #8e8e93;
+            text-decoration: none;
+            font-size: 20px;
+            letter-spacing: -0.011em;
+            cursor: pointer;
+            
+            /* Enhanced transition for the return journey (implosion) */
+            transition: 
+                color 0.2s ease,
+                transform 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+                filter 0.6s ease,
+                opacity 0.6s ease;
+        }
+
+        .blog-link:hover {
+            color: #333;
+        }
+        
+        /* The state we force the link into just before closing starts */
+        .blog-link.imploding {
+            transform: scale(10);
+            filter: blur(1px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* EXPANDING ANIMATION LAYER */
+        .clone-text {
+            position: absolute;
+            font-size: 14px;
+            letter-spacing: -0.011em;
+            color: #8e8e93;
+            background: #fff;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 20;
+            transform-origin: center center;
+            transition: all 0.1s cubic-bezier(0.19, 1, 0.22, 1); /* "Apple" ease */
+        }
+        
+        .clone-text.expanded {
+             opacity: 0;
+             transform: scale(3); /* Explode outwards */
+             filter: blur(2px);
+        }
+
+        /* ARTICLE VIEW */
+        #article-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto; /* Scroll within the view */
+            overflow-x: hidden;
+            opacity: 0;
+            pointer-events: none; /* Ignore clicks when hidden */
+            z-index: 1; /* Below home initially */
+            display: flex;
+            justify-content: center;
+            padding-top: 100px; /* Space for header */
+            padding-bottom: 100px;
+            box-sizing: border-box;
+            
+            /* Hide scrollbar for cleaner look (optional) */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        #article-view::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        .wall {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
+            /* Positioning & Typography remain on the container */
+            text-align: justify;
+            text-justify: inter-character;
+            hyphens: auto;
+            -webkit-hyphens: auto;
+            font-size: 16px;
+            line-height: 1.5;
+            letter-spacing: -0.011em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            
+            /* =========================================
+               1. CLOSED STATE (The "Resting" Styles)
+               This defines how the element behaves when CLOSING (removing .active)
+               ========================================= */
+            
+            /* Closed Positions */
+            opacity: 0;
+            transform: translateX(-50%) scaleY(0.01); /* Squashed height */
+            pointer-events: none;
+            
+            /* CLOSING TIMING (Y-Axis) */
+            transition: 
+                opacity 0.6s ease 0.08s, /* Delay fade out slightly */
+                transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .wall-inner {
+            /* Closed Position */
+            transform: scaleX(0.05); /* Thin width */
+            transform-origin: center;
+            
+            /* CLOSING TIMING (X-Axis) */
+            transition: transform 0.5s ease-in; /* Slightly slower to match overlap */
+        }
+
+        /* =========================================
+           2. OPEN STATE (The Active Styles)
+           This defines how the element behaves when OPENING (adding .active)
+           ========================================= */
+
+        .wall.active {
+            opacity: 1;
+            transform: translateX(-50%) scaleY(1); /* Full height */
+            pointer-events: auto;
+            
+            /* OPENING TIMING (Y-Axis) */
+            transition: 
+                opacity 0.7s cubic-bezier(0.19, 1, 0.22, 1),
+                transform 1.0s cubic-bezier(0.19, 1, 0.22, 1); /* Elegant unfold */
+        }
+
+        .wall.active .wall-inner {
+            transform: scaleX(1); /* Full width */
+            
+            /* OPENING TIMING (X-Axis) */
+            transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1); /* Very slow horizontal spread */
+        }
+
+        .post-date {
+            text-align: center;
+            margin-bottom: 2em;
+            display: block;
+            width: 100%;
+        }
+
+        .featured-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 1.5em;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 1em;
+        }
+        p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* CHAT (iMessage) */
+        .chat {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            text-justify: auto;
+            hyphens: manual;
+            -webkit-hyphens: manual;
+            /* 16px: iOS lays the balloon body on the 16pt layout margin and lets the tail hang into it
+               (ChatKit balloonTranscriptInsets = -balloonMaskTailWidth; measured 16.3pt on Apple's iOS 18
+               press shot) - so the tails below sit inside the column instead of outside it. */
+            padding: 0 16px;
+        }
+        /* .msg positions the bubble and carries the tail; .bb is the painted
+           body, clipped to the Apple squircle computed in the script below. */
+        .msg {
+            position: relative;
+            max-width: 85%;     /* ChatKit balloonMaxWidthPercent = 0.85 of the transcript width (iOS 18.2; macOS 0.65) */
+            margin-bottom: 1px; /* ChatKit balloonContiguousSpace: 1pt between bubbles of one sender (macOS 3pt) */
+            font-size: 16px;
+            line-height: 1.29;  /* HIG Body 17/22pt; Messages itself sets SF's natural 20.3pt on 17pt (1.19, measured) */
+            letter-spacing: -0.011em;
+        }
+        .bb {
+            /* iOS text inset: 7pt above/below the line box, 12pt beside it (7pt container + 5pt
+               balloonLineFragmentPadding; measured 7.0/7.25pt and 12.4-13.5pt to the glyphs at 17pt).
+               macOS: 4pt/11pt at 13pt. At 16px that is 6.6/11.3px (iOS) .. 4.9/13.5px (Mac):
+               vertical follows iOS, horizontal keeps the Mac ratio (the top of the range). */
+            padding: 7px 14px;
+            border-radius: 18px; /* fallback until the clip lands; a 1-line bubble (34.6px) clamps to a capsule, as on iOS */
+            overflow-wrap: break-word;
+        }
+        .msg.received { align-self: flex-start; }
+        .msg.received .bb { background: #e9e9eb; color: #1d1d1f; }
+        .msg.sent { align-self: flex-end; }
+        .msg.sent .bb { background: #007aff; color: #fff; }
+        .msg.end { margin-bottom: 10px; } /* ChatKit balloonNonContiguousSpace: 9pt iOS / 10pt macOS, not font-scaled */
+        /* a photo attachment: right-aligned like a sent bubble, no tail, a touch narrower than the
+           text bubble (~90% of it in the Messages reference), corner ~15% over the bubble's (18 -> 21),
+           and the larger gap Messages leaves under a photo (~1.4em on the reference). */
+        .msg.photo { max-width: 76%; margin-bottom: 22px; }
+        .msg.photo img { display: block; width: 100%; height: auto; border-radius: 21px; }
+        .bb b { font-weight: 600; }
+        .bb p {
+            margin: 0 0 0.8em;
+            font-size: inherit;
+            line-height: inherit;
+        }
+        .bb p:last-child { margin-bottom: 0; }
+        .bb .quote {
+            display: block;
+            border-left: 2px solid rgba(255,255,255,0.55);
+            padding-left: 8px;
+            margin-bottom: 6px;
+            opacity: 0.85;
+        }
+        /* tails on the last bubble of a group */
+        .msg.end::before, .msg.end::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            height: 20px;
+        }
+        .msg.received.end::before { left: -7px;  width: 20px; background: #e9e9eb; border-bottom-right-radius: 16px 14px; }
+        .msg.received.end::after  { left: -10px; width: 10px; background: #fff;    border-bottom-right-radius: 10px; }
+        .msg.sent.end::before     { right: -7px;  width: 20px; background: #007aff; border-bottom-left-radius: 16px 14px; }
+        .msg.sent.end::after      { right: -10px; width: 10px; background: #fff;    border-bottom-left-radius: 10px; }
+        
+        /* THE CLOSE ARROW (Bottom Center) */
+        .close-arrow {
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin: 60px auto 0 auto; /* Spacing from text */
+            position: relative;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease 0.2s; /* Delayed appearance */
+            pointer-events: none; /* Ignore when hidden */
+        }
+        
+        .wall.active .close-arrow {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .close-arrow::before, .close-arrow::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 2px;
+            background-color: #8e8e93; /* Match font color */
+            transition: background-color 0.2s;
+            border-radius: 2px; /* Smooth, rounded ends */
+        }
+
+        /* Chevron pointing UP (to "close/go back up" conceptually) */
+        .close-arrow::before {
+            transform: translate(-15%, -50%) rotate(-45deg); /* Adjusted translation to fix overlap */
+        }
+        .close-arrow::after {
+            transform: translate(-15%, -40%) rotate(45deg); /* Adjusted translation to fix overlap */
+        }
+
+        .close-arrow:hover::before, .close-arrow:hover::after {
+            background-color: #333;
+        }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            .header {
+                top: 30px;
+            }
+
+            .header-content {
+                font-size: 14px;
+            }
+
+            .blog-list {
+                width: 90%;
+                max-width: 500px;
+                padding: 0 20px;
+            }
+
+            .blog-link {
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+
+            #article-view {
+                padding-top: 80px;
+                padding-bottom: 60px;
+            }
+
+            .wall {
+                width: 90%;
+                max-width: 500px;
+                padding: 0 20px;
+                box-sizing: border-box;
+                left: 50%;
+                top: 80px;
+            }
+
+            .post-date {
+                font-size: 14px;
+                margin-bottom: 1.5em;
+            }
+
+            .featured-image {
+                margin-bottom: 1.2em;
+            }
+
+            p {
+                font-size: 15px;
+                line-height: 1.6;
+            }
+
+            .msg {
+                font-size: 15px;
+            }
+
+            .chat {
+                padding: 0; /* .wall already pads 20px/15px here: that is the 16pt edge margin */
+            }
+
+            .close-arrow {
+                margin-top: 40px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                top: 20px;
+            }
+
+            .header-content {
+                font-size: 13px;
+            }
+
+            .blog-link {
+                font-size: 16px;
+            }
+
+            .wall {
+                width: 100%;
+                padding: 0 15px;
+                top: 60px;
+            }
+
+            p {
+                font-size: 14px;
+                line-height: 1.6;
+            }
+
+            .msg {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-content">
+            v<span class="ghost">iktor </span>d<span class="ghost">une</span>
+        </div>
+    </div>
+
+    <!-- HOME VIEW -->
+    <div id="home-view">
+        <div class="blog-list">
+            <a class="blog-link" data-target="second-renaissance">second renaissance</a>
+            <a class="blog-link" data-target="just-chop-wood">just chop wood</a>
+        </div>
+    </div>
+
+    <!-- ARTICLE VIEW -->
+    <div id="article-view">
+        <!-- Content will be injected here or toggled -->
+        <div id="second-renaissance-content" class="wall">
+            <div class="wall-inner">
+                <span class="post-date">02 09 26</span>
+                <img src="disney.png" alt="Featured Image" class="featured-image">
+                <p>
+                    What if Antoni Gaudí had 10,000 humanoids?
+                </p>
+                <p>
+                    Let's be honest, our cities look and function like shit. After visiting Stanford, I get reminded that cities can actually be good—large walking spaces, biking infrastructure, lots of public spaces. It's just a pleasure to work, study and relax here. There is a small catch. Stanford was built from ground up with some idea in mind. It was an isolated space, with one vision for the university and optimized only for its purpose. It's like an oasis in the desert of space that looks like a Minecraft anarchy server.
+                </p>
+                <p>
+                    How do we make our entire planet look like Stanford, Europe, and cities made for humans? Antoni Gaudí, the Picasso of architecture, had a vision for a large cathedral named Sagrada Família in Barcelona. It was a transformative piece of architecture, which took him only a few years to plan out on paper. His ideas were fast, but to get it to implementation took almost 125 years, with construction finishing only in 2026! For designing 0.001% of all human land!
+                </p>
+                <p>
+                    Leighbor.
+                </p>
+                <p>
+                    If we have humanoids making humanoids, finally we can ship physical things at the speed of software. If we want to make San Francisco look like Paris a little bit, if we have a million humanoids, we can manipulate physical matter so much faster now. All of the process from demolishing the old, building temporary housing for the residents (or like in sci-fi movies sending them on vacation lol), building and coordinating the construction, rebuilding an entire city doesn't look impossible if you have abundance of labor. The interesting part is that humans will serve as ground truth for these machines.
+                </p>
+                <p>
+                    As an artist myself, I'm hopeful that in the not-so-distant future, the bottleneck won't be figuring out how to do something, but just sitting down and working on what. Entire city plans, sketches and creative ideas then are the only bottleneck.
+                </p>
+                <p>
+                    Power to the artists.
+                </p>
+                <div class="close-arrow" id="bottom-close-btn-renaissance"></div>
+            </div>
+        </div>
+        <div id="just-chop-wood-content" class="wall">
+            <div class="wall-inner">
+                <span class="post-date">09 11 26</span>
+                <div class="chat">
+                    <div class="msg sent photo"><img src="chopwood.jpg" alt="A narrow lane in Bali at dusk, a red car parked under banana trees" class="squircle" data-r="21"></div>
+                    <div class="msg sent end"><div class="bb">Based on math, what is the life wisdom you can tell a 24 yo with fomo of not realising himself creatively in tech, having always to work on something revolutionary even though just finished working at 1x company</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p><b>Exponentials look flat at the start.</b> If your skills compound at even 5% a year, most of the visible growth happens after 40, not at 24. What feels like "nothing happening" is the boring left side of every hockey-stick curve. The 1x company was compounding capital, not wasted time.</p>
+                            <p><b>Revolutionary work is a high-variance draw, and variance needs many samples.</b> Big outcomes come from a fat-tailed distribution: most attempts return ~0, a few return everything. You can't pick the winning draw, you can only afford more draws. At 24 you have roughly 15–20 more "bets" of 2–3 years each. One 1x job is one sample. Statistically meaningless.</p>
+                            <p><b>Optimal stopping says explore first.</b> In the secretary problem, the best strategy is to look at ~37% of your options before committing to anything. If your creative career runs, say, 24 to 65, that's exploring until your late 30s. You're not behind; you're not even done with the phase where you're supposed to be sampling.</p>
+                            <p><b>Survivorship bias corrupts your reference set.</b> You compare yourself to the people who won the tail, not to the tens of thousands who took the same swing and vanished. Your FOMO is calibrated against a filtered dataset.</p>
+                            <p><b>Gradient descent needs momentum, not a perfect start.</b> Nobody lands at the global optimum on step one. You take a step, measure, adjust. A "boring" position can be the only path out of a local minimum, because it gives you the slope information to find where the real gradient is.</p>
+                            <p><b>Ergodicity: avoid ruin.</b> Ensemble average (what happens across all 24-year-olds) is not your time average (what happens to you over decades). Bets that can zero you out — burnout, no savings, no skills — have negative long-run growth even when the average looks good. Stay in the game long enough for compounding to matter.</p>
+                            <p>Short version: at 24 you're in the sampling phase of a fat-tailed, compounding process, and the math says patience plus many small bets beats one heroic one.</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb">If you take a look at Steve Jobs</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>Jobs actually confirms the math rather than breaking it.</p>
+                            <p><b>He's the tail, and the tail is n=1.</b> Thousands of people started hardware companies in garages in 1976. You know his name because the distribution has a fat tail and he landed on it. Using him as your baseline is the survivorship bias problem in its purest form.</p>
+                            <p><b>Even his curve looked flat for a decade.</b> Yes, Apple at 21. But then: the Lisa flopped, the first Mac undersold, he was fired at 30, NeXT lost money for ten years, Pixar bled cash for nine before Toy Story. From 30 to 41 he was, by revolutionary standards, failing. The iPod came at 46, the iPhone at 52. Almost all the value he created came after the age you're now treating as a deadline. Exponential, left side flat.</p>
+                            <p><b>He took many draws.</b> Apple, Lisa, Mac, NeXT hardware, NeXT software, Pixar, Apple again. Most were zeros or near-zeros. He didn't pick one revolutionary bet; he kept sampling and one draw (returning to Apple with NeXT's OS) paid for everything.</p>
+                            <p><b>His explore phase was aggressively unproductive-looking.</b> Dropped out, sat in on a calligraphy class, went to India, worked at Atari. His own point in the 2005 Stanford speech was that these dots only connect looking backward. That's the 37% rule lived out: you can't know which exploration matters until later.</p>
+                            <p><b>He avoided ruin.</b> Being fired was his local minimum, and he later called it the best thing that happened to him. But he could survive eleven lean years because he'd sold Apple stock and wasn't wiped out. Ergodicity: he stayed in the game long enough for a second exponential.</p>
+                            <p>So if Jobs is your model: at 24 he was at his first company, hadn't shipped the thing he's remembered for, and had 28 years of variance ahead. The lesson from his life isn't "be revolutionary now." It's "keep drawing samples, don't go to zero, and let the exponential do its thing."</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb"><span class="quote">He's the tail, and the tail is n=1.</span>What does that mean for me?</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>Three things, concretely:</p>
+                            <p><b>You can't aim at the tail.</b> Nobody chooses to be an outlier; it's a residual of many people taking reasonable bets and one of them landing. So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</p>
+                            <p><b>Stop grading yourself against one data point.</b> A sample of size one carries almost no information. If you compare yourself to the median 24-year-old with your inputs (technical skill, creative interest, one real job done), you're on track. If you compare yourself to Jobs, everyone alive is behind, including Jobs at 24. The FOMO isn't a signal about you; it's a measurement error from a bad reference class.</p>
+                            <p><b>Don't copy his behaviors and expect his outcome.</b> n=1 also means you can't tell which of his traits caused the result. Dropping out, being difficult, obsessing over one product: thousands of people did the same and vanished. What you can take from him is the structural stuff that shows up across many outliers, not just one: stay in a fat-tailed domain (tech and creative work both qualify), take many shots, and don't blow yourself up.</p>
+                            <p>So the practical version: plan for the median, stay positioned for the tail, and let your self-worth ride on the inputs rather than the draw. If you need to be revolutionary to feel okay, you've bet your wellbeing on a lottery ticket. If you need to be making things and getting better, that's a bet you control.</p>
+                        </div></div>
+                    <div class="msg sent end"><div class="bb"><span class="quote">So "I need to be working on something revolutionary" is a category error: you can't select for the outcome, only for the inputs. The inputs are what's under your control — the rate at which you ship, learn, and try things.</span>Isn't it fascinating that it's literally Bhagavad Gita, math and experiential wisdom coming together</div></div>
+                    <div class="msg received end"><div class="bb">
+                            <p>It is, and it's not a coincidence. Gita 2.47 says roughly: you have a claim on your actions, never on their fruits, and don't let the fruits become your motive. The Stoics said the same thing as the dichotomy of control. Zen says it as "just chop wood." Three traditions, no shared math, same conclusion.</p>
+                            <p>The reason they converge is that they're all solving the same problem: how to act well under uncertainty with a noisy feedback signal. Outcomes are inputs plus a huge random term. If you optimize on outcomes, you're training yourself on noise, which makes you anxious, erratic, and prone to quitting after a bad draw or getting reckless after a good one. If you optimize on inputs, the gradient is clean. The old traditions found that experimentally over centuries; probability theory just gives you the proof.</p>
+                            <p>One thing the Gita adds that the math doesn't state outright: Krishna also says don't be attached to inaction. Detachment from outcomes isn't an excuse to stop shipping. Arjuna's whole problem was that fear of results was freezing him. The instruction is act fully, release the result. Which is exactly the "many draws, avoid ruin" strategy with the emotional part solved.</p>
+                        </div></div>
+                </div>
+                <div class="close-arrow"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const homeView = document.getElementById('home-view');
+        const articleView = document.getElementById('article-view');
+
+        // Simple State Management
+        let isArticleOpen = false;
+        let activeLinkElement = null;
+        let currentWall = null;
+
+        function openArticle(articleId, triggerElement) {
+            isArticleOpen = true;
+            activeLinkElement = triggerElement;
+
+            // Get the correct wall element
+            const wall = document.getElementById(articleId + '-content');
+            currentWall = wall;
+
+            // 1. Create a clone of the text for the "explosion" effect
+            const rect = triggerElement.getBoundingClientRect();
+            
+            // Set transform-origin to link position (relative to the wall's position)
+            // Get the wall's computed top position
+            const wallTop = parseInt(window.getComputedStyle(wall).top) || 100;
+            const originY = rect.top + rect.height / 2 - wallTop;
+            wall.style.transformOrigin = `center ${originY}px`;
+            const clone = document.createElement('div');
+            clone.innerText = triggerElement.innerText;
+            clone.className = 'clone-text';
+            clone.style.top = rect.top + 'px';
+            clone.style.left = rect.left + 'px';
+            clone.style.width = rect.width + 'px';
+            clone.style.height = rect.height + 'px';
+            
+            // Hide the original immediately so we don't see double
+            // We use opacity so it keeps its layout space
+            triggerElement.style.opacity = '0';
+            
+            document.body.appendChild(clone);
+
+            // 2. Animate Home Out
+            homeView.style.opacity = '0';
+            homeView.style.pointerEvents = 'none';
+
+            // 3. Prepare Article View
+            articleView.style.zIndex = '10';
+            articleView.style.pointerEvents = 'auto';
+            articleView.style.opacity = '1';
+            
+            // 4. Trigger Animations
+            requestAnimationFrame(() => {
+                // Expand/fade the clone
+                clone.classList.add('expanded');
+                
+                // Bring in the wall
+                wall.classList.add('active');
+            });
+
+            // Cleanup clone after animation
+            setTimeout(() => {
+                clone.remove();
+            }, 600);
+
+            // 5. Update URL
+            history.pushState({view: 'article'}, articleId, '#' + articleId);
+        }
+
+        function closeArticle() {
+            isArticleOpen = false;
+
+            // 1. Animate Content Out
+            if (currentWall) {
+                currentWall.classList.remove('active');
+            }
+            
+            // 2. Animate the Text Back (Implosion using the real element)
+            if (activeLinkElement) {
+                // a. Instantly set it to the "exploded" state (no transition)
+                activeLinkElement.style.transition = 'none'; 
+                activeLinkElement.classList.add('imploding');
+                // Ensure opacity is 0 via the class, but we need to override the inline style we set earlier
+                activeLinkElement.style.opacity = ''; 
+                
+                // b. Force Reflow (flush CSS changes)
+                void activeLinkElement.offsetWidth;
+
+                // c. Re-enable transitions and animate back
+                activeLinkElement.style.transition = ''; 
+                
+                requestAnimationFrame(() => {
+                    activeLinkElement.classList.remove('imploding');
+                });
+            }
+
+            // 3. OVERLAP STRATEGY:
+            // a. Bring Home View back immediately (opacity 1)
+            homeView.style.opacity = '1';
+            homeView.style.pointerEvents = 'auto';
+
+            // b. Let the Article View fade out slower
+            setTimeout(() => {
+                articleView.style.opacity = '0'; // Hide container
+                articleView.style.pointerEvents = 'none';
+                articleView.style.zIndex = '1';
+            }, 600); // Wait for the wall/text animations to finish
+            
+            history.pushState({view: 'home'}, 'home', '/');
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.blog-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                openArticle(e.target.dataset.target, e.target);
+            });
+        });
+
+        document.querySelectorAll('.close-arrow').forEach(btn => {
+            btn.addEventListener('click', closeArticle);
+        });
+
+        // Handle Browser Back Button
+        window.addEventListener('popstate', (event) => {
+            if (isArticleOpen) {
+                closeArticle();
+            }
+        });
+
+        // Initial Load Check
+        const hash = window.location.hash.substring(1);
+        if(hash && document.getElementById(hash + '-content')) {
+            // Quick set to open state without animation if loaded directly
+            homeView.style.opacity = '0';
+            homeView.style.pointerEvents = 'none';
+            articleView.style.zIndex = '10';
+            articleView.style.pointerEvents = 'auto';
+            articleView.style.opacity = '1';
+            const wall = document.getElementById(hash + '-content');
+            wall.classList.add('active');
+            currentWall = wall;
+            isArticleOpen = true;
+        }
+        /* ============================================================
+           Apple squircle bubbles. unifiedOutline2 and its helpers are a
+           verbatim port of brew/squircle-fit/grow-vs-carve.html — the
+           corner is a curvature ramp kappa(s) marched into an outline,
+           blending the two eye-matched 1:1 presets (RESEARCH.md §7) from
+           geometry alone: pill = smoothing 60%, G4; panel = tail 100%,
+           concentration 4%, G4. Each .bb is clipped to that outline.
+           ============================================================ */
+        (function(){
+            const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+            const lerp =(a,b,t)=>a+(b-a)*t;
+            function smoothstep(t){ t=clamp(t,0,1); return t*t*(3-2*t); }
+            function smootherstep(t){ t=clamp(t,0,1); return t*t*t*(t*(t*6-15)+10); }
+            function easeRamp(t,name){
+                if(name==="G2") return clamp(t,0,1);
+                if(name==="G4") return smootherstep(t);
+                return smoothstep(t);
+            }
+            function rampFullness(p,ease){
+                if(ease==="G2") return 1/(p+1);
+                if(ease==="G4") return 6/(5*p+1)-15/(4*p+1)+10/(3*p+1);
+                return 3/(2*p+1)-2/(3*p+1);
+            }
+            function marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter){
+                kOuter=kOuter||0;
+                const HP=Math.PI/2, I=rampFullness(p,ease);
+                const Tin=Math.max(0,HP-Tout-m*K*Lm);
+                const Li=Tin /(K*(m+(1-m)*I));
+                const outAvg=kOuter+(K-kOuter)*I;
+                const Lo=outAvg>1e-9 ? Tout/outAvg : 0;
+                const segs=[];
+                if(Lm>1e-9) segs.push(["mid",Lm]);
+                if(Li>1e-9) segs.push(["in", Li]);
+                if(Lo>1e-9) segs.push(["out",Lo]);
+                const L=Lm+Li+Lo||1;
+                let th=HP,x=0,y=0;
+                const pts=[[0,0]];
+                for(let s=0;s<segs.length;s++){
+                    const kind=segs[s][0],len=segs[s][1];
+                    const cnt=Math.max(16,Math.round(len/L*N)),ds=len/cnt;
+                    for(let i=0;i<cnt;i++){
+                        const t=(i+0.5)/cnt;
+                        const k = kind==="mid" ? m*K
+                                : kind==="in"  ? m*K+(1-m)*K*easeRamp(Math.pow(t,p),ease)
+                                :                kOuter+(K-kOuter)*easeRamp(Math.pow(1-t,p),ease);
+                        const dth=k*ds;
+                        th+=dth/2; x+=Math.cos(th)*ds; y+=Math.sin(th)*ds; th+=dth/2;
+                        pts.push([x,y]);
+                    }
+                }
+                return {pts:pts,ex:x,ey:y};
+            }
+            function geomM(W,H,r){
+                const r0=Math.min(r,W/2,H/2);
+                return 1-smoothstep((1-2*r0/Math.min(W,H))/0.30);
+            }
+            function unifiedOutline2(cx,cy,W,H,r,carve,ease,mOverride){
+                ease=ease||"G4";
+                const HP=Math.PI/2, half=H/2;
+                const r0=Math.min(r,W/2,H/2);
+                const m=(mOverride==null)?geomM(W,H,r):clamp(mOverride,0,1);
+                const rampShare=clamp(lerp(1.00,0.60,m)*(carve==null?1:carve),0,1);
+                const conc=lerp(0.04,0.00,m);
+                const p=conc<=1e-9?1:1+conc*8;
+                function fitH(Tout,kOuter,N){
+                    let K=1/r0;
+                    K*=Math.max(1, marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey/half);
+                    const LmMax=m>1e-4 ? 0.94*(HP-Tout)/(m*K) : H*8;
+                    let Lm=0;
+                    if(marchQuadrant(K,m,0,Tout,p,ease,260,kOuter).ey < half-1e-6){
+                        let lo=0,hi=Math.min(H*3,LmMax);
+                        for(let it=0;it<24;it++){
+                            const md=(lo+hi)/2;
+                            if(marchQuadrant(K,m,md,Tout,p,ease,260,kOuter).ey<half) lo=md; else hi=md;
+                        }
+                        Lm=(lo+hi)/2;
+                    }
+                    const Q=marchQuadrant(K,m,Lm,Tout,p,ease,N,kOuter);
+                    const sc=Q.ey>1e-6 ? half/Q.ey : 1;
+                    return {pts:Q.pts,sc:sc,exr:-Q.ex*sc,K:K};
+                }
+                const Tout=Math.min(rampShare*HP*(1+m)/2, HP*0.96);
+                let kOuter=0;
+                let F=fitH(Tout,0,260);
+                if(F.exr>W/2){
+                    let lo=0,hi=(1/r0)*0.999;
+                    for(let it=0;it<24;it++){
+                        const md=(lo+hi)/2;
+                        if(fitH(Tout,md,160).exr>W/2) lo=md; else hi=md;
+                    }
+                    kOuter=(lo+hi)/2;
+                }
+                F=fitH(Tout,kOuter,2000);
+                const sc=F.sc;
+                const q=F.pts.map(pt=>[pt[0]*sc, pt[1]*sc]);
+                const TR=q.map(pt=>[ W/2+pt[0], pt[1]]);
+                const TL=TR.map(pt=>[-pt[0], pt[1]]).reverse();
+                const BL=TR.map(pt=>[-pt[0],-pt[1]]);
+                const BR=TR.map(pt=>[ pt[0],-pt[1]]).reverse();
+                return TR.concat(TL,BL,BR).map(pt=>[cx+pt[0], cy-pt[1]]);
+            }
+            // Ramer-Douglas-Peucker: keep the fewest vertices that stay within eps px
+            function simplify(pts,eps){
+                const keep=new Uint8Array(pts.length); keep[0]=1; keep[pts.length-1]=1;
+                const stack=[[0,pts.length-1]];
+                while(stack.length){
+                    const [i0,i1]=stack.pop();
+                    const a=pts[i0], c=pts[i1];
+                    const dx=c[0]-a[0], dy=c[1]-a[1], len=Math.hypot(dx,dy);
+                    let best=-1, bd=eps;
+                    for(let i=i0+1;i<i1;i++){
+                        const b=pts[i];
+                        // a closed loop starts and ends on the same point: fall back to point distance
+                        const d=len>1e-9 ? Math.abs((b[0]-a[0])*dy-(b[1]-a[1])*dx)/len : Math.hypot(b[0]-a[0],b[1]-a[1]);
+                        if(d>bd){ bd=d; best=i; }
+                    }
+                    if(best>0){ keep[best]=1; stack.push([i0,best],[best,i1]); }
+                }
+                const out=[];
+                for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+                return out;
+            }
+            const BUBBLE_R=18;
+            function bubblePath(W,H,r){
+                const pts=simplify(unifiedOutline2(W/2,H/2,W,H,r==null?BUBBLE_R:r),0.02);
+                return 'M'+pts.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
+            }
+            function clip(el){
+                const W=el.offsetWidth, H=el.offsetHeight;
+                if(W<2||H<2) return;
+                const r=parseFloat(el.dataset.r); // .squircle elements carry data-r; bubbles fall back to BUBBLE_R
+                el.style.clipPath='path("'+bubblePath(W,H,isFinite(r)?r:BUBBLE_R)+'")';
+            }
+            const bodies=document.querySelectorAll('.bb, .squircle');
+            if(window.ResizeObserver){
+                const ro=new ResizeObserver(entries=>{ for(const e of entries) clip(e.target); });
+                bodies.forEach(el=>ro.observe(el));
+            } else {
+                bodies.forEach(clip);
+                window.addEventListener('resize',()=>bodies.forEach(clip));
+            }
+        })();
+    </script>
+</body>
+</html>
